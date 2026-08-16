@@ -1,0 +1,411 @@
+# ============================================================
+#  ES2UniPlugin  —  EtherStories Server (ES2)
+#  颜色代码 : & + 颜色字母  (如 &a &b &c)
+#             十六进制颜色  &#RRGGBB
+#  占位符   : {player} {online} {max} {tps} {mspt} {ping}
+#             {playtime}  — 当前玩家本次在线时长
+#             {tps_1m} {tps_5m} {tps_15m}  — 仅命令输出
+# ============================================================
+
+# 配置文件版本，请勿修改此项（插件会自动迁移；不会覆盖你改过的数值）
+config-version: 27
+
+# ── 配置自维护（升级时自动补键 / 同步说明文档）────────────────
+config:
+  # 用 jar 内置默认补全缺失键；已有数值/列表不覆盖
+  auto-fill-missing: true
+  # 启动与 /ecos reload 时写出/覆盖 plugins/ES2UniPlugin/CONFIG.md
+  auto-update-docs: true
+
+# ── 市政管理处（招工 / 清理 / 保险）────────────────────────────
+municipal:
+  jobs:
+    min-reward: 100
+    max-active-per-player: 5
+    # 单个委托最多可设几人接单（报酬均分）
+    max-workers: 8
+    # 完成记录最多保留条数（全服可看）
+    history-size: 40
+  cleanup:
+    radius: 32
+    agree-votes: 2
+    refuse-votes: 3
+    cooldown-seconds: 180
+    expire-seconds: 120
+    # 清理掉落物进入回收站
+    recyclebin: true
+    recyclebin-hours: 24
+    recyclebin-max: 500
+  insurance:
+    enabled: true
+    auto-backup-minutes: 10
+    history-size: 5
+    compensation: 10000
+    cover-territory: true
+    cover-transit: true
+
+# ── 税收（终端 → 税收设置 可改开关/税率）────────────────────────
+# rate: 0.05 = 加收 5%（付款方/买家多付；收款方仍收本金）
+# pay: 作用于 Essentials /pay + ECOS 终端转账
+# quickshop: QuickShop-Hikari（优先 EnhancedTax）或 ChestShop
+# sink-account: 税收入账的玩家名；留空则直接销毁（不进任何人钱包）
+# 注意：新版 QS 的税会进 QS 自己的 tax-account，建议与 sink-account 设成同一名字
+tax:
+  pay:
+    enabled: false
+    rate: 0.05
+  quickshop:
+    enabled: false
+    rate: 0.02
+  sink-account: ""
+
+# ── 交易/税收日报（全服广播）──────────────────────────────────
+# times: 服务器本地时区的 HH:mm；默认中午 12:00 与晚上 20:00
+tax-report:
+  enabled: true
+  times:
+    - "12:00"
+    - "20:00"
+
+# ── 管理员审计日志（默认关闭，不占磁盘）────────────────────────
+# 开启后写入 plugins/ES2UniPlugin/audit/audit-日期.log
+audit:
+  enabled: false
+
+# ── 负债上限：扣款后余额不得低于 reserve（可为负）────────────
+# reserve: -500 → 可欠到 -500，再低不能消费
+# 余额在 [reserve, 0) 时允许消费，但会提示在线管理员
+# 税收强制扣款不受影响；Essentials min-money 建议 ≤ reserve
+bankruptcy:
+  enabled: true
+  reserve: -500
+  notify-admins: true
+
+# ── 悄悄话 / 简易举报（在线玩家操作页）────────────────────────
+# 最多保留 80 条在 reports.yml，体积很小
+report:
+  enabled: true
+
+# ── Create 机器展示点 ──────────────────────────────────────────
+showcase:
+  max-per-player: 3
+
+# ── 幸运方块（每天 1 次）──────────────────────────────────
+# fx-style: hypixel=音高爬升后爆炸 | soft=轻量点击风
+lucky-block:
+  enabled: true
+  display-name: "幸运方块"
+  fx-style: hypixel
+
+# ── 新玩家引导清单 ────────────────────────────────────────────
+# window-minutes: 建议完成窗口；超时仍可打开补完
+newbie-guide:
+  enabled: true
+  window-minutes: 30
+
+# ── 音乐：管理员预设歌单（网易云等歌曲 ID）────────────────────
+# 左键顺序 / 右键打乱；队列将空时自动续点下一首
+# 请把 songs 换成你自己的 ID；下面是占位示例
+music:
+  presets:
+    chill:
+      name: "深夜氛围"
+      description: "没人时播的舒缓歌单"
+      songs:
+        - "1991320201"
+        - "1842025914"
+        - "1494826183"
+    focus:
+      name: "专注背景"
+      description: "轻节奏，少人声优先"
+      songs:
+        - "1387581250"
+        - "139774"
+
+# ── 每日签到 ──────────────────────────────────────────────────
+# 奖励 = base-reward + min((连续天数-1) × streak-bonus, max-extra)
+# 例默认：第1天 500，第2天 550，第3天 600 … 额外最多 +1000（即最高 1500）
+checkin:
+  enabled: true
+  base-reward: 500
+  streak-bonus: 50
+  max-extra: 1000
+
+# ── TAB 列表 ──────────────────────────────────────────────────
+tab:
+  header: "\n &b&lEther&3&lStories &8| &fES2\n &7TPS: {tps} &8▏ &7在线: &f{online}&8/{max}\n"
+  footer: "\n &8▬▬▬▬▬▬▬▬▬▬\n &7在线时长: &f{playtime}\n &8▬▬▬▬▬▬▬▬▬▬\n"
+
+  # 玩家在 TAB 列表中的名字格式
+  # {player} = 玩家名  {playtime} = 在线时长
+  player-name-format: "&f{player}  &8({playtime})"
+  afk-name-format:    "&8[AFK] &7{player}  &8({playtime})"
+
+  # TAB 刷新间隔（ticks，20 ticks = 1 秒）
+  update-interval-ticks: 40
+
+# ── 加入/退出消息 ──────────────────────────────────────────────
+messages:
+  join: "\n &a{player} &7进入了服务器 &8✦\n"
+  quit: "\n &b[ES2] &c{player} &7离开了服务器\n"
+  first-join: "\n &b&l欢迎来到 &f&lEtherStories &b&l！\n &7Create 机械动力生存建筑服。\n &8输入 &f/ecos menu &8打开 ECOS 终端\n"
+  welcome-back: "&6&l欢迎回家，&f{player}&6！"
+
+# ── 定期广播 ──────────────────────────────────────────────────
+# 消息可加前缀限制星期: [WD]=工作日 [WE]=周末 [MON,SAT]=自定义；无前缀=每天
+# 管理员 GUI 里 Shift+左键可切换 每天/工作日/周末
+broadcast:
+  prefix: "&b&l[ES2] &r"
+  interval-seconds: 300
+  messages:
+    - "&f遇到问题？联系管理员或在社区群内留言。"
+    - "&f请遵守服务器规则，共同维护良好的游戏环境 &7♥"
+    - "&f分享你的 Create 机械！欢迎在社区展示你的作品。"
+    - "[WE]&f周末愉快！适合联机搞 Create 大工程。"
+
+# ── TPS / MSPT 监控 ───────────────────────────────────────────
+tps:
+  alert-enabled: true
+  warn-threshold: 10.0
+  critical-threshold: 6.0
+  alert-cooldown-seconds: 300
+
+  color:
+    green-above: 19.0
+    yellow-above: 15.0
+    mspt-green-below: 40.0
+    mspt-yellow-below: 55.0
+
+  warn-message:       "&e⚠ &l[ECOS]&r&e 服务器 TPS 偏低 &f({tps})&e，可能出现卡顿。"
+  critical-message:   "&c&l⚠ [ECOS] TPS 严重偏低！&r &f({tps})"
+  recover-message:    "&a✔ &l[ECOS]&r&a 服务器性能已恢复正常。"
+  admin-alert-prefix: "&c&l[ECOS-ALERT] &r"
+
+# ── AFK 检测 ──────────────────────────────────────────────────
+afk:
+  enabled: true
+  # 无操作多少秒后标记为 AFK（检测：移动/聊天/指令/交互/挖掘/放置）
+  timeout-seconds: 300
+  enter-message:  "&8[ES2] &7{player} 进入了 AFK 状态。"
+  return-message: "&8[ES2] &7{player} 已返回。"
+  # 拥有权限 es2uni.afk.exempt 的玩家不会被自动标记
+
+# ── 命令输出 ──────────────────────────────────────────────────
+commands:
+  # true = /ecos help 始终用插件内置最新文案；升级不会要求你手改 help，也不动其它配置
+  # false = 使用下方自定义 help（需自行维护）
+  auto-update-help: true
+  help: |
+    &b&l[ECOS] &rEtharia Central Operating System
+     &7── 普通玩家 ──
+     &7/ecos menu                      &f— 打开 ECOS 终端
+     &7/ecos kit [名称|list]            &f— 领取套件（优先 Essentials）
+     &7/ecos friends [list|add|...]     &f— 好友（可纯指令）
+     &7/ecos mail [list|send|...]       &f— 邮箱
+     &7/ecos online [list|gui]          &f— 在线玩家
+     &7/ecos notice [list|gui]          &f— 公告板
+     &7/ecos leaderboard [list|gui]     &f— 在线时长排行
+     &7/ecos checkin                   &f— 每日签到（货币奖励）
+     &7/ecos death                     &f— 死亡记录
+     &7/ecos event [list|join|...]      &f— 活动
+     &7/ecos afk                       &f— 切换 AFK
+     &7/ecos status [签名]              &f— 查看/设置个人签名
+     &7/ecos r <内容>                   &f— 回复最近私信
+     &7/ecos wp <add|remove|tp|list>   &f— 坐标收藏
+     &7/ecos territory help            &f— 领地说明
+     &7/ecos aura|particle [shop|...]  &f— 粒子特效（同 aura）
+     &7/ecos music [search|queue|…]    &f— 点歌（AllMusic）
+     &7/ecos music history|fav         &f— 最近播放 / 收藏
+     &7/ecos guide                     &f— 新手引导
+     &7/ecos municipal                 &f— 管理处（招工/清理/保险/交通）
+     &7/ecos transit [map|history|board] &f— 交通处 / 排行
+     &7/ecos showcase / lucky          &f— 机器展示 / 幸运方块
+     &7/ecos tps                       &f— 服务器性能
+     &7/ecos version                   &f— 插件版本
+     &8&l── 管理员 ──
+     &7/ecos pve                       &f— 刷怪棒 / 精英棒
+     &7/ecos reload                    &f— 重载配置（补全新键+同步 CONFIG.md）
+     &7/ecos music preset              &f— 氛围预设歌单
+     &7/ecos broadcast <消息>           &f— 手动广播
+     &7/ecos checkin ticket <玩家> <n>  &f— 发补签券
+     &7/ecos give                      &f— 获取 ECOS 终端物品
+     &7/ecos tpsalert <on|off>         &f— TPS 告警开关
+     &7/ecos admin event               &f— 活动管理
+     &7/ecos kitadmin                  &f— Kit 管理界面
+     &7/ecos region <pos1|pos2|...>    &f— 地区管理
+     &7/ecos weapon <give|bind|...>    &f— 武器技能
+     &7/ecos aura give <玩家> <id>      &f— 赠予光环
+  version-display: |
+    &b&l[ECOS] &fES2UniPlugin &7v{version}
+     &7服务器 &f{mc_version}
+     &7作者: &f{authors}
+  reload-success: "&a[ES2] 配置已重载。"
+  no-permission:  "&c[ES2] 你没有权限执行此操作。"
+  tps-display: |
+    &b&l[ES2 性能]
+     &71 分钟: {tps_1m}   &75 分钟: {tps_5m}   &715 分钟: {tps_15m}
+     &7MSPT : {mspt}
+
+# ── 活动 GUI ──────────────────────────────────────────────────
+event-gui:
+  # 玩家活动列表界面标题
+  player-title: "&b&l✦ ES2 活动列表"
+  # 管理员活动管理界面标题
+  admin-title:  "&c&l⚙ 活动管理 [管理员]"
+  # 铁砧输入框默认占位符文字
+  anvil-placeholder: "输入活动名称"
+
+# ── ECOS Terminal ──────────────────────────────────────────────
+terminal:
+  title:             "&0[ &b&lECOS &8TERMINAL &0]"
+  home-title:        "&d&l家园列表"
+  tpa-title:         "&6&l选择传送目标 &8(TPA)"
+  tpahere-title:     "&6&l选择召唤目标 &8(TPA Here)"
+  pay-select-title:  "&a&l选择收款玩家"
+  pay-confirm-title: "&e&l确认转账"
+  # 玩家自助领取终端花费（/ecos claim）；管理 /ecos give 免费
+  claim-cost: 4096
+
+# ── 武器技能系统 ─────────────────────────────────────────────────────────────
+weapons:
+  skills:
+    sword_rain:              # Aether Verdict「以太裁决」
+      cooldown-seconds: 30
+      charge-ticks: 20
+      sword-count: 8
+      rise-speed: 0.8
+      rise-ticks: 30
+      hover-radius: 4.0
+      deploy-interval-ticks: 15
+      dive-speed: 1.2
+      damage: 8.0
+      damage-radius: 2.5
+
+    homing:                  # Resonance Lock「共鸣锁定」三圈飞剑
+      cooldown-seconds: 15
+      charge-ticks: 20
+      rings: 3
+      per-ring: 5
+      sword-count: 15
+      speed: 0.85
+      max-lifetime-ticks: 220
+      target-range: 32.0
+      damage: 6.0
+
+    luminal_strike:          # Luminal Strike「光速斩」
+      cooldown-seconds: 8
+      charge-ticks: 10
+      dash-distance: 15
+      dash-ticks: 8
+      damage: 10.0
+      damage-radius: 1.5
+
+    axiom_breach:            # Axiom Breach「公理破界」
+      cooldown-seconds: 60
+      charge-ticks: 60
+      strike-count: 9
+      strike-radius: 8.0
+      strike-interval-ticks: 6
+      damage: 15.0
+      damage-radius: 3.0
+
+    stellar_convergence:     # Stellar Convergence「星力汇聚」
+      cooldown-seconds: 45
+      charge-ticks: 30
+      convergence-ticks: 40
+      convergence-radius: 8.0
+      explosion-rays: 8
+      ray-length: 12.0
+      damage: 12.0
+      damage-radius: 2.0
+
+    celestial_ascent:        # Celestial Ascent「天升」
+      cooldown-seconds: 30
+      charge-ticks: 15
+      ascend-ticks: 100
+      slow-fall-ticks: 80
+      levitation-level: 1
+
+    echo_scatter:            # 魔法直线无CD
+      cooldown-seconds: 0
+      charge-ticks: 0
+      particle-count: 28
+      expand-ticks: 5
+      fly-ticks: 22
+      speed: 2.6
+      damage: 4.5                 # 魔法绕甲，约 2.5× 旧值
+      hit-radius: 1.0
+      explode-power: 0.0          # 仅视效，不再用实体爆炸伤
+      explode-damage: 2.2
+      explode-radius: 1.6
+      dodge-chance: 0.2
+      dodge-speed-min: 0.28
+
+    echo_barrage:            # 魔法制导无CD
+      cooldown-seconds: 0
+      charge-ticks: 0
+      particle-count: 16
+      expand-ticks: 10
+      hold-ticks: 8
+      fire-interval-ticks: 2
+      fly-ticks: 32
+      speed: 2.0
+      damage: 4.0                 # 16发满中约 64
+      hit-radius: 1.05
+      target-range: 36.0
+      explode-power: 0.0
+      explode-damage: 1.8
+      explode-radius: 1.6
+      dodge-chance: 0.2
+      dodge-speed-min: 0.28
+
+# ── 领地 ───────────────────────────────────────────────────────────────────
+territory:
+  # 每格地皮单价（经济）。费用 = 单价 × 面积
+  price-per-block: 1.5
+  # 最低收费（防止圈极小领地零费）
+  min-cost: 500.0
+  # 最小允许面积（格），低于此面积无法圈地
+  min-area: 25
+  # 删除领地退款比例（0.0 ~ 1.0），默认 0.5 = 退 50%
+  refund-ratio: 0.5
+
+# ── 轨道交通（闸机 / 单程票 / 交通卡 / 闪付）────────────────────────
+# 票款进 transit.sink-account；空则用 tax.sink-account
+transit:
+  journey-timeout-seconds: 5400   # 90 分钟未出站，再进站收全程票
+  cancel-grace-seconds: 900       # 15 分钟内同站再刷 = 取消行程
+  ticket-expire-seconds: 7200     # 单程票 2 小时失效
+  adjust-pass-seconds: 600        # 补票后出站凭证有效期（秒）
+  default-hop-fare: 2.0
+  default-max-fare: 18.0
+  default-radius: 16              # 建站默认水平半径（大站请用车站页框选 XZ）
+  bilingual-seconds: 3            # ActionBar 中/英站名轮询间隔（秒）
+  card-fee: 16.0
+  tap-pay-fee: 8.0
+  history-size: 20
+  sink-account: ""
+  create-scan-radius: 8
+  gate-flap-radius: 2             # 刷卡后扫描附近活板门
+  gate-flap-open-ticks: 40        # 活板门打开时长（tick）
+  announce:
+    enabled: true
+    message: "&b{station} &f到了，请注意下车"
+    chat: true
+    preset: jr                    # jr / yamanote / mtr / tube / osaka / chime / cr / crh / beijing / shanghai / guangzhou
+    volume: 1.4
+    arrive-dwell-ticks: 10        # 进入新站约 0.5 秒后报到站（车上更短）
+    depart-enabled: true
+    depart-preset: jrgo           # jrgo / doors / whistle / shinkansen / crgo / crhgo
+    depart-dwell-ticks: 240       # 起点站停留约 12 秒再离开才发车铃
+    stack-repeats: true           # 连续同音并成一拍（关门 等登等登等登 → 一下）
+  # 闸机附近扫描这些方块名（Create 车站等）；找不到也不影响刷卡
+  create-blocks:
+    - TRACK_STATION
+    - RAILWAY_STATION
+    - CREATE_TRACK_STATION
+
+# 聊天输入 [i] 展示主手物品（鼠标悬停看详情）。ESLink 跨服聊天同样识别。
+chat-item:
+  enabled: true
+

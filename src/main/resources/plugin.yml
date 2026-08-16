@@ -1,0 +1,22 @@
+name: ES2UniPlugin
+version: 1.19.7
+main: com.etherstories.escore.ES2UniPlugin
+api-version: "1.21"
+description: EtherStories Unified Plugin — ECOS Terminal
+authors: [ EtherStories ]
+
+softdepend: [ Essentials, Vault, allmusic, QuickShop-Hikari, QuickShop, ChestShop, ESLink ]
+
+commands:
+  es2:
+    description: ECOS 主指令
+    usage: /es2 <子命令>
+    aliases: [ ecos ]
+
+permissions:
+  es2uni.admin:
+    description: 管理员权限（活动管理、重载、广播、Kit 等）
+    default: op
+  es2uni.afk.exempt:
+    description: 免除自动 AFK 标记
+    default: false
