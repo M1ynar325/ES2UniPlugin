@@ -177,6 +177,16 @@ public class WeaponManager {
             return;
         }
 
+        if (type == SkillType.GLEAM_ARC) {
+            for (SkillInstance s : activeSkills) {
+                if (s instanceof GleamArcSkill g && g.getOwnerUUID().equals(player.getUniqueId())) {
+                    setCooldown(player.getUniqueId(), type);
+                    g.recast();
+                    return;
+                }
+            }
+        }
+
         setCooldown(player.getUniqueId(), type);
 
         SkillInstance skill = switch (type) {
@@ -188,10 +198,15 @@ public class WeaponManager {
             case CELESTIAL_ASCENT -> new CelestialAscentSkill(plugin, player, this);
             case ECHO_SCATTER     -> new EchoScatterSkill(plugin, player, this);
             case ECHO_BARRAGE     -> new EchoBarrageSkill(plugin, player, this);
+            case GLEAM_ARC        -> new GleamArcSkill(plugin, player, this);
         };
 
+        if (skill instanceof GleamArcSkill g && !g.isLocked()) return;
+
         activeSkills.add(skill);
-        sendActionBar(player, "&b" + type.displayName() + " &f已释放");
+        if (type != SkillType.GLEAM_ARC) {
+            sendActionBar(player, "&b" + type.displayName() + " &f已释放");
+        }
     }
 
     private int countActive(UUID uuid, Class<? extends SkillInstance> cls) {
@@ -275,6 +290,7 @@ public class WeaponManager {
             case LUMINAL_STRIKE  -> 0;   // 即时触发
             case ECHO_SCATTER    -> 0;
             case ECHO_BARRAGE    -> 0;
+            case GLEAM_ARC       -> 0;
             default              -> 20;
         };
         return plugin.getConfig().getInt(
@@ -298,6 +314,7 @@ public class WeaponManager {
             case CELESTIAL_ASCENT -> 30;
             case ECHO_SCATTER     -> 0;
             case ECHO_BARRAGE     -> 0;
+            case GLEAM_ARC        -> 3;
         };
     }
 

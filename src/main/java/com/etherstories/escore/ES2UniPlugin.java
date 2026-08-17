@@ -40,6 +40,7 @@ public class ES2UniPlugin extends JavaPlugin {
     private WeaponManager    weaponManager;
     private AuraManager      auraManager;
     private KitManager       kitManager;
+    private WeaponSaveManager weaponSaveManager;
     private MusicHistoryManager musicHistoryManager;
     private MusicFavoritesManager musicFavoritesManager;
     private MusicPlaylistManager musicPlaylistManager;
@@ -137,6 +138,7 @@ public class ES2UniPlugin extends JavaPlugin {
 
         ECOSTerminalItem.init(this);
         SkillBinder.init(this);
+        com.etherstories.escore.weapons.PlayerSkills.init(this);
         WeaponPreset.init(this);
         com.etherstories.escore.items.TransitItems.init(this);
         com.etherstories.escore.items.PveItems.init(this);
@@ -158,6 +160,7 @@ public class ES2UniPlugin extends JavaPlugin {
         weaponManager    = new WeaponManager(this);
         auraManager      = new AuraManager(this);
         kitManager       = new KitManager(this);
+        weaponSaveManager = new WeaponSaveManager(this);
         musicHistoryManager = new MusicHistoryManager(this);
         musicFavoritesManager = new MusicFavoritesManager(this);
         musicPlaylistManager = new MusicPlaylistManager(this);
@@ -289,6 +292,7 @@ public class ES2UniPlugin extends JavaPlugin {
         reloadConfig();
         configManager.reload();
         kitManager.reload();
+        if (weaponSaveManager != null) weaponSaveManager.reload();
         if (transitManager != null) transitManager.load();
         stopTasks();
         startTasks();
@@ -362,6 +366,7 @@ public class ES2UniPlugin extends JavaPlugin {
     public AuraManager      getAuraManager()      { return auraManager; }
     public AuraShopGUI      getAuraShopGUI()      { return auraShopGUI; }
     public KitManager       getKitManager()       { return kitManager; }
+    public WeaponSaveManager getWeaponSaveManager() { return weaponSaveManager; }
     public AdminKitGUI      getAdminKitGUI()      { return adminKitGUI; }
     public KitEditGUI       getKitEditGUI()       { return kitEditGUI; }
     public KitListGUI       getKitListGUI()       { return kitListGUI; }

@@ -10,6 +10,8 @@ import com.etherstories.escore.managers.PlaytimeManager;
 import com.etherstories.escore.managers.RegionManager;
 import com.etherstories.escore.managers.TransitManager;
 import com.etherstories.escore.managers.WaypointManager;
+import com.etherstories.escore.managers.WeaponSaveManager;
+import com.etherstories.escore.weapons.PlayerSkills;
 import com.etherstories.escore.weapons.SkillType;
 import com.etherstories.escore.tasks.TPSMonitorTask;
 import com.etherstories.escore.utils.ColorUtil;
@@ -178,6 +180,11 @@ public class ES2UniCommand implements CommandExecutor, TabCompleter {
                 if (!sender.hasPermission("es2uni.admin")) { noPerms(sender); return true; }
                 if (!(sender instanceof Player p)) { sender.sendMessage("仅玩家可执行"); return true; }
                 handleWeapon(p, args);
+            }
+
+            case "skill" -> {
+                if (!sender.hasPermission("es2uni.admin")) { noPerms(sender); return true; }
+                handleSkill(sender, args);
             }
 
             case "admin" -> {
@@ -1350,7 +1357,7 @@ public class ES2UniCommand implements CommandExecutor, TabCompleter {
 
     private void handleWeapon(Player p, String[] args) {
         if (args.length < 2) {
-            p.sendMessage(ColorUtil.colorize("&c用法: /ecos weapon <give|bind|unbind|info> [参数]"));
+            p.sendMessage(ColorUtil.colorize("&c用法: /ecos weapon <give|save|delete|list|bind|unbind|info>"));
             return;
         }
 
@@ -1361,6 +1368,14 @@ public class ES2UniCommand implements CommandExecutor, TabCompleter {
                     p.sendMessage(ColorUtil.colorize("&c用法: /ecos weapon give <武器ID>"));
                     listPresets(p); return;
                 }
+                ItemStack saved = plugin.getWeaponSaveManager().cloneOf(args[2]);
+                if (saved != null) {
+                    p.getInventory().addItem(saved);
+                    WeaponSaveManager.Saved rec = plugin.getWeaponSaveManager().get(args[2]);
+                    p.sendMessage(ColorUtil.colorize("&8[ECOS] &7已获得存档 &f" + args[2].toLowerCase()
+                            + (rec != null && rec.label() != null ? " &8(" + rec.label() + ")" : "")));
+                    return;
+                }
                 WeaponPreset.Preset preset = WeaponPreset.find(args[2]);
                 if (preset == null) {
                     p.sendMessage(ColorUtil.colorize("&c未知武器: " + args[2]));
@@ -1370,6 +1385,38 @@ public class ES2UniCommand implements CommandExecutor, TabCompleter {
                 p.sendMessage(ColorUtil.colorize(
                         "&8[ECOS] &7已获得 &f" + preset.enName() + " &8「&7" + preset.zhName() + "&8」"));
             }
+
+            case "save" -> {
+                if (args.length < 3) {
+                    p.sendMessage(ColorUtil.colorize("&c用法: /ecos weapon save <id> [显示名]"));
+                    p.sendMessage(ColorUtil.colorize("&7把手持物品存成预设。显示名支持 & 颜色。Quark 符文会一起保存。"));
+                    return;
+                }
+                String name = args.length >= 4
+                        ? String.join(" ", java.util.Arrays.copyOfRange(args, 3, args.length))
+                        : null;
+                String err = plugin.getWeaponSaveManager().save(args[2], name, p.getInventory().getItemInMainHand());
+                if (err != null) {
+                    p.sendMessage(ColorUtil.colorize("&c[ECOS] " + err));
+                    return;
+                }
+                p.sendMessage(ColorUtil.colorize("&8[ECOS] &7已保存 &f" + args[2].toLowerCase()
+                        + " &8— /ecos weapon give " + args[2].toLowerCase()));
+            }
+
+            case "delete", "remove" -> {
+                if (args.length < 3) {
+                    p.sendMessage(ColorUtil.colorize("&c用法: /ecos weapon delete <id>"));
+                    return;
+                }
+                if (!plugin.getWeaponSaveManager().delete(args[2])) {
+                    p.sendMessage(ColorUtil.colorize("&c[ECOS] 没有这份存档: " + args[2]));
+                    return;
+                }
+                p.sendMessage(ColorUtil.colorize("&8[ECOS] &7已删除存档 &f" + args[2].toLowerCase()));
+            }
+
+            case "list" -> listPresets(p);
 
             case "info" -> {
                 ItemStack held = p.getInventory().getItemInMainHand();
@@ -1397,6 +1444,10 @@ public class ES2UniCommand implements CommandExecutor, TabCompleter {
                     p.sendMessage(ColorUtil.colorize("&c未知技能: " + args[2]));
                     listSkills(p); return;
                 }
+                if (!skill.itemBound()) {
+                    p.sendMessage(ColorUtil.colorize("&c这是玩家技能，用 /ecos skill grant <玩家> " + skill.configKey));
+                    return;
+                }
                 SkillBinder.Slot slot = parseSlot(args[3]);
                 if (slot == null) {
                     p.sendMessage(ColorUtil.colorize("&c槽位须为 right 或 sneak_right")); return;
@@ -1423,24 +1474,105 @@ public class ES2UniCommand implements CommandExecutor, TabCompleter {
             }
 
             default -> p.sendMessage(ColorUtil.colorize(
-                    "&c用法: /ecos weapon <bind|unbind|info> [技能] [right|sneak_right]"));
+                    "&c用法: /ecos weapon <give|save|delete|list|bind|unbind|info>"));
         }
     }
 
     private void listPresets(Player p) {
-        p.sendMessage(ColorUtil.colorize("&8可用武器:"));
+        p.sendMessage(ColorUtil.colorize("&8内置武器:"));
         for (String id : WeaponPreset.allIds()) {
             WeaponPreset.Preset pr = WeaponPreset.find(id);
             if (pr == null) continue;
             p.sendMessage(ColorUtil.colorize("  &7" + pr.id()
                     + " &8→ &f" + pr.enName() + "「" + pr.zhName() + "」"));
         }
+        var custom = plugin.getWeaponSaveManager().all();
+        if (!custom.isEmpty()) {
+            p.sendMessage(ColorUtil.colorize("&8已保存（含符文/NBT）:"));
+            for (WeaponSaveManager.Saved s : custom) {
+                p.sendMessage(ColorUtil.colorize("  &d" + s.id() + " &8→ &f" + s.label()));
+            }
+        }
+        p.sendMessage(ColorUtil.colorize("&8/ecos weapon save <id> [显示名] &7— 手持存档"));
     }
 
     private void listSkills(Player p) {
-        p.sendMessage(ColorUtil.colorize("&8可用技能:"));
-        for (SkillType t : SkillType.values())
+        p.sendMessage(ColorUtil.colorize("&8可绑武器:"));
+        for (SkillType t : SkillType.values()) {
+            if (!t.itemBound()) continue;
             p.sendMessage(ColorUtil.colorize("  &7" + t.configKey + " &8→ &f" + t.displayName()));
+        }
+        p.sendMessage(ColorUtil.colorize("&8玩家技能（不绑武器）:"));
+        for (SkillType t : SkillType.values()) {
+            if (t.itemBound()) continue;
+            p.sendMessage(ColorUtil.colorize("  &7" + t.configKey + " &8→ &f" + t.displayName()
+                    + " &8— /ecos skill grant <玩家> " + t.configKey));
+        }
+    }
+
+    private void handleSkill(CommandSender sender, String[] args) {
+        if (args.length < 2) {
+            sender.sendMessage(ColorUtil.colorize("&c用法: /ecos skill <grant|revoke|list> [玩家] [gleam_arc]"));
+            sender.sendMessage(ColorUtil.colorize("&7学会后潜行+F 释放。普通 F 仍换副手。"));
+            return;
+        }
+        switch (args[1].toLowerCase(Locale.ROOT)) {
+            case "grant", "give" -> {
+                if (args.length < 3) {
+                    sender.sendMessage(ColorUtil.colorize("&c用法: /ecos skill grant <玩家> [gleam_arc]"));
+                    return;
+                }
+                Player target = Bukkit.getPlayerExact(args[2]);
+                if (target == null) {
+                    sender.sendMessage(ColorUtil.colorize("&c玩家不在线: " + args[2]));
+                    return;
+                }
+                SkillType skill = args.length >= 4 ? SkillType.fromKey(args[3]) : SkillType.GLEAM_ARC;
+                if (skill == null || skill.itemBound()) {
+                    sender.sendMessage(ColorUtil.colorize("&c玩家技能只有 gleam_arc"));
+                    return;
+                }
+                PlayerSkills.setGleamArc(target, true);
+                sender.sendMessage(ColorUtil.colorize("&8[ECOS] &7已让 &f" + target.getName()
+                        + " &7学会 &f" + skill.displayName() + " &8(潜行+F)"));
+                target.sendMessage(ColorUtil.colorize("&8[ECOS] &7已学会 &f" + skill.displayName()
+                        + " &8— 潜行+F"));
+            }
+            case "revoke", "remove", "ungive" -> {
+                if (args.length < 3) {
+                    sender.sendMessage(ColorUtil.colorize("&c用法: /ecos skill revoke <玩家> [gleam_arc]"));
+                    return;
+                }
+                Player target = Bukkit.getPlayerExact(args[2]);
+                if (target == null) {
+                    sender.sendMessage(ColorUtil.colorize("&c玩家不在线: " + args[2]));
+                    return;
+                }
+                PlayerSkills.setGleamArc(target, false);
+                sender.sendMessage(ColorUtil.colorize("&8[ECOS] &7已收回 &f" + target.getName() + " &7的霁弧"));
+                target.sendMessage(ColorUtil.colorize("&8[ECOS] &7霁弧已收回"));
+            }
+            case "list" -> {
+                Player target;
+                if (args.length >= 3) {
+                    target = Bukkit.getPlayerExact(args[2]);
+                    if (target == null) {
+                        sender.sendMessage(ColorUtil.colorize("&c玩家不在线: " + args[2]));
+                        return;
+                    }
+                } else if (sender instanceof Player p) {
+                    target = p;
+                } else {
+                    sender.sendMessage(ColorUtil.colorize("&c用法: /ecos skill list <玩家>"));
+                    return;
+                }
+                sender.sendMessage(ColorUtil.colorize("&8[ECOS] &f" + target.getName() + " &7玩家技能:"));
+                sender.sendMessage(ColorUtil.colorize("  gleam_arc &8→ &fGleam Arc「霁弧」 "
+                        + (PlayerSkills.hasGleamArc(target) ? "&a已学会" : "&7未学会")));
+            }
+            default -> sender.sendMessage(ColorUtil.colorize(
+                    "&c用法: /ecos skill <grant|revoke|list> [玩家] [gleam_arc]"));
+        }
     }
 
     private SkillBinder.Slot parseSlot(String s) {
@@ -1842,14 +1974,15 @@ public class ES2UniCommand implements CommandExecutor, TabCompleter {
                     "checkin", "death", "deaths", "status", "r", "reply",
                     "wp", "waypoint", "territory", "aura", "particle", "particles", "kit", "music",
                     "reload", "broadcast", "give", "claim", "tpsalert", "admin",
-                    "region", "weapon", "kitadmin", "kits",
+                    "region", "weapon", "skill", "kitadmin", "kits",
                     "audit", "tradereport", "taxreport", "reports", "report",
                     "showcase", "machine", "lucky", "guide", "newbie",
                     "municipal", "muni", "city", "transit", "rail", "metro", "pve"));
 
         if (args.length == 2) {
             return switch (args[0].toLowerCase()) {
-                case "weapon"                -> filterPrefix(args[1], List.of("give", "bind", "unbind", "info"));
+                case "weapon"                -> filterPrefix(args[1], List.of("give", "save", "delete", "list", "bind", "unbind", "info"));
+                case "skill"                 -> filterPrefix(args[1], List.of("grant", "revoke", "list"));
                 case "aura", "particle", "particles" -> filterPrefix(args[1], List.of("shop", "equip", "unequip", "list", "give", "brightness"));
                 case "tradereport", "taxreport" -> filterPrefix(args[1], List.of("broadcast"));
                 case "friend", "friends"     -> filterPrefix(args[1], List.of(
@@ -1961,13 +2094,32 @@ public class ES2UniCommand implements CommandExecutor, TabCompleter {
                 case "weapon" -> {
                     if (args[1].equalsIgnoreCase("bind")) {
                         yield java.util.Arrays.stream(SkillType.values())
+                                .filter(SkillType::itemBound)
                                 .map(t -> t.configKey).toList();
                     }
                     if (args[1].equalsIgnoreCase("unbind")) {
                         yield List.of("right", "sneak_right");
                     }
                     if (args[1].equalsIgnoreCase("give")) {
-                        yield WeaponPreset.tabComplete(args[2]);
+                        List<String> ids = new ArrayList<>(WeaponPreset.tabComplete(args[2]));
+                        ids.addAll(plugin.getWeaponSaveManager().ids());
+                        yield filterPrefix(args[2], ids);
+                    }
+                    if (args[1].equalsIgnoreCase("delete") || args[1].equalsIgnoreCase("remove")) {
+                        yield filterPrefix(args[2], plugin.getWeaponSaveManager().ids());
+                    }
+                    if (args[1].equalsIgnoreCase("save")) {
+                        yield filterPrefix(args[2], plugin.getWeaponSaveManager().ids());
+                    }
+                    yield null;
+                }
+                case "skill" -> {
+                    if (!isAdmin) yield null;
+                    if (args[1].equalsIgnoreCase("grant") || args[1].equalsIgnoreCase("give")
+                            || args[1].equalsIgnoreCase("revoke") || args[1].equalsIgnoreCase("remove")
+                            || args[1].equalsIgnoreCase("list")) {
+                        yield filterPrefix(args[2], Bukkit.getOnlinePlayers().stream()
+                                .map(Player::getName).toList());
                     }
                     yield null;
                 }
@@ -1985,6 +2137,13 @@ public class ES2UniCommand implements CommandExecutor, TabCompleter {
                 }
                 default -> null;
             };
+        }
+
+        if (args.length == 4 && sender.hasPermission("es2uni.admin")
+                && args[0].equalsIgnoreCase("skill")
+                && (args[1].equalsIgnoreCase("grant") || args[1].equalsIgnoreCase("give")
+                || args[1].equalsIgnoreCase("revoke") || args[1].equalsIgnoreCase("remove"))) {
+            return filterPrefix(args[3], List.of("gleam_arc"));
         }
 
         if (args.length >= 4 && sender instanceof Player p

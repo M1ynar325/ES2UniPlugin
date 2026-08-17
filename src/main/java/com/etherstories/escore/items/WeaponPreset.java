@@ -88,16 +88,12 @@ public class WeaponPreset {
                 SkillBinder.Slot.SNEAK_RIGHT, SkillType.SWORD_RAIN),
 
             build("echo_slash",
-                "Echo Slash", "回声斩",
+                "Echo Strike", "回声斩",
                 Material.IRON_SWORD,
                 new String[]{"sharpness:10", "unbreaking:3"},
                 new String[]{
-                    "&8无冷却回声双技能 · 魔法伤害",
-                    "",
-                    "&7右键回声散射（直线魔法，无CD）。",
-                    "&7Shift+右键回声寻踪（制导魔法，无CD）。",
-                    "&7每发独立结算；叠共鸣层先伤后缓。",
-                    "&7锋利 X 由插件写入，不受 Essentials 附魔上限。"
+                    "&f&l第一击，是剑；其余的，是回声。",
+                    "&3霁光凝于刃上，回响化作万千星屑，追逐每一个被锁定的目标。"
                 },
                 SkillBinder.Slot.RIGHT,       SkillType.ECHO_SCATTER,
                 SkillBinder.Slot.SNEAK_RIGHT, SkillType.ECHO_BARRAGE,

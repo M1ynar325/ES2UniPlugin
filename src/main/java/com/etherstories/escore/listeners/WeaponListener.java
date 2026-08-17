@@ -2,6 +2,7 @@ package com.etherstories.escore.listeners;
 
 import com.etherstories.escore.ES2UniPlugin;
 import com.etherstories.escore.items.SkillBinder;
+import com.etherstories.escore.weapons.PlayerSkills;
 import com.etherstories.escore.weapons.SkillType;
 import org.bukkit.Material;
 import org.bukkit.Tag;
@@ -95,6 +96,16 @@ public class WeaponListener implements Listener {
     @EventHandler
     public void onDrop(PlayerDropItemEvent event) {
         plugin.getWeaponManager().cancelCharge(event.getPlayer().getUniqueId());
+    }
+
+    /** 潜行+F：霁弧。普通 F 仍换副手。 */
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onSwapHands(PlayerSwapHandItemsEvent event) {
+        Player player = event.getPlayer();
+        if (!player.isSneaking() || !PlayerSkills.hasGleamArc(player)) return;
+        if (player.isDead() || !player.isOnline()) return;
+        event.setCancelled(true);
+        plugin.getWeaponManager().startCharge(player, SkillType.GLEAM_ARC);
     }
 
     @EventHandler

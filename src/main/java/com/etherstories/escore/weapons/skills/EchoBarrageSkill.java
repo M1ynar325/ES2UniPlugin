@@ -79,12 +79,12 @@ public class EchoBarrageSkill implements SkillInstance {
         this.wm = wm;
         this.ownerUUID = player.getUniqueId();
 
-        int count = wm.getCfgInt(SkillType.ECHO_BARRAGE, "particle-count", 36);
-        this.damage = wm.getCfgDouble(SkillType.ECHO_BARRAGE, "damage", 5.0);
-        this.speed = wm.getCfgDouble(SkillType.ECHO_BARRAGE, "speed", 2.2);
+        int count = wm.getCfgInt(SkillType.ECHO_BARRAGE, "particle-count", 16);
+        this.damage = wm.getCfgDouble(SkillType.ECHO_BARRAGE, "damage", 5.5);
+        this.speed = wm.getCfgDouble(SkillType.ECHO_BARRAGE, "speed", 2.0);
         this.hitRadius = wm.getCfgDouble(SkillType.ECHO_BARRAGE, "hit-radius", 1.05);
-        this.explodePower = wm.getCfgDouble(SkillType.ECHO_BARRAGE, "explode-power", 1.15);
-        this.explodeDamage = wm.getCfgDouble(SkillType.ECHO_BARRAGE, "explode-damage", 2.5);
+        this.explodePower = wm.getCfgDouble(SkillType.ECHO_BARRAGE, "explode-power", 0);
+        this.explodeDamage = wm.getCfgDouble(SkillType.ECHO_BARRAGE, "explode-damage", 2.6);
         this.explodeRadius = wm.getCfgDouble(SkillType.ECHO_BARRAGE, "explode-radius", 2.0);
         this.dodgeChance = wm.getCfgDouble(SkillType.ECHO_BARRAGE, "dodge-chance", 0.2);
         this.dodgeSpeedMin = wm.getCfgDouble(SkillType.ECHO_BARRAGE, "dodge-speed-min", 0.28);

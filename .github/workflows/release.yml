@@ -1,0 +1,35 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+      - run: mvn -B -DskipTests package
+      - name: Publish GitHub Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VER="${GITHUB_REF_NAME#v}"
+          gh release create "$GITHUB_REF_NAME" \
+            "target/ES2UniPlugin-${VER}.jar" \
+            --title "ES2UniPlugin ${VER}" \
+            --notes "$(cat <<'EOF'
+          Gleam Arc「霁弧」：玩家技能，不绑武器。管理 /ecos skill grant <玩家> gleam_arc 后，潜行+F 放出白/霁青弧钉住目标，同一人连挨落雷。冷却 3 秒。普通 F 仍换副手。
+
+          同包还含：回声散射视效加强、/ecos weapon save 手持存档、/pay 二次确认。
+          EOF
+          )"

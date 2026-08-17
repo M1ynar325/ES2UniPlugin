@@ -8,7 +8,7 @@
 # ============================================================
 
 # 配置文件版本，请勿修改此项（插件会自动迁移；不会覆盖你改过的数值）
-config-version: 27
+config-version: 29
 
 # ── 配置自维护（升级时自动补键 / 同步说明文档）────────────────
 config:
@@ -233,7 +233,8 @@ commands:
      &7/ecos admin event               &f— 活动管理
      &7/ecos kitadmin                  &f— Kit 管理界面
      &7/ecos region <pos1|pos2|...>    &f— 地区管理
-     &7/ecos weapon <give|bind|...>    &f— 武器技能
+     &7/ecos weapon <give|save|bind|...> &f— 武器技能 / 手持存档
+     &7/ecos skill grant <玩家> gleam_arc &f— 学会霁弧（潜行+F）
      &7/ecos aura give <玩家> <id>      &f— 赠予光环
   version-display: |
     &b&l[ECOS] &fES2UniPlugin &7v{version}
@@ -326,18 +327,21 @@ weapons:
       slow-fall-ticks: 80
       levitation-level: 1
 
-    echo_scatter:            # 魔法直线无CD
+    echo_scatter:            # 展开后逐发制导，无CD
       cooldown-seconds: 0
       charge-ticks: 0
-      particle-count: 28
-      expand-ticks: 5
-      fly-ticks: 22
-      speed: 2.6
-      damage: 4.5                 # 魔法绕甲，约 2.5× 旧值
+      particle-count: 52
+      expand-ticks: 8
+      fire-interval-ticks: 1
+      fly-ticks: 34
+      speed: 2.4
+      damage: 6.5
       hit-radius: 1.0
       explode-power: 0.0          # 仅视效，不再用实体爆炸伤
-      explode-damage: 2.2
+      explode-damage: 3.2
       explode-radius: 1.6
+      target-range: 36.0
+      blindness-ticks: 30         # 命中失明 1.5 秒
       dodge-chance: 0.2
       dodge-speed-min: 0.28
 
@@ -350,14 +354,24 @@ weapons:
       fire-interval-ticks: 2
       fly-ticks: 32
       speed: 2.0
-      damage: 4.0                 # 16发满中约 64
+      damage: 5.5                 # 16发满中约 88
       hit-radius: 1.05
       target-range: 36.0
       explode-power: 0.0
-      explode-damage: 1.8
+      explode-damage: 2.6
       explode-radius: 1.6
       dodge-chance: 0.2
       dodge-speed-min: 0.28
+
+    gleam_arc:               # Gleam Arc「霁弧」玩家技，不绑武器；潜行+F
+      cooldown-seconds: 3
+      charge-ticks: 0
+      range: 16.0
+      follow-range: 40.0
+      strike-count: 4
+      strike-interval-ticks: 12
+      damage: 4.0
+      real-lightning: false  # true = 真雷（会纵火）
 
 # ── 领地 ───────────────────────────────────────────────────────────────────
 territory:

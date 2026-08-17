@@ -12,7 +12,8 @@ public enum SkillType {
     STELLAR_CONV      ("Stellar Convergence",  "星力汇聚",  "stellar_convergence"),
     CELESTIAL_ASCENT  ("Celestial Ascent",     "天升",      "celestial_ascent"),
     ECHO_SCATTER      ("Echo Scatter",         "回声散射",  "echo_scatter"),
-    ECHO_BARRAGE      ("Echo Seek",            "回声寻踪",  "echo_barrage");
+    ECHO_BARRAGE      ("Echo Seek",            "回声寻踪",  "echo_barrage"),
+    GLEAM_ARC         ("Gleam Arc",            "霁弧",      "gleam_arc");
 
     public final String englishName;
     public final String chineseName;
@@ -26,6 +27,11 @@ public enum SkillType {
 
     public String displayName() {
         return englishName + "「" + chineseName + "」";
+    }
+
+    /** false = 记在玩家身上，不能绑武器。 */
+    public boolean itemBound() {
+        return this != GLEAM_ARC;
     }
 
     public static SkillType fromKey(String key) {

@@ -10,13 +10,21 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerCommandPreprocessEvent;
 
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+
 /**
- * 拦截 Essentials /pay，使转账税与终端 UI 一致（支持离线收款）。
- * 税关时不拦截，仍走原插件。
+ * 拦截 Essentials /pay：二次确认后转账，税与终端 UI 一致（支持离线收款）。
  */
 public class PayCommandTaxListener implements Listener {
 
+    private static final long CONFIRM_MS = 15_000L;
+
+    private record Pending(UUID to, String toName, double amount, long expireMs) {}
+
     private final ES2UniPlugin plugin;
+    private final Map<UUID, Pending> pending = new ConcurrentHashMap<>();
 
     public PayCommandTaxListener(ES2UniPlugin plugin) {
         this.plugin = plugin;
@@ -24,7 +32,6 @@ public class PayCommandTaxListener implements Listener {
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onPayCommand(PlayerCommandPreprocessEvent event) {
-        if (!plugin.getTaxManager().isPayTaxEnabled()) return;
         if (!plugin.getVaultHook().isEnabled()) return;
 
         String raw = event.getMessage().trim();
@@ -66,14 +73,32 @@ public class PayCommandTaxListener implements Listener {
         }
 
         event.setCancelled(true);
-        double tax = plugin.getTaxManager().calcTax(amount, plugin.getTaxManager().getPayTaxRate());
+        double tax = plugin.getTaxManager().isPayTaxEnabled()
+                ? plugin.getTaxManager().calcTax(amount, plugin.getTaxManager().getPayTaxRate()) : 0;
+        String fmt = plugin.getVaultHook().format(amount);
+        String name = to.getName() != null ? to.getName() : parts[1];
+        long now = System.currentTimeMillis();
+        Pending prev = pending.get(from.getUniqueId());
+        boolean confirmed = prev != null
+                && prev.expireMs() >= now
+                && prev.to().equals(to.getUniqueId())
+                && Math.abs(prev.amount() - amount) < 1e-6;
+
+        if (!confirmed) {
+            pending.put(from.getUniqueId(), new Pending(to.getUniqueId(), name, amount, now + CONFIRM_MS));
+            from.sendMessage(ColorUtil.colorize("&8[ECOS] &e确认转账 &a" + fmt + " &e→ &f" + name
+                    + (to.isOnline() ? "" : " &8(离线)")
+                    + (tax > 0 ? " &8(含税实付 " + plugin.getVaultHook().format(amount + tax) + ")" : "")));
+            from.sendMessage(ColorUtil.colorize("&8[ECOS] &7再输入一次同一指令以确认，&f15秒 &7内有效"));
+            return;
+        }
+        pending.remove(from.getUniqueId());
+
         String err = plugin.getVaultHook().pay(from, to, amount, tax);
         if (err != null) {
             from.sendMessage(ColorUtil.colorize("&8[ECOS] &c转账失败: &7" + err));
             return;
         }
-        String fmt = plugin.getVaultHook().format(amount);
-        String name = to.getName() != null ? to.getName() : parts[1];
         from.sendMessage(ColorUtil.colorize("&8[ECOS] &a已转账 &e" + fmt + " &a→ &f" + name
                 + (to.isOnline() ? "" : " &8(离线)")
                 + (tax > 0 ? " &8(含税实付 " + plugin.getVaultHook().format(amount + tax) + ")" : "")));

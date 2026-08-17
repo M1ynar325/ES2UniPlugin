@@ -21,7 +21,7 @@ import java.util.Set;
 public class ConfigManager {
 
     /** 与 config.yml 中 config-version 保持一致，每次新增配置项时 +1 */
-    private static final int CURRENT_VERSION = 27;
+    private static final int CURRENT_VERSION = 29;
 
     private final ES2UniPlugin plugin;
     private YamlConfiguration jarDefaults;
@@ -114,6 +114,23 @@ public class ConfigManager {
             cfg.set("weapons.skills.echo_barrage.damage", 4.0);
             cfg.set("weapons.skills.echo_barrage.explode-damage", 1.8);
             plugin.getLogger().info("配置迁移 v25: 回声散射/寻踪伤害上调");
+            needSave = true;
+        }
+
+        // v28: 散射改为空中展开+逐发制导；两技能再加伤害
+        if (fileVersion < 28) {
+            cfg.set("weapons.skills.echo_scatter.particle-count", 52);
+            cfg.set("weapons.skills.echo_scatter.expand-ticks", 8);
+            cfg.set("weapons.skills.echo_scatter.fire-interval-ticks", 1);
+            cfg.set("weapons.skills.echo_scatter.fly-ticks", 34);
+            cfg.set("weapons.skills.echo_scatter.speed", 2.4);
+            cfg.set("weapons.skills.echo_scatter.damage", 6.5);
+            cfg.set("weapons.skills.echo_scatter.explode-damage", 3.2);
+            cfg.set("weapons.skills.echo_scatter.target-range", 36.0);
+            cfg.set("weapons.skills.echo_scatter.blindness-ticks", 30);
+            cfg.set("weapons.skills.echo_barrage.damage", 5.5);
+            cfg.set("weapons.skills.echo_barrage.explode-damage", 2.6);
+            plugin.getLogger().info("配置迁移 v28: 回声散射制导展开 / 两技能伤害上调");
             needSave = true;
         }
 
