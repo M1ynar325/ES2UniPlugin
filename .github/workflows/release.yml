@@ -28,9 +28,8 @@ jobs:
             "target/ES2UniPlugin-${VER}.jar" \
             --title "ES2UniPlugin ${VER}" \
             --notes "$(cat <<'EOF'
-          房产系统（和领地分开）：3D 房间门牌，住宅 / 公共 / 商业。登记、牌子（ES2注册单位）、门口传送、挂牌买卖。
+          ECOS 终端改为 27 格：分类图标常驻、当前页发光，标题带页名。去掉黑玻璃和灰染料占位。
 
-          看房：终端房产页左键传到门口，潜行左键两次购买（15 秒确认）。
-          /ecos estate here 查看当前门牌。ECOS 终端改为分类翻页（概览/社交/出行/城市/娱乐/管理）。
+          霁弧 Gleam Arc 可 /ecos weapon bind gleam_arc（右键释放）；skill grant + 潜行+F 仍可用。
           EOF
           )"

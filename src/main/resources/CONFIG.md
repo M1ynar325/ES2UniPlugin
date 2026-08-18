@@ -56,8 +56,9 @@ ECOS 终端 → **出行 / 城市** → 房产，或 `/ecos estate`。
 
 `tax` `tax-report` `bankruptcy` `checkin` `territory` `estate` `report` `showcase` `newbie-guide` `broadcast` `lucky-block` `music.presets` `weapons` `audit` `tps` `afk` `commands`
 
-## 玩家技能（不绑武器）
+## 霁弧 Gleam Arc
 
-`/ecos skill grant <玩家> gleam_arc` 学会 **Gleam Arc「霁弧」**。潜行+F 释放（普通 F 仍换副手）。冷却 3 秒。配置：`weapons.skills.gleam_arc`。
+可绑武器：`/ecos weapon bind gleam_arc <right|sneak_right>`（和回声散射一样右键放）。  
+也可 `/ecos skill grant <玩家> gleam_arc`，潜行+F 释放（普通 F 仍换副手）。冷却 3 秒。配置：`weapons.skills.gleam_arc`。
 
 更新 jar 后执行一次 `/ecos reload` 或重启即可。

@@ -29,9 +29,13 @@ public enum SkillType {
         return englishName + "「" + chineseName + "」";
     }
 
-    /** false = 记在玩家身上，不能绑武器。 */
+    /** 都能绑武器。霁弧额外可用 /ecos skill grant + 潜行+F。 */
     public boolean itemBound() {
-        return this != GLEAM_ARC;
+        return true;
+    }
+
+    public boolean playerSkill() {
+        return this == GLEAM_ARC;
     }
 
     public static SkillType fromKey(String key) {

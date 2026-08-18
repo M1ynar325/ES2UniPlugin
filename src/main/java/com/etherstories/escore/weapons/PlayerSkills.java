@@ -5,7 +5,7 @@ import org.bukkit.NamespacedKey;
 import org.bukkit.entity.Player;
 import org.bukkit.persistence.PersistentDataType;
 
-/** 不绑武器的玩家技能（PDC，换刀/空手都在）。 */
+/** 玩家技能 PDC：霁弧 grant 后潜行+F；也可绑武器右键。 */
 public final class PlayerSkills {
 
     private static NamespacedKey gleamArcKey;

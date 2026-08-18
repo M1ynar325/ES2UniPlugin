@@ -21,6 +21,7 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
+import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.event.player.PlayerEditBookEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
@@ -73,7 +74,7 @@ public class GUIListener implements Listener {
 
         String title = event.getView().getTitle();
 
-        if (title.equals(t(plugin.getConfigManager().getTerminalTitle()))) {
+        if (ECOSTerminalGUI.isTitle(title)) {
             handleTerminal(event, player);
         } else if (title.equals(t(plugin.getConfigManager().getEventGUITitle()))) {
             handleEventList(event, player);
@@ -191,9 +192,17 @@ public class GUIListener implements Listener {
         }
 
         // 打开终端即完成引导第一步
-        if (title.equals(t(plugin.getConfigManager().getTerminalTitle()))) {
+        if (ECOSTerminalGUI.isTitle(title)) {
             plugin.getNewbieGuideManager().mark(player.getUniqueId(),
                     com.etherstories.escore.managers.NewbieGuideManager.Step.OPEN_TERMINAL);
+        }
+    }
+
+    @EventHandler
+    public void onInventoryDrag(InventoryDragEvent event) {
+        if (!(event.getWhoClicked() instanceof Player)) return;
+        if (ECOSTerminalGUI.isTitle(event.getView().getTitle())) {
+            event.setCancelled(true);
         }
     }
 

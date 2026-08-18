@@ -21,23 +21,26 @@ import java.util.UUID;
 
 public class ECOSTerminalGUI {
 
-    public enum Page { OVERVIEW, SOCIAL, TRAVEL, CITY, PLAY, ADMIN }
+    public enum Page {
+        OVERVIEW("概览"), SOCIAL("社交"), TRAVEL("出行"),
+        CITY("城市"), PLAY("娱乐"), ADMIN("管理");
+        public final String label;
+        Page(String label) { this.label = label; }
+    }
 
     public static final int SLOT_TAB_OVERVIEW = 0;
     public static final int SLOT_TAB_SOCIAL   = 1;
     public static final int SLOT_TAB_TRAVEL   = 2;
     public static final int SLOT_TAB_CITY     = 3;
-    public static final int SLOT_TAB_PLAY     = 5;
-    public static final int SLOT_TAB_ADMIN    = 6;
+    public static final int SLOT_TAB_PLAY     = 4;
+    public static final int SLOT_TAB_ADMIN    = 5;
     public static final int SLOT_HEAD         = 7;
     public static final int SLOT_CLOSE        = 8;
 
-    private static final int SIZE = 54;
+    private static final int SIZE = 27;
     private static final int[] CONTENT = {
-            10, 11, 12, 13, 14, 15, 16,
-            19, 20, 21, 22, 23, 24, 25,
-            28, 29, 30, 31, 32, 33, 34,
-            37, 38, 39, 40, 41, 42, 43
+            9, 10, 11, 12, 13, 14, 15, 16, 17,
+            18, 19, 20, 21, 22, 23, 24, 25, 26
     };
 
     private final ES2UniPlugin plugin;
@@ -46,6 +49,12 @@ public class ECOSTerminalGUI {
 
     public ECOSTerminalGUI(ES2UniPlugin plugin) {
         this.plugin = plugin;
+    }
+
+    public static boolean isTitle(String title) {
+        if (title == null) return false;
+        String s = org.bukkit.ChatColor.stripColor(title);
+        return s != null && s.contains("[ ECOS");
     }
 
     public void open(Player player) {
@@ -58,22 +67,20 @@ public class ECOSTerminalGUI {
         Map<Integer, String> act = new HashMap<>();
         actions.put(player.getUniqueId(), act);
 
-        String title = ColorUtil.colorize(plugin.getConfigManager().getTerminalTitle());
+        String title = ColorUtil.colorize("&0[ &b&lECOS &8" + page.label + " &0]");
         Inventory inv = Bukkit.createInventory(null, SIZE, title);
-        ItemStack bg = bg(Material.BLACK_STAINED_GLASS_PANE);
-        for (int i = 0; i < SIZE; i++) inv.setItem(i, bg);
 
-        putTab(inv, act, SLOT_TAB_OVERVIEW, Page.OVERVIEW, page, Material.BOOK, "&f概览");
-        putTab(inv, act, SLOT_TAB_SOCIAL, Page.SOCIAL, page, Material.PLAYER_HEAD, "&f社交");
-        putTab(inv, act, SLOT_TAB_TRAVEL, Page.TRAVEL, page, Material.ENDER_PEARL, "&f出行");
-        putTab(inv, act, SLOT_TAB_CITY, Page.CITY, page, Material.BEACON, "&f城市");
-        putTab(inv, act, SLOT_TAB_PLAY, Page.PLAY, page, Material.JUKEBOX, "&f娱乐");
+        putTab(inv, act, SLOT_TAB_OVERVIEW, Page.OVERVIEW, page, Material.BOOK, "概览");
+        putTab(inv, act, SLOT_TAB_SOCIAL, Page.SOCIAL, page, Material.PLAYER_HEAD, "社交");
+        putTab(inv, act, SLOT_TAB_TRAVEL, Page.TRAVEL, page, Material.ENDER_PEARL, "出行");
+        putTab(inv, act, SLOT_TAB_CITY, Page.CITY, page, Material.BEACON, "城市");
+        putTab(inv, act, SLOT_TAB_PLAY, Page.PLAY, page, Material.JUKEBOX, "娱乐");
         if (player.hasPermission("es2uni.admin")) {
-            putTab(inv, act, SLOT_TAB_ADMIN, Page.ADMIN, page, Material.COMMAND_BLOCK, "&c管理");
+            putTab(inv, act, SLOT_TAB_ADMIN, Page.ADMIN, page, Material.COMMAND_BLOCK, "管理");
         }
         putHead(inv, player);
         act.put(SLOT_HEAD, "head");
-        inv.setItem(SLOT_CLOSE, item(Material.BARRIER, "&c关闭终端",
+        inv.setItem(SLOT_CLOSE, item(Material.BARRIER, "&c关闭",
                 List.of(" &8v" + plugin.getDescription().getVersion())));
         act.put(SLOT_CLOSE, "close");
 
@@ -100,9 +107,10 @@ public class ECOSTerminalGUI {
     private void putTab(Inventory inv, Map<Integer, String> act, int slot, Page page, Page cur,
                         Material mat, String name) {
         boolean on = page == cur;
-        inv.setItem(slot, item(on ? mat : Material.GRAY_DYE,
-                (on ? "&a" : "&7") + name.substring(2),
-                List.of(on ? "&8当前页" : "&8点击切换")));
+        ItemStack it = item(mat, (on ? "&a" : "&7") + name,
+                List.of(on ? "&8当前分类" : "&8点击切换"));
+        if (on) it = glint(it);
+        inv.setItem(slot, it);
         act.put(slot, "tab:" + page.name());
     }
 

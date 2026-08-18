@@ -235,7 +235,7 @@ commands:
      &7/ecos kitadmin                  &f— Kit 管理界面
      &7/ecos region <pos1|pos2|...>    &f— 地区管理
      &7/ecos weapon <give|save|bind|...> &f— 武器技能 / 手持存档
-     &7/ecos skill grant <玩家> gleam_arc &f— 学会霁弧（潜行+F）
+     &7/ecos skill grant <玩家> gleam_arc &f— 学会霁弧（潜行+F；也可 weapon bind）
      &7/ecos aura give <玩家> <id>      &f— 赠予光环
   version-display: |
     &b&l[ECOS] &fES2UniPlugin &7v{version}
@@ -364,7 +364,7 @@ weapons:
       dodge-chance: 0.2
       dodge-speed-min: 0.28
 
-    gleam_arc:               # Gleam Arc「霁弧」玩家技，不绑武器；潜行+F
+    gleam_arc:               # Gleam Arc「霁弧」可绑武器；也可 skill grant + 潜行+F
       cooldown-seconds: 3
       charge-ticks: 0
       range: 16.0

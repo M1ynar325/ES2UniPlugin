@@ -1790,10 +1790,6 @@ public class ES2UniCommand implements CommandExecutor, TabCompleter {
                     p.sendMessage(ColorUtil.colorize("&c未知技能: " + args[2]));
                     listSkills(p); return;
                 }
-                if (!skill.itemBound()) {
-                    p.sendMessage(ColorUtil.colorize("&c这是玩家技能，用 /ecos skill grant <玩家> " + skill.configKey));
-                    return;
-                }
                 SkillBinder.Slot slot = parseSlot(args[3]);
                 if (slot == null) {
                     p.sendMessage(ColorUtil.colorize("&c槽位须为 right 或 sneak_right")); return;
@@ -1845,21 +1841,15 @@ public class ES2UniCommand implements CommandExecutor, TabCompleter {
     private void listSkills(Player p) {
         p.sendMessage(ColorUtil.colorize("&8可绑武器:"));
         for (SkillType t : SkillType.values()) {
-            if (!t.itemBound()) continue;
-            p.sendMessage(ColorUtil.colorize("  &7" + t.configKey + " &8→ &f" + t.displayName()));
-        }
-        p.sendMessage(ColorUtil.colorize("&8玩家技能（不绑武器）:"));
-        for (SkillType t : SkillType.values()) {
-            if (t.itemBound()) continue;
             p.sendMessage(ColorUtil.colorize("  &7" + t.configKey + " &8→ &f" + t.displayName()
-                    + " &8— /ecos skill grant <玩家> " + t.configKey));
+                    + (t.playerSkill() ? " &8也可 skill grant + 潜行+F" : "")));
         }
     }
 
     private void handleSkill(CommandSender sender, String[] args) {
         if (args.length < 2) {
             sender.sendMessage(ColorUtil.colorize("&c用法: /ecos skill <grant|revoke|list> [玩家] [gleam_arc]"));
-            sender.sendMessage(ColorUtil.colorize("&7学会后潜行+F 释放。普通 F 仍换副手。"));
+            sender.sendMessage(ColorUtil.colorize("&7学会后潜行+F 释放。普通 F 仍换副手。也可 /ecos weapon bind gleam_arc。"));
             return;
         }
         switch (args[1].toLowerCase(Locale.ROOT)) {
@@ -1874,8 +1864,8 @@ public class ES2UniCommand implements CommandExecutor, TabCompleter {
                     return;
                 }
                 SkillType skill = args.length >= 4 ? SkillType.fromKey(args[3]) : SkillType.GLEAM_ARC;
-                if (skill == null || skill.itemBound()) {
-                    sender.sendMessage(ColorUtil.colorize("&c玩家技能只有 gleam_arc"));
+                if (skill == null || !skill.playerSkill()) {
+                    sender.sendMessage(ColorUtil.colorize("&c玩家技能只有 gleam_arc（也可 /ecos weapon bind gleam_arc）"));
                     return;
                 }
                 PlayerSkills.setGleamArc(target, true);
@@ -2444,7 +2434,6 @@ public class ES2UniCommand implements CommandExecutor, TabCompleter {
                 case "weapon" -> {
                     if (args[1].equalsIgnoreCase("bind")) {
                         yield java.util.Arrays.stream(SkillType.values())
-                                .filter(SkillType::itemBound)
                                 .map(t -> t.configKey).toList();
                     }
                     if (args[1].equalsIgnoreCase("unbind")) {
