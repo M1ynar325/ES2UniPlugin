@@ -8,7 +8,7 @@
 # ============================================================
 
 # 配置文件版本，请勿修改此项（插件会自动迁移；不会覆盖你改过的数值）
-config-version: 29
+config-version: 30
 
 # ── 配置自维护（升级时自动补键 / 同步说明文档）────────────────
 config:
@@ -212,6 +212,7 @@ commands:
      &7/ecos status [签名]              &f— 查看/设置个人签名
      &7/ecos r <内容>                   &f— 回复最近私信
      &7/ecos wp <add|remove|tp|list>   &f— 坐标收藏
+     &7/ecos estate [gui|here|visit]    &f— 房产（看房 / 门牌）
      &7/ecos territory help            &f— 领地说明
      &7/ecos aura|particle [shop|...]  &f— 粒子特效（同 aura）
      &7/ecos music [search|queue|…]    &f— 点歌（AllMusic）
@@ -383,6 +384,10 @@ territory:
   min-area: 25
   # 删除领地退款比例（0.0 ~ 1.0），默认 0.5 = 退 50%
   refund-ratio: 0.5
+
+# ── 房产（3D 房间登记，和领地独立；不提供方块保护）────────────────
+estate:
+  max-volume: 32768   # 玩家自助登记体积上限（格）；管理 /ecos estate set 不受限
 
 # ── 轨道交通（闸机 / 单程票 / 交通卡 / 闪付）────────────────────────
 # 票款进 transit.sink-account；空则用 tax.sink-account

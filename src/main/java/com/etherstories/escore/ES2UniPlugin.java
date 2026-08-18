@@ -57,6 +57,7 @@ public class ES2UniPlugin extends JavaPlugin {
     private InsuranceManager insuranceManager;
     private RecycleBinManager recycleBinManager;
     private TransitManager   transitManager;
+    private EstateManager    estateManager;
 
     // Hooks
     private EssentialsHook essentialsHook;
@@ -124,6 +125,9 @@ public class ES2UniPlugin extends JavaPlugin {
     private TransitClaimsGUI transitClaimsGUI;
     private TransitRidersGUI transitRidersGUI;
     private TransitBoardGUI transitBoardGUI;
+    private EstateBuildingsGUI estateBuildingsGUI;
+    private EstateRoomsGUI     estateRoomsGUI;
+    private EstateMineGUI      estateMineGUI;
 
     // Tasks
     private TabTask        tabTask;
@@ -177,6 +181,7 @@ public class ES2UniPlugin extends JavaPlugin {
         insuranceManager = new InsuranceManager(this);
         recycleBinManager = new RecycleBinManager(this);
         transitManager   = new TransitManager(this);
+        estateManager    = new EstateManager(this);
 
         essentialsHook = new EssentialsHook(); essentialsHook.hook();
         vaultHook      = new VaultHook();      vaultHook.hook();
@@ -239,6 +244,9 @@ public class ES2UniPlugin extends JavaPlugin {
         transitClaimsGUI = new TransitClaimsGUI(this);
         transitRidersGUI = new TransitRidersGUI(this);
         transitBoardGUI = new TransitBoardGUI(this);
+        estateBuildingsGUI = new EstateBuildingsGUI(this);
+        estateRoomsGUI     = new EstateRoomsGUI(this);
+        estateMineGUI      = new EstateMineGUI(this);
 
         getServer().getPluginManager().registerEvents(new PlayerListener(this), this);
         getServer().getPluginManager().registerEvents(new AFKListener(this), this);
@@ -284,6 +292,7 @@ public class ES2UniPlugin extends JavaPlugin {
         if (tradeStatsManager != null) tradeStatsManager.stop();
         if (recycleBinManager != null) recycleBinManager.save();
         if (transitManager != null) transitManager.save();
+        if (estateManager != null) estateManager.save();
         stopTasks();
         getLogger().info("ES2UniPlugin disabled.");
     }
@@ -294,6 +303,7 @@ public class ES2UniPlugin extends JavaPlugin {
         kitManager.reload();
         if (weaponSaveManager != null) weaponSaveManager.reload();
         if (transitManager != null) transitManager.load();
+        if (estateManager != null) estateManager.load();
         stopTasks();
         startTasks();
         if (tradeStatsManager != null) tradeStatsManager.startScheduler();
@@ -422,4 +432,8 @@ public class ES2UniPlugin extends JavaPlugin {
     public TransitClaimsGUI getTransitClaimsGUI() { return transitClaimsGUI; }
     public TransitRidersGUI getTransitRidersGUI() { return transitRidersGUI; }
     public TransitBoardGUI getTransitBoardGUI() { return transitBoardGUI; }
+    public EstateManager getEstateManager() { return estateManager; }
+    public EstateBuildingsGUI getEstateBuildingsGUI() { return estateBuildingsGUI; }
+    public EstateRoomsGUI getEstateRoomsGUI() { return estateRoomsGUI; }
+    public EstateMineGUI getEstateMineGUI() { return estateMineGUI; }
 }

@@ -78,10 +78,16 @@ public class FriendListGUI {
                         lore.add(ColorUtil.colorize("&7在线"));
                         if (fm.isLocationSharing(entryUuid)) {
                             Location loc = online.getLocation();
-                            lore.add(ColorUtil.colorize(String.format(
-                                    "&8%s  %.0f, %.0f, %.0f",
-                                    loc.getWorld().getName(),
-                                    loc.getX(), loc.getY(), loc.getZ())));
+                            var unit = plugin.getEstateManager() == null ? null
+                                    : plugin.getEstateManager().at(loc);
+                            if (unit != null && entryUuid.equals(unit.owner())) {
+                                lore.add(ColorUtil.colorize("&2" + unit.address()));
+                            } else {
+                                lore.add(ColorUtil.colorize(String.format(
+                                        "&8%s  %.0f, %.0f, %.0f",
+                                        loc.getWorld().getName(),
+                                        loc.getX(), loc.getY(), loc.getZ())));
+                            }
                         }
                     } else {
                         lore.add(ColorUtil.colorize("&8离线"));

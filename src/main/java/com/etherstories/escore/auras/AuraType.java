@@ -19,6 +19,12 @@ public enum AuraType {
         "&7一圈缓慢旋转的音符粒子。",
         "&8基础"
     ),
+    RAIN_VEIL (
+        "rain_veil", "Rain Veil", "细雨", 3400,
+        Material.WATER_BUCKET,
+        "&b从头顶落下的细小水滴。",
+        "&8基础"
+    ),
     SNOW_VEIL (
         "snow_veil", "Snow Veil", "细雪", 3600,
         Material.SNOWBALL,
@@ -35,6 +41,12 @@ public enum AuraType {
         "void_echo", "Void Echo", "末影雾", 4200,
         Material.ENDER_PEARL,
         "&7脚下升起的紫色末影雾。",
+        "&8进阶"
+    ),
+    GLEAM_DUST (
+        "gleam_dust", "Gleam Dust", "霁尘", 4400,
+        Material.PRISMARINE_CRYSTALS,
+        "&b脚边缓缓转动的白与霁青光尘。",
         "&8进阶"
     ),
     HEARTBEAT (
@@ -67,6 +79,12 @@ public enum AuraType {
         "&b肩高处快速流转的电火花。",
         "&8稀有"
     ),
+    FIREFLY (
+        "firefly", "Firefly", "萤火", 7400,
+        Material.GLOW_INK_SAC,
+        "&a身周几点缓缓游走的荧光。",
+        "&8稀有"
+    ),
     WITCH_RING (
         "witch_ring", "Witch Ring", "魔尘", 7800,
         Material.BREWING_STAND,
@@ -79,10 +97,22 @@ public enum AuraType {
         "&f低处轻软的白色烟云。",
         "&8稀有"
     ),
+    COPPER_PATINA (
+        "copper_patina", "Copper Patina", "铜绿", 8400,
+        Material.OXIDIZED_COPPER,
+        "&3肩侧偶尔闪过的铜绿刮痕光。",
+        "&8稀有"
+    ),
     NETHER_FLAME (
         "nether_flame", "Nether Flame", "魂火", 8500,
         Material.SOUL_LANTERN,
         "&9蓝色魂火从地面升起。",
+        "&8精英"
+    ),
+    SPORE_FALL (
+        "spore_fall", "Spore Fall", "孢子", 9200,
+        Material.SPORE_BLOSSOM,
+        "&a头顶落下的孢子花粉。",
         "&8精英"
     ),
     ENCHANT_DRIFT (
@@ -113,6 +143,12 @@ public enum AuraType {
         "sculk_whisper", "Sculk Whisper", "幽匿", 13000,
         Material.SCULK,
         "&3幽匿感测体风格的深色粒子。",
+        "&8传说"
+    ),
+    GLEAM_GLYPH (
+        "gleam_glyph", "Gleam Glyph", "霁符", 13800,
+        Material.ENCHANTED_BOOK,
+        "&b附魔符文与霁青尘一同绕身上升。",
         "&8传说"
     ),
     AURORA (

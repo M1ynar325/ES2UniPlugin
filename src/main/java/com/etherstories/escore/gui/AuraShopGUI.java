@@ -16,22 +16,22 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * 特效商店 GUI（54格）— 支持最多 21 种特效
+ * 特效商店 GUI（54格）
  */
 public class AuraShopGUI {
 
     public static final String TITLE = ColorUtil.colorize("&b✦ &f&l特效商店 &b✦");
 
-    // 三行密集摆放
     public static final int[] AURA_SLOTS = {
             10, 11, 12, 13, 14, 15, 16,
             19, 20, 21, 22, 23, 24, 25,
-            28, 29, 30, 31, 32, 33, 34
+            28, 29, 30, 31, 32, 33, 34,
+            37, 38, 39, 40, 41, 42, 43
     };
 
-    public static final int SLOT_INFO       = 40;
-    public static final int SLOT_BRIGHTNESS = 43;
+    public static final int SLOT_INFO       = 45;
     public static final int SLOT_UNEQUIP    = 46;
+    public static final int SLOT_BRIGHTNESS = 49;
     public static final int SLOT_CLOSE      = 52;
 
     private final ES2UniPlugin plugin;

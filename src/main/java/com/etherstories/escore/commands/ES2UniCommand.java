@@ -6,6 +6,10 @@ import com.etherstories.escore.hooks.AllMusicHook;
 import com.etherstories.escore.items.ECOSTerminalItem;
 import com.etherstories.escore.items.SkillBinder;
 import com.etherstories.escore.items.WeaponPreset;
+import com.etherstories.escore.estate.BuildingCategory;
+import com.etherstories.escore.estate.EstateUnit;
+import com.etherstories.escore.estate.UnitKind;
+import com.etherstories.escore.managers.EstateManager;
 import com.etherstories.escore.managers.PlaytimeManager;
 import com.etherstories.escore.managers.RegionManager;
 import com.etherstories.escore.managers.TransitManager;
@@ -222,6 +226,11 @@ public class ES2UniCommand implements CommandExecutor, TabCompleter {
             case "territory" -> {
                 if (!(sender instanceof Player p)) { sender.sendMessage("仅玩家可执行"); return true; }
                 handleTerritory(p, args);
+            }
+
+            case "estate" -> {
+                if (!(sender instanceof Player p)) { sender.sendMessage("仅玩家可执行"); return true; }
+                handleEstate(p, args);
             }
 
             // ── 坐标收藏 ──────────────────────────────────────────────────────
@@ -1078,6 +1087,343 @@ public class ES2UniCommand implements CommandExecutor, TabCompleter {
             }
             default -> p.sendMessage(ColorUtil.colorize("&c用法: /ecos territory <pos1|pos2|claim|delete|list|visible|spawn>"));
         }
+    }
+
+    // ── 房产（3D 房间，和领地独立）──────────────────────────────────────────
+
+    private static final String ESTATE_DISCLAIMER =
+            "&8登记只是门牌，不提供方块保护。不追究，但出问题不保障。";
+
+    private void handleEstate(Player p, String[] args) {
+        EstateManager em = plugin.getEstateManager();
+        if (args.length < 2 || args[1].equalsIgnoreCase("gui") || args[1].equalsIgnoreCase("menu")) {
+            plugin.getEstateBuildingsGUI().open(p);
+            return;
+        }
+        switch (args[1].toLowerCase(Locale.ROOT)) {
+            case "help" -> openEstateHelp(p);
+            case "pos1" -> {
+                em.setPos1(p);
+                var loc = p.getLocation();
+                p.sendMessage(ColorUtil.colorize("&8[房产] &7点1: &f"
+                        + loc.getBlockX() + ", " + loc.getBlockY() + ", " + loc.getBlockZ()));
+                displayPos1.put(p.getUniqueId(), new int[]{loc.getBlockX(), loc.getBlockY(), loc.getBlockZ()});
+                displayPos2.remove(p.getUniqueId());
+                startSelectionParticles(p);
+            }
+            case "pos2" -> {
+                String err = em.setPos2(p);
+                if (err != null) {
+                    p.sendMessage(ColorUtil.colorize("&8[房产] &c" + err));
+                    return;
+                }
+                var loc = p.getLocation();
+                p.sendMessage(ColorUtil.colorize("&8[房产] &7点2: &f"
+                        + loc.getBlockX() + ", " + loc.getBlockY() + ", " + loc.getBlockZ()));
+                displayPos2.put(p.getUniqueId(), new int[]{loc.getBlockX(), loc.getBlockY(), loc.getBlockZ()});
+                startSelectionParticles(p);
+                var sel = em.selectionOf(p.getUniqueId());
+                if (sel != null) {
+                    EstateUnit probe = sel.asProbe();
+                    p.sendMessage(ColorUtil.colorize("&8空间: &7" + probe.volume() + " 格  "
+                            + probe.minX() + "," + probe.minY() + "," + probe.minZ()
+                            + " → " + probe.maxX() + "," + probe.maxY() + "," + probe.maxZ()));
+                }
+            }
+            case "register" -> {
+                if (args.length < 6) {
+                    p.sendMessage(ColorUtil.colorize("&c用法: /ecos estate register <楼> <层> <号> <用途> [分类]"));
+                    p.sendMessage(ColorUtil.colorize("&8用途: " + EstateManager.kindsHint()));
+                    p.sendMessage(ColorUtil.colorize("&8分类: " + EstateManager.catsHint() + "  &7可省略，按用途推断"));
+                    return;
+                }
+                Integer floor = parseFloor(p, args[3]);
+                if (floor == null) return;
+                UnitKind kind = UnitKind.fromKey(args[5]);
+                if (kind == null) {
+                    p.sendMessage(ColorUtil.colorize("&c未知用途。&8" + EstateManager.kindsHint()));
+                    return;
+                }
+                BuildingCategory cat = args.length >= 7 ? BuildingCategory.fromKey(args[6]) : kind.defaultCategory();
+                if (cat == null) {
+                    p.sendMessage(ColorUtil.colorize("&c未知分类。&8" + EstateManager.catsHint()));
+                    return;
+                }
+                String err = em.register(p, args[2], floor, args[4], kind, cat, false, 0);
+                if (err != null) {
+                    p.sendMessage(ColorUtil.colorize("&8[房产] &c" + err));
+                    return;
+                }
+                EstateUnit u = em.find(args[2], floor, args[4]);
+                p.sendMessage(ColorUtil.colorize("&8[房产] &a已登记 &f" + (u == null ? args[2] : u.address())
+                        + " &8" + kind.label + " · " + cat.label));
+                p.sendMessage(ColorUtil.colorize(ESTATE_DISCLAIMER));
+                p.sendMessage(ColorUtil.colorize("&8站在门口: &f/ecos estate door"));
+                p.sendMessage(ColorUtil.colorize("&8看墙写牌子: &f/ecos estate sign"));
+                p.sendMessage(ColorUtil.colorize("&8上架出售: &f/ecos estate price <金额> &7然后 &f/ecos estate sell"));
+            }
+            case "set" -> {
+                if (!p.hasPermission("es2uni.admin")) { noPerms(p); return; }
+                if (args.length < 6) {
+                    p.sendMessage(ColorUtil.colorize("&c用法: /ecos estate set <楼> <层> <号> <用途> [分类] [价格]"));
+                    return;
+                }
+                Integer floor = parseFloor(p, args[3]);
+                if (floor == null) return;
+                UnitKind kind = UnitKind.fromKey(args[5]);
+                if (kind == null) {
+                    p.sendMessage(ColorUtil.colorize("&c未知用途。&8" + EstateManager.kindsHint()));
+                    return;
+                }
+                BuildingCategory cat = kind.defaultCategory();
+                double price = 0;
+                if (args.length >= 7) {
+                    BuildingCategory parsed = BuildingCategory.fromKey(args[6]);
+                    if (parsed != null) cat = parsed;
+                    else {
+                        try { price = Double.parseDouble(args[6]); }
+                        catch (NumberFormatException e) {
+                            p.sendMessage(ColorUtil.colorize("&c未知分类或价格。&8" + EstateManager.catsHint()));
+                            return;
+                        }
+                    }
+                }
+                if (args.length >= 8) {
+                    try { price = Double.parseDouble(args[7]); }
+                    catch (NumberFormatException e) {
+                        p.sendMessage(ColorUtil.colorize("&c价格必须是数字"));
+                        return;
+                    }
+                }
+                String err = em.register(p, args[2], floor, args[4], kind, cat, true, price);
+                if (err != null) {
+                    p.sendMessage(ColorUtil.colorize("&8[房产] &c" + err));
+                    return;
+                }
+                EstateUnit u = em.find(args[2], floor, args[4]);
+                p.sendMessage(ColorUtil.colorize("&8[房产] &a管理登记 &f" + (u == null ? args[2] : u.address())
+                        + (price > 0 ? " &e挂牌 " + money(price) : " &7空闲未挂牌")));
+                p.sendMessage(ColorUtil.colorize("&8门口 / 牌子: &f/ecos estate door &7· &f/ecos estate sign"));
+            }
+            case "here", "info" -> em.sendHere(p, em.at(p.getLocation()));
+            case "visit", "view" -> {
+                EstateUnit u = resolveEstate(p, args, 2);
+                if (u == null) {
+                    p.sendMessage(ColorUtil.colorize("&8[房产] &7找不到房间。用法: /ecos estate visit <楼> <层> <号>"));
+                    return;
+                }
+                p.closeInventory();
+                String err = em.visit(p, u);
+                if (err != null) p.sendMessage(ColorUtil.colorize("&8[房产] &c" + err));
+                else p.sendMessage(ColorUtil.colorize("&8[房产] &7看房 &f" + u.address()));
+            }
+            case "door" -> {
+                EstateUnit u = resolveEstate(p, args, 2);
+                String err = em.setDoor(p, u);
+                if (err != null) p.sendMessage(ColorUtil.colorize("&8[房产] &c" + err));
+                else p.sendMessage(ColorUtil.colorize("&8[房产] &a门口已设 &f" + u.address()));
+            }
+            case "sign" -> {
+                EstateUnit u = resolveEstate(p, args, 2);
+                if (u == null) {
+                    p.sendMessage(ColorUtil.colorize("&8[房产] &7站在房间里，或指定 楼 层 号"));
+                    return;
+                }
+                if (!p.hasPermission("es2uni.admin") && !p.getUniqueId().equals(u.owner())
+                        && !p.getUniqueId().equals(u.createdBy())) {
+                    p.sendMessage(ColorUtil.colorize("&8[房产] &c这不是你的房间"));
+                    return;
+                }
+                em.placeSign(p, u);
+            }
+            case "delete", "remove" -> {
+                EstateUnit u = resolveEstate(p, args, 2);
+                String err = em.delete(p, u);
+                if (err != null) p.sendMessage(ColorUtil.colorize("&8[房产] &c" + err));
+                else p.sendMessage(ColorUtil.colorize("&8[房产] &7已删除 &f" + u.address()));
+            }
+            case "list" -> {
+                List<EstateUnit> rooms = p.hasPermission("es2uni.admin") && args.length >= 3
+                        && args[2].equalsIgnoreCase("all")
+                        ? new ArrayList<>(em.all())
+                        : em.ownedBy(p.getUniqueId());
+                if (rooms.isEmpty()) {
+                    p.sendMessage(ColorUtil.colorize("&8[房产] &7没有房间。终端城市页打开房产，或 /ecos estate help"));
+                    return;
+                }
+                p.sendMessage(ColorUtil.colorize("&8[房产] &f" + rooms.size() + " 间"));
+                for (EstateUnit u : rooms) {
+                    p.sendMessage(ColorUtil.colorize("  &f" + u.address()
+                            + " &8" + u.kind().label + " · " + u.category().label
+                            + (u.vacant() ? " &a空闲" : " &7" + (u.ownerName() == null ? "?" : u.ownerName()))
+                            + (u.listed() && u.price() > 0 ? " &e" + money(u.price()) : "")));
+                }
+            }
+            case "tp" -> {
+                EstateUnit u = resolveEstate(p, args, 2);
+                if (u == null) {
+                    p.sendMessage(ColorUtil.colorize("&8[房产] &7找不到房间"));
+                    return;
+                }
+                boolean ok = p.hasPermission("es2uni.admin") || p.getUniqueId().equals(u.owner());
+                if (!ok) {
+                    p.sendMessage(ColorUtil.colorize("&8[房产] &c只能传送到自己的房间"));
+                    return;
+                }
+                p.closeInventory();
+                em.teleport(p, u);
+                p.sendMessage(ColorUtil.colorize("&8[房产] &7已到 &f" + u.address()));
+            }
+            case "price" -> {
+                if (args.length < 3) {
+                    p.sendMessage(ColorUtil.colorize("&c用法: /ecos estate price <金额> [楼 层 号]"));
+                    return;
+                }
+                double price;
+                try { price = Double.parseDouble(args[2]); }
+                catch (NumberFormatException e) {
+                    p.sendMessage(ColorUtil.colorize("&c金额必须是数字"));
+                    return;
+                }
+                EstateUnit u = resolveEstate(p, args, 3);
+                boolean listed = u != null && u.listed() && price > 0;
+                String err = em.setSale(p, u, price, listed);
+                if (err != null) p.sendMessage(ColorUtil.colorize("&8[房产] &c" + err));
+                else p.sendMessage(ColorUtil.colorize("&8[房产] &7标价 &f" + money(price)
+                        + (listed ? " &e(仍挂牌)" : " &8未上架，/ecos estate sell")));
+            }
+            case "sell" -> {
+                double extra = -1;
+                int idx = 2;
+                if (args.length >= 3) {
+                    try {
+                        extra = Double.parseDouble(args[2]);
+                        idx = 3;
+                    } catch (NumberFormatException ignored) {}
+                }
+                EstateUnit u = resolveEstate(p, args, idx);
+                if (u == null) {
+                    p.sendMessage(ColorUtil.colorize("&8[房产] &7找不到房间"));
+                    return;
+                }
+                double price = extra > 0 ? extra : u.price();
+                String err = em.setSale(p, u, price, true);
+                if (err != null) p.sendMessage(ColorUtil.colorize("&8[房产] &c" + err));
+                else p.sendMessage(ColorUtil.colorize("&8[房产] &a已挂牌 &f" + u.address() + " &e" + money(price)));
+            }
+            case "unsell" -> {
+                EstateUnit u = resolveEstate(p, args, 2);
+                String err = em.setSale(p, u, u == null ? 0 : u.price(), false);
+                if (err != null) p.sendMessage(ColorUtil.colorize("&8[房产] &c" + err));
+                else p.sendMessage(ColorUtil.colorize("&8[房产] &7已下架 &f" + u.address()));
+            }
+            case "admin" -> {
+                if (!p.hasPermission("es2uni.admin")) { noPerms(p); return; }
+                plugin.getEstateMineGUI().openAdmin(p);
+            }
+            default -> p.sendMessage(ColorUtil.colorize(
+                    "&c用法: /ecos estate <pos1|pos2|register|door|sign|here|visit|sell|help>"));
+        }
+    }
+
+    private Integer parseFloor(Player p, String raw) {
+        try {
+            return Integer.parseInt(raw);
+        } catch (NumberFormatException e) {
+            p.sendMessage(ColorUtil.colorize("&c层必须是整数，例如 3 或 -1"));
+            return null;
+        }
+    }
+
+    private EstateUnit resolveEstate(Player p, String[] args, int start) {
+        EstateManager em = plugin.getEstateManager();
+        if (args.length >= start + 3) {
+            Integer floor = parseFloor(p, args[start + 1]);
+            if (floor == null) return null;
+            EstateUnit u = em.find(args[start], floor, args[start + 2]);
+            if (u == null) p.sendMessage(ColorUtil.colorize("&8[房产] &7没有这间: "
+                    + args[start] + " " + floor + "-" + args[start + 2]));
+            return u;
+        }
+        return em.at(p.getLocation());
+    }
+
+    private String money(double v) {
+        if (plugin.getVaultHook().isEnabled()) return plugin.getVaultHook().format(v);
+        return String.format("%.0f", v);
+    }
+
+    private void openEstateHelp(Player p) {
+        ItemStack book = new ItemStack(org.bukkit.Material.WRITTEN_BOOK);
+        BookMeta meta = (BookMeta) book.getItemMeta();
+        if (meta == null) return;
+        meta.setTitle("房产指南");
+        meta.setAuthor("ECOS");
+        meta.addPage(
+                "§0§l房产系统\n\n" +
+                "§8和领地不是一回事。\n" +
+                "§0领地是 2D 地皮保护。\n" +
+                "§0房产是 3D 房间门牌：\n" +
+                "登记、买卖、传送。\n\n" +
+                "§c不提供方块保护。\n" +
+                "§8不追究，出问题不保障。\n\n" +
+                "§0地址例：\n" +
+                "§8星港一号 3-301");
+        meta.addPage(
+                "§0§l建筑分类\n\n" +
+                "§c住宅 residential\n" +
+                "§b公共建筑 public\n" +
+                "§6商业建筑 commercial\n\n" +
+                "§0§l房间用途\n" +
+                "§8house 住宅\n" +
+                "apartment 公寓\n" +
+                "shop 商铺\n" +
+                "workshop 工坊\n" +
+                "studio 工作室\n" +
+                "storage 仓库\n" +
+                "other 其他");
+        meta.addPage(
+                "§0§l玩家登记\n\n" +
+                "§81. §0房间一角\n" +
+                "§8/ecos estate pos1\n\n" +
+                "§82. §0对角（含高度）\n" +
+                "§8/ecos estate pos2\n\n" +
+                "§83. §0登记（免费）\n" +
+                "§8/ecos estate register\n" +
+                "§8<楼> <层> <号> <用途>\n\n" +
+                "§84. §0站门口\n" +
+                "§8/ecos estate door\n\n" +
+                "§85. §0看墙放牌子\n" +
+                "§8/ecos estate sign\n\n" +
+                "§0牌子四行：\n" +
+                "§8ES2注册单位-住宅\n" +
+                "§8楼名 / 3-301 / 房主");
+        meta.addPage(
+                "§0§l上架 / 购买\n\n" +
+                "§0自助登记默认不上架。\n\n" +
+                "§8/ecos estate price <金额>\n" +
+                "§8/ecos estate sell\n" +
+                "§8/ecos estate unsell\n\n" +
+                "§0终端房产页：挂牌房左键看房，\n" +
+                "潜行左键两次购买（15秒）。\n\n" +
+                "§8/ecos estate here\n" +
+                "§0站在房间里看门牌。\n" +
+                "§8/ecos estate visit 楼 层 号\n\n" +
+                "§0好友开了位置分享，\n" +
+                "且人在自己房间里时，\n" +
+                "好友列表显示门牌。");
+        meta.addPage(
+                "§0§l管理\n\n" +
+                "§8/ecos estate set\n" +
+                "§8<楼> <层> <号> <用途>\n" +
+                "§8[分类] [价格]\n\n" +
+                "§0空闲 + 价格>0 即挂牌。\n" +
+                "商店、公寓都可以这样放。\n\n" +
+                "§8/ecos estate admin\n" +
+                "§0全部房产总表。\n\n" +
+                "§8终端 → 城市 / 出行 → 房产");
+        book.setItemMeta(meta);
+        p.openBook(book);
     }
 
     // ── Waypoint subcommand handler ────────────────────────────────────────────
@@ -1972,7 +2318,7 @@ public class ES2UniCommand implements CommandExecutor, TabCompleter {
                     "friends", "friend", "mail", "mailbox", "online",
                     "notice", "notices", "leaderboard", "lb", "top",
                     "checkin", "death", "deaths", "status", "r", "reply",
-                    "wp", "waypoint", "territory", "aura", "particle", "particles", "kit", "music",
+                    "wp", "waypoint", "estate", "territory", "aura", "particle", "particles", "kit", "music",
                     "reload", "broadcast", "give", "claim", "tpsalert", "admin",
                     "region", "weapon", "skill", "kitadmin", "kits",
                     "audit", "tradereport", "taxreport", "reports", "report",
@@ -2009,6 +2355,9 @@ public class ES2UniCommand implements CommandExecutor, TabCompleter {
                 case "admin"             -> filterPrefix(args[1], List.of("event"));
                 case "region"            -> filterPrefix(args[1], List.of("pos1", "pos2", "create", "delete", "list"));
                 case "territory"         -> filterPrefix(args[1], List.of("pos1", "pos2", "claim", "delete", "list", "visible", "spawn", "help"));
+                case "estate"            -> filterPrefix(args[1], List.of(
+                        "gui", "help", "pos1", "pos2", "register", "set", "door", "sign",
+                        "here", "visit", "delete", "list", "tp", "price", "sell", "unsell", "admin"));
                 case "wp","waypoint"     -> filterPrefix(args[1], List.of("add", "remove", "tp", "list"));
                 case "transit", "rail", "metro" -> filterPrefix(args[1], List.of(
                         "gui", "map", "history", "board", "rank", "list", "help", "line", "station", "edge", "give", "gate", "tvm", "adjust", "type"));
@@ -2077,6 +2426,7 @@ public class ES2UniCommand implements CommandExecutor, TabCompleter {
                     }
                     yield null;
                 }
+                case "estate" -> estateTab(args, p);
                 case "wp","waypoint" -> {
                     if (args[1].equalsIgnoreCase("remove") || args[1].equalsIgnoreCase("tp")) {
                         yield plugin.getWaypointManager().get(uuid).stream()
@@ -2146,12 +2496,65 @@ public class ES2UniCommand implements CommandExecutor, TabCompleter {
             return filterPrefix(args[3], List.of("gleam_arc"));
         }
 
+        if (args.length >= 4 && sender instanceof Player ep
+                && args[0].equalsIgnoreCase("estate")) {
+            return estateTab(args, ep);
+        }
+
         if (args.length >= 4 && sender instanceof Player p
                 && List.of("transit", "rail", "metro").contains(args[0].toLowerCase(Locale.ROOT))
                 && p.hasPermission("es2uni.admin")) {
             return transitTab(args);
         }
 
+        return null;
+    }
+
+    private List<String> estateTab(String[] args, Player p) {
+        EstateManager em = plugin.getEstateManager();
+        String sub = args[1].toLowerCase(Locale.ROOT);
+        List<String> buildings = em.buildings(null);
+        List<String> kinds = new ArrayList<>();
+        for (UnitKind k : UnitKind.values()) kinds.add(k.key);
+        List<String> cats = List.of("residential", "public", "commercial");
+        List<String> owned = new ArrayList<>();
+        for (EstateUnit u : em.ownedBy(p.getUniqueId())) owned.add(u.building());
+        if (p.hasPermission("es2uni.admin")) {
+            for (String b : buildings) if (!owned.contains(b)) owned.add(b);
+        }
+        if (args.length == 3) {
+            return switch (sub) {
+                case "register", "set" -> List.of("<楼名>");
+                case "door", "sign", "delete", "remove", "tp", "sell", "unsell", "price", "visit", "view" ->
+                        filterPrefix(args[2], owned.isEmpty() ? buildings : owned);
+                case "list" -> p.hasPermission("es2uni.admin") ? filterPrefix(args[2], List.of("all")) : null;
+                default -> null;
+            };
+        }
+        if (args.length == 4) {
+            if (sub.equals("register") || sub.equals("set") || sub.equals("door") || sub.equals("sign")
+                    || sub.equals("delete") || sub.equals("remove") || sub.equals("tp")
+                    || sub.equals("sell") || sub.equals("unsell") || sub.equals("price")
+                    || sub.equals("visit") || sub.equals("view")) {
+                return List.of("<层>");
+            }
+            return null;
+        }
+        if (args.length == 5) {
+            if (sub.equals("register") || sub.equals("set") || sub.equals("door") || sub.equals("sign")
+                    || sub.equals("delete") || sub.equals("remove") || sub.equals("tp")
+                    || sub.equals("sell") || sub.equals("unsell") || sub.equals("price")
+                    || sub.equals("visit") || sub.equals("view")) {
+                return List.of("<房号>");
+            }
+            return null;
+        }
+        if (args.length == 6 && (sub.equals("register") || sub.equals("set"))) {
+            return filterPrefix(args[5], kinds);
+        }
+        if (args.length == 7 && (sub.equals("register") || sub.equals("set"))) {
+            return filterPrefix(args[6], cats);
+        }
         return null;
     }
 

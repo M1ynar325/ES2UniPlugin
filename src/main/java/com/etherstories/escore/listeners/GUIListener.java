@@ -108,6 +108,12 @@ public class GUIListener implements Listener {
             handleAdminTerritory(event, player);
         } else if (title.equals(t(MyTerritoryGUI.TITLE))) {
             handleMyTerritory(event, player);
+        } else if (title.equals(EstateBuildingsGUI.TITLE)) {
+            handleEstateBuildings(event, player);
+        } else if (EstateRoomsGUI.isTitle(title)) {
+            handleEstateRooms(event, player);
+        } else if (title.equals(EstateMineGUI.TITLE) || title.equals(EstateMineGUI.ADMIN_TITLE)) {
+            handleEstateMine(event, player);
         } else if (title.equals(t(AdminRegionGUI.TITLE))) {
             handleAdminRegion(event, player);
         } else if (title.equals(AuraShopGUI.TITLE)) {
@@ -195,65 +201,60 @@ public class GUIListener implements Listener {
 
     private void handleTerminal(InventoryClickEvent event, Player player) {
         event.setCancelled(true);
-        int slot = event.getRawSlot();
-
-        switch (slot) {
-            case ECOSTerminalGUI.SLOT_HEAD -> player.sendMessage(ColorUtil.colorize(
+        String act = plugin.getEcosTerminalGUI().actionAt(player, event.getRawSlot());
+        if (act == null) return;
+        if (act.startsWith("tab:")) {
+            ECOSTerminalGUI.Page page = ECOSTerminalGUI.Page.valueOf(act.substring(4));
+            Bukkit.getScheduler().runTask(plugin, () -> plugin.getEcosTerminalGUI().open(player, page));
+            return;
+        }
+        switch (act) {
+            case "head" -> player.sendMessage(ColorUtil.colorize(
                     plugin.getConfigManager().getVersionDisplayTemplate()
                             .replace("{version}",    plugin.getDescription().getVersion())
                             .replace("{mc_version}", plugin.getServer().getVersion())
                             .replace("{authors}",    String.join(", ", plugin.getDescription().getAuthors()))
             ));
 
-            case ECOSTerminalGUI.SLOT_CLOSE ->
-                    player.closeInventory();
-
-            case ECOSTerminalGUI.SLOT_AURA_SHOP -> {
+            case "close" -> player.closeInventory();
+            case "aura" -> {
                 player.closeInventory();
                 Bukkit.getScheduler().runTask(plugin, () -> plugin.getAuraShopGUI().open(player));
             }
-
-            case ECOSTerminalGUI.SLOT_FRIENDS -> {
+            case "friends" -> {
                 player.closeInventory();
                 Bukkit.getScheduler().runTask(plugin, () -> plugin.getFriendListGUI().open(player));
             }
-
-            case ECOSTerminalGUI.SLOT_MAIL -> {
+            case "mail" -> {
                 player.closeInventory();
                 Bukkit.getScheduler().runTask(plugin, () -> plugin.getMailboxGUI().open(player));
             }
-
-            case ECOSTerminalGUI.SLOT_ONLINE -> {
+            case "online" -> {
                 player.closeInventory();
                 Bukkit.getScheduler().runTask(plugin, () -> plugin.getOnlineListGUI().open(player));
             }
-
-            case ECOSTerminalGUI.SLOT_NOTICES -> {
+            case "notices" -> {
                 player.closeInventory();
                 plugin.getNewbieGuideManager().mark(player.getUniqueId(),
                         com.etherstories.escore.managers.NewbieGuideManager.Step.READ_NOTICE);
                 Bukkit.getScheduler().runTask(plugin, () -> plugin.getNoticeGUI().open(player));
             }
-
-            case ECOSTerminalGUI.SLOT_LEADERBOARD -> {
+            case "leaderboard" -> {
                 player.closeInventory();
                 Bukkit.getScheduler().runTask(plugin, () -> plugin.getLeaderboardGUI().open(player));
             }
-
-            case ECOSTerminalGUI.SLOT_WAYPOINTS -> {
+            case "waypoints" -> {
                 player.closeInventory();
                 Bukkit.getScheduler().runTask(plugin, () -> plugin.getWaypointGUI().open(player));
             }
-
-            case ECOSTerminalGUI.SLOT_STATUS -> {
+            case "status" -> {
                 player.closeInventory();
                 awaitingStatus.add(player.getUniqueId());
                 String cur = plugin.getStatusManager().getStatus(player.getUniqueId());
                 player.sendMessage(ColorUtil.colorize("&8[ECOS] &7在聊天框输入签名内容，或输入 &fcancel &7取消"
                         + (cur != null ? "&8（当前: &7" + cur + "&8）" : "")));
             }
-
-            case ECOSTerminalGUI.SLOT_DEATH_LOG -> {
+            case "death" -> {
                 player.closeInventory();
                 List<DeathManager.DeathRecord> deaths = plugin.getDeathManager().get(player.getUniqueId());
                 if (deaths.isEmpty()) {
@@ -266,23 +267,34 @@ public class GUIListener implements Listener {
                                 + ")  &8" + d.cause()));
                 }
             }
-
-            case ECOSTerminalGUI.SLOT_CHECKIN -> {
+            case "checkin" -> {
                 player.closeInventory();
                 Bukkit.getScheduler().runTask(plugin, () -> plugin.getCheckInCalendarGUI().open(player));
             }
-
-            case ECOSTerminalGUI.SLOT_SUMMARY -> {
-                // 刷新终端以更新摘要
-                Bukkit.getScheduler().runTask(plugin, () -> plugin.getEcosTerminalGUI().open(player));
+            case "summary" ->
+                    Bukkit.getScheduler().runTask(plugin, () -> plugin.getEcosTerminalGUI().open(player));
+            case "balance" -> {
+                if (!plugin.getVaultHook().isEnabled()) {
+                    player.sendMessage(ColorUtil.colorize("&8[ECOS] &7经济系统不可用"));
+                    return;
+                }
+                player.sendMessage(ColorUtil.colorize("&8[ECOS] &7余额: &f"
+                        + plugin.getVaultHook().format(plugin.getVaultHook().getBalance(player))));
             }
-
-            case ECOSTerminalGUI.SLOT_TRADE_BOARD -> {
+            case "estate" -> {
+                player.closeInventory();
+                Bukkit.getScheduler().runTask(plugin, () -> plugin.getEstateBuildingsGUI().open(player));
+            }
+            case "adm-estate" -> {
+                if (!player.hasPermission("es2uni.admin")) return;
+                player.closeInventory();
+                Bukkit.getScheduler().runTask(plugin, () -> plugin.getEstateMineGUI().openAdmin(player));
+            }
+            case "trade" -> {
                 player.closeInventory();
                 Bukkit.getScheduler().runTask(plugin, () -> plugin.getTradeBoardGUI().open(player));
             }
-
-            case ECOSTerminalGUI.SLOT_LUCKY -> {
+            case "lucky" -> {
                 player.closeInventory();
                 if (plugin.getLuckyBlockManager().isOpening(player.getUniqueId())) {
                     player.sendMessage(ColorUtil.colorize("&8[ECOS] &7正在开启中…"));
@@ -299,23 +311,19 @@ public class GUIListener implements Listener {
                             () -> plugin.getEcosTerminalGUI().open(player), 8L);
                 });
             }
-
-            case ECOSTerminalGUI.SLOT_SHOWCASE -> {
+            case "showcase" -> {
                 player.closeInventory();
                 Bukkit.getScheduler().runTask(plugin, () -> plugin.getShowcaseGUI().open(player));
             }
-
-            case ECOSTerminalGUI.SLOT_MUNICIPAL -> {
+            case "municipal" -> {
                 player.closeInventory();
                 Bukkit.getScheduler().runTask(plugin, () -> plugin.getMunicipalOfficeGUI().open(player));
             }
-
-            case ECOSTerminalGUI.SLOT_NEWBIE -> {
+            case "newbie" -> {
                 player.closeInventory();
                 Bukkit.getScheduler().runTask(plugin, () -> plugin.getNewbieGuideGUI().open(player));
             }
-
-            case ECOSTerminalGUI.SLOT_TPS -> {
+            case "tps" -> {
                 player.closeInventory();
                 double[] all = com.etherstories.escore.utils.TPSUtil.getAllTPS();
                 double mspt = com.etherstories.escore.utils.TPSUtil.getMSPT();
@@ -327,18 +335,15 @@ public class GUIListener implements Listener {
                                 .replace("{mspt}",    com.etherstories.escore.utils.TPSUtil.formatMSPT(mspt))
                 ));
             }
-
-            case ECOSTerminalGUI.SLOT_EVENTS -> {
+            case "events" -> {
                 player.closeInventory();
                 Bukkit.getScheduler().runTask(plugin, () -> plugin.getEventListGUI().open(player));
             }
-
-            case ECOSTerminalGUI.SLOT_AFK -> {
+            case "afk" -> {
                 player.closeInventory();
                 plugin.getAfkManager().manualToggle(player);
             }
-
-            case ECOSTerminalGUI.SLOT_HOME -> {
+            case "home" -> {
                 if (!plugin.getEssentialsHook().isEnabled()) return;
                 if (event.isRightClick()) {
                     player.closeInventory();
@@ -350,94 +355,78 @@ public class GUIListener implements Listener {
                             () -> plugin.getHomeListGUI().open(player));
                 }
             }
-
-            case ECOSTerminalGUI.SLOT_TPA -> {
+            case "tpa" -> {
                 if (!plugin.getEssentialsHook().isEnabled()) return;
                 player.closeInventory();
                 Bukkit.getScheduler().runTask(plugin,
                         () -> plugin.getPlayerSelectGUI().open(player, PlayerSelectGUI.SelectContext.TPA));
             }
-
-            case ECOSTerminalGUI.SLOT_TPAHERE -> {
+            case "tpahere" -> {
                 if (!plugin.getEssentialsHook().isEnabled()) return;
                 player.closeInventory();
                 Bukkit.getScheduler().runTask(plugin,
                         () -> plugin.getPlayerSelectGUI().open(player, PlayerSelectGUI.SelectContext.TPA_HERE));
             }
-
-            case ECOSTerminalGUI.SLOT_PAY -> {
+            case "pay" -> {
                 if (!plugin.getVaultHook().isEnabled()) return;
                 player.closeInventory();
                 Bukkit.getScheduler().runTask(plugin,
                         () -> plugin.getPlayerSelectGUI().open(player, PlayerSelectGUI.SelectContext.PAY));
             }
-
-            // Admin
-            case ECOSTerminalGUI.SLOT_ADM_EVENTS -> {
+            case "adm-events" -> {
                 if (!player.hasPermission("es2uni.admin")) return;
                 player.closeInventory();
                 Bukkit.getScheduler().runTask(plugin, () -> plugin.getAdminEventGUI().open(player));
             }
-
-            case ECOSTerminalGUI.SLOT_ADM_BC -> {
+            case "adm-bc" -> {
                 if (!player.hasPermission("es2uni.admin")) return;
                 player.closeInventory();
                 Bukkit.getScheduler().runTask(plugin, () -> plugin.getAdminBroadcastGUI().open(player));
             }
-
-            case ECOSTerminalGUI.SLOT_ADM_TAX -> {
+            case "adm-tax" -> {
                 if (!player.hasPermission("es2uni.admin")) return;
                 player.closeInventory();
                 Bukkit.getScheduler().runTask(plugin, () -> plugin.getAdminTaxGUI().open(player));
             }
-
-            case ECOSTerminalGUI.SLOT_ADM_RELOAD -> {
+            case "adm-reload" -> {
                 if (!player.hasPermission("es2uni.admin")) return;
                 plugin.reload();
                 plugin.getAuditLogManager().log(player, "RELOAD", "config reload");
                 player.sendMessage(ColorUtil.colorize(plugin.getConfigManager().getReloadMessage()));
                 Bukkit.getScheduler().runTask(plugin, () -> plugin.getEcosTerminalGUI().open(player));
             }
-
-            case ECOSTerminalGUI.SLOT_ADM_TERRITORY -> {
+            case "adm-territory" -> {
                 if (!player.hasPermission("es2uni.admin")) return;
                 player.closeInventory();
                 Bukkit.getScheduler().runTask(plugin, () -> plugin.getAdminTerritoryGUI().open(player));
             }
-
-            case ECOSTerminalGUI.SLOT_ADM_REGIONS -> {
+            case "adm-regions" -> {
                 if (!player.hasPermission("es2uni.admin")) return;
                 player.closeInventory();
                 Bukkit.getScheduler().runTask(plugin, () -> plugin.getAdminRegionGUI().open(player));
             }
-
-            case ECOSTerminalGUI.SLOT_HOT_PLACES -> {
+            case "hot-places" -> {
                 player.closeInventory();
                 Bukkit.getScheduler().runTask(plugin, () -> plugin.getTerritoryListGUI().open(player));
             }
-
-            case ECOSTerminalGUI.SLOT_MY_TERRITORY -> {
+            case "my-territory" -> {
                 player.closeInventory();
                 Bukkit.getScheduler().runTask(plugin, () -> plugin.getMyTerritoryGUI().open(player));
             }
-
-            case ECOSTerminalGUI.SLOT_KIT -> {
+            case "kit" -> {
                 player.closeInventory();
                 Bukkit.getScheduler().runTask(plugin, () -> plugin.getKitListGUI().open(player));
             }
-
-            case ECOSTerminalGUI.SLOT_ADM_KIT -> {
+            case "adm-kit" -> {
                 if (!player.hasPermission("es2uni.admin")) return;
                 player.closeInventory();
                 Bukkit.getScheduler().runTask(plugin, () -> plugin.getAdminKitGUI().open(player));
             }
-
-            case ECOSTerminalGUI.SLOT_MUSIC -> {
+            case "music" -> {
                 player.closeInventory();
                 Bukkit.getScheduler().runTask(plugin, () -> plugin.getMusicMenuGUI().open(player));
             }
-
-            case ECOSTerminalGUI.SLOT_LINK -> {
+            case "link" -> {
                 player.closeInventory();
                 if (Bukkit.getPluginManager().getPlugin("ESLink") == null
                         || !Bukkit.getPluginManager().getPlugin("ESLink").isEnabled()) {
@@ -446,14 +435,12 @@ public class GUIListener implements Listener {
                 }
                 Bukkit.getScheduler().runTask(plugin, () -> player.performCommand("link"));
             }
-
-            case ECOSTerminalGUI.SLOT_MUSIC_LISTEN -> {
+            case "music-listen" -> {
                 if (!plugin.getAllMusicHook().ensureHooked(plugin.getLogger())) {
                     player.sendMessage(ColorUtil.colorize("&8[ECOS] &cAllMusic 未加载"));
                     return;
                 }
                 boolean muted = plugin.getAllMusicHook().isMuted(player);
-                // 切换：开→关 或 关→开
                 plugin.getAllMusicHook().setListening(plugin, player, muted);
                 boolean nowMuted = !muted;
                 player.sendMessage(ColorUtil.colorize(nowMuted
@@ -463,6 +450,156 @@ public class GUIListener implements Listener {
                         () -> plugin.getEcosTerminalGUI().open(player), 3L);
             }
         }
+    }
+
+    private void handleEstateBuildings(InventoryClickEvent event, Player player) {
+        event.setCancelled(true);
+        int slot = event.getRawSlot();
+        if (slot == EstateBuildingsGUI.SLOT_CLOSE) { player.closeInventory(); return; }
+        if (slot == EstateBuildingsGUI.SLOT_BACK) {
+            player.closeInventory();
+            Bukkit.getScheduler().runTask(plugin, () -> plugin.getEcosTerminalGUI().open(player));
+            return;
+        }
+        if (slot == EstateBuildingsGUI.SLOT_ALL) {
+            Bukkit.getScheduler().runTask(plugin, () -> plugin.getEstateBuildingsGUI().open(player, null));
+            return;
+        }
+        if (slot == EstateBuildingsGUI.SLOT_RES) {
+            Bukkit.getScheduler().runTask(plugin, () -> plugin.getEstateBuildingsGUI().open(player,
+                    com.etherstories.escore.estate.BuildingCategory.RESIDENTIAL));
+            return;
+        }
+        if (slot == EstateBuildingsGUI.SLOT_PUB) {
+            Bukkit.getScheduler().runTask(plugin, () -> plugin.getEstateBuildingsGUI().open(player,
+                    com.etherstories.escore.estate.BuildingCategory.PUBLIC));
+            return;
+        }
+        if (slot == EstateBuildingsGUI.SLOT_COM) {
+            Bukkit.getScheduler().runTask(plugin, () -> plugin.getEstateBuildingsGUI().open(player,
+                    com.etherstories.escore.estate.BuildingCategory.COMMERCIAL));
+            return;
+        }
+        if (slot == EstateBuildingsGUI.SLOT_MINE) {
+            player.closeInventory();
+            Bukkit.getScheduler().runTask(plugin, () -> plugin.getEstateMineGUI().openMine(player));
+            return;
+        }
+        if (slot == EstateBuildingsGUI.SLOT_ADMIN) {
+            if (!player.hasPermission("es2uni.admin")) return;
+            player.closeInventory();
+            Bukkit.getScheduler().runTask(plugin, () -> plugin.getEstateMineGUI().openAdmin(player));
+            return;
+        }
+        String name = plugin.getEstateBuildingsGUI().buildingAt(player, slot);
+        if (name == null) return;
+        player.closeInventory();
+        Bukkit.getScheduler().runTask(plugin, () -> plugin.getEstateRoomsGUI().open(player, name));
+    }
+
+    private void handleEstateRooms(InventoryClickEvent event, Player player) {
+        event.setCancelled(true);
+        int slot = event.getRawSlot();
+        String building = plugin.getEstateRoomsGUI().buildingOf(player);
+        if (slot == EstateRoomsGUI.SLOT_CLOSE) { player.closeInventory(); return; }
+        if (slot == EstateRoomsGUI.SLOT_BACK) {
+            player.closeInventory();
+            Bukkit.getScheduler().runTask(plugin, () -> plugin.getEstateBuildingsGUI().open(player));
+            return;
+        }
+        var u = plugin.getEstateRoomsGUI().unitAt(player, slot);
+        if (u == null) return;
+        var em = plugin.getEstateManager();
+        u = em.byId(u.id());
+        if (u == null) return;
+        boolean mine = player.getUniqueId().equals(u.owner());
+        boolean admin = player.hasPermission("es2uni.admin");
+        if (event.isRightClick() && mine) {
+            boolean next = !u.listed();
+            String err = em.setSale(player, u, u.price(), next);
+            if (err != null) player.sendMessage(ColorUtil.colorize("&8[房产] &c" + err));
+            else player.sendMessage(ColorUtil.colorize(next
+                    ? "&8[房产] &a已挂牌 &f" + u.address()
+                    : "&8[房产] &7已下架 &f" + u.address()));
+            Bukkit.getScheduler().runTask(plugin, () -> plugin.getEstateRoomsGUI().open(player, building));
+            return;
+        }
+        if (event.isLeftClick() && event.isShiftClick() && admin) {
+            String err = em.delete(player, u);
+            if (err != null) player.sendMessage(ColorUtil.colorize("&8[房产] &c" + err));
+            else player.sendMessage(ColorUtil.colorize("&8[房产] &7已删除 &f" + u.address()));
+            Bukkit.getScheduler().runTask(plugin, () -> plugin.getEstateRoomsGUI().open(player, building));
+            return;
+        }
+        if (event.isLeftClick() && event.isShiftClick() && u.listed() && u.price() > 0 && !mine) {
+            estateTryBuy(player, u, () -> plugin.getEstateRoomsGUI().open(player, building));
+            return;
+        }
+        if (event.isLeftClick() && (mine || admin || (u.listed() && u.price() > 0))) {
+            player.closeInventory();
+            String err = em.visit(player, u);
+            if (err != null) {
+                player.sendMessage(ColorUtil.colorize("&8[房产] &c" + err));
+                return;
+            }
+            player.sendMessage(ColorUtil.colorize(mine
+                    ? "&8[房产] &7已到 &f" + u.address()
+                    : "&8[房产] &7看房 &f" + u.address()
+                    + (u.listed() && u.price() > 0 && !mine ? "  &8潜行左键购买" : "")));
+        }
+    }
+
+    private void handleEstateMine(InventoryClickEvent event, Player player) {
+        event.setCancelled(true);
+        int slot = event.getRawSlot();
+        boolean adminView = plugin.getEstateMineGUI().isAdminView(player);
+        if (slot == EstateMineGUI.SLOT_CLOSE) { player.closeInventory(); return; }
+        if (slot == EstateMineGUI.SLOT_BACK) {
+            player.closeInventory();
+            Bukkit.getScheduler().runTask(plugin, () -> plugin.getEstateBuildingsGUI().open(player));
+            return;
+        }
+        var u = plugin.getEstateMineGUI().unitAt(player, slot);
+        if (u == null) return;
+        var em = plugin.getEstateManager();
+        u = em.byId(u.id());
+        if (u == null) return;
+        if (event.isLeftClick() && event.isShiftClick() && adminView && player.hasPermission("es2uni.admin")) {
+            String err = em.delete(player, u);
+            if (err != null) player.sendMessage(ColorUtil.colorize("&8[房产] &c" + err));
+            else player.sendMessage(ColorUtil.colorize("&8[房产] &7已删除 &f" + u.address()));
+            Bukkit.getScheduler().runTask(plugin, () -> plugin.getEstateMineGUI().openAdmin(player));
+            return;
+        }
+        if (event.isLeftClick()) {
+            player.closeInventory();
+            em.teleport(player, u);
+            player.sendMessage(ColorUtil.colorize("&8[房产] &7已到 &f" + u.address()));
+        }
+    }
+
+    private void estateTryBuy(Player player, com.etherstories.escore.estate.EstateUnit u, Runnable reopen) {
+        var em = plugin.getEstateManager();
+        if (em.hasPending(player.getUniqueId(), u.id())) {
+            String err = em.confirmBuy(player);
+            if (err != null) {
+                player.sendMessage(ColorUtil.colorize("&8[房产] &c" + err));
+                return;
+            }
+            player.sendMessage(ColorUtil.colorize("&8[房产] &a已购入 &f" + u.address()));
+            player.closeInventory();
+            Bukkit.getScheduler().runTask(plugin, reopen);
+            return;
+        }
+        String err = em.beginBuy(player, u);
+        if (err != null) {
+            player.sendMessage(ColorUtil.colorize("&8[房产] &c" + err));
+            return;
+        }
+        String price = plugin.getVaultHook().isEnabled()
+                ? plugin.getVaultHook().format(u.price())
+                : String.format("%.0f", u.price());
+        player.sendMessage(ColorUtil.colorize("&8[房产] &e15秒内再点一次确认购买 &f" + u.address() + " &e" + price));
     }
 
     // ── Player Event List ─────────────────────────────────────────────────────
@@ -2290,6 +2427,9 @@ public class GUIListener implements Listener {
         plugin.getTerritoryListGUI().cleanup(event.getPlayer());
         plugin.getAdminTerritoryGUI().cleanup(event.getPlayer());
         plugin.getMyTerritoryGUI().cleanup(event.getPlayer());
+        plugin.getEstateBuildingsGUI().cleanup(event.getPlayer());
+        plugin.getEstateRoomsGUI().cleanup(event.getPlayer());
+        plugin.getEstateMineGUI().cleanup(event.getPlayer());
         plugin.getAdminRegionGUI().cleanup(event.getPlayer());
         plugin.getAdminKitGUI().cleanup(event.getPlayer());
         plugin.getKitEditGUI().cleanup(event.getPlayer());

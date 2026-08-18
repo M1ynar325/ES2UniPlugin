@@ -106,9 +106,9 @@ public class AuraManager {
         double mul = curBr.countMul;
         if (curType != null) {
             switch (curType) {
-                case ELECTRIC_HALO, SPARKLE_RING, AURORA, ENCHANT_DRIFT -> mul *= (curBr == ParticleBrightness.HIGH ? 1.15 : 1.0);
-                case CLOUD_PUFF, SNOW_VEIL, ASH_DRIFT, BUBBLE_WELL -> mul *= 0.9;
-                case SCULK_WHISPER, VOID_ECHO -> mul *= (curBr == ParticleBrightness.LOW ? 0.85 : 1.0);
+                case ELECTRIC_HALO, SPARKLE_RING, AURORA, ENCHANT_DRIFT, COPPER_PATINA, GLEAM_GLYPH -> mul *= (curBr == ParticleBrightness.HIGH ? 1.15 : 1.0);
+                case CLOUD_PUFF, SNOW_VEIL, ASH_DRIFT, BUBBLE_WELL, RAIN_VEIL, SPORE_FALL -> mul *= 0.9;
+                case SCULK_WHISPER, VOID_ECHO, FIREFLY -> mul *= (curBr == ParticleBrightness.LOW ? 0.85 : 1.0);
                 default -> { }
             }
         }
@@ -117,7 +117,9 @@ public class AuraManager {
 
     private float sz(float base) {
         double mul = curBr.sizeMul;
-        if (curType == AuraType.HEARTBEAT || curType == AuraType.GOLD_ORBIT || curType == AuraType.AURORA)
+        if (curType == AuraType.HEARTBEAT || curType == AuraType.GOLD_ORBIT
+                || curType == AuraType.AURORA || curType == AuraType.GLEAM_DUST
+                || curType == AuraType.GLEAM_GLYPH)
             mul *= (curBr == ParticleBrightness.HIGH ? 1.1 : 1.0);
         return (float) (base * mul);
     }
@@ -184,6 +186,22 @@ public class AuraManager {
                 }
             }
 
+            case RAIN_VEIL -> {
+                for (int i = 0; i < n(5); i++) {
+                    double a = Math.random() * Math.PI * 2;
+                    double r = Math.random() * 0.7;
+                    world.spawnParticle(Particle.FALLING_WATER,
+                            feet.clone().add(Math.cos(a)*r, 2.15 + Math.random() * 0.2, Math.sin(a)*r),
+                            1, 0, 0, 0, 0);
+                }
+                if (every(t, 4)) {
+                    world.spawnParticle(Particle.DRIPPING_WATER,
+                            feet.clone().add(0, 1.8, 0), n(2), 0.35, 0.1, 0.35, 0);
+                    world.spawnParticle(Particle.RAIN,
+                            feet.clone().add(0, 0.15, 0), n(3), 0.4, 0.02, 0.4, 0);
+                }
+            }
+
             case SNOW_VEIL -> {
                 for (int i = 0; i < n(5); i++) {
                     double a = Math.random() * Math.PI * 2;
@@ -213,6 +231,24 @@ public class AuraManager {
                     world.spawnParticle(Particle.PORTAL,
                             feet.clone().add(Math.cos(a)*r, y, Math.sin(a)*r),
                             0, 0, 0.04, 0, 0.02);
+                }
+            }
+
+            case GLEAM_DUST -> {
+                double angle = (t * 0.11) % (Math.PI * 2);
+                Particle.DustOptions cyan = new Particle.DustOptions(Color.fromRGB(110, 210, 200), sz(1.05f));
+                Particle.DustOptions white = new Particle.DustOptions(Color.fromRGB(245, 250, 255), sz(0.9f));
+                int pts = n(7);
+                for (int i = 0; i < pts; i++) {
+                    double a = angle + Math.PI * 2.0 / pts * i;
+                    double y = 0.12 + (i % 2) * 0.18;
+                    world.spawnParticle(Particle.DUST,
+                            feet.clone().add(Math.cos(a)*0.7, y, Math.sin(a)*0.7),
+                            1, 0, 0, 0, 0, (i % 2 == 0) ? cyan : white);
+                }
+                if (every(t, 5)) {
+                    world.spawnParticle(Particle.END_ROD,
+                            feet.clone().add(0, 0.35, 0), n(1), 0.35, 0.08, 0.35, 0.005);
                 }
             }
 
@@ -292,6 +328,22 @@ public class AuraManager {
                 }
             }
 
+            case FIREFLY -> {
+                int pts = n(4);
+                for (int i = 0; i < pts; i++) {
+                    double a = t * 0.07 + i * 1.7;
+                    double r = 0.55 + Math.sin(t * 0.05 + i) * 0.25;
+                    double y = 0.6 + Math.sin(t * 0.09 + i * 1.3) * 0.7;
+                    world.spawnParticle(Particle.GLOW,
+                            feet.clone().add(Math.cos(a)*r, y, Math.sin(a)*r),
+                            1, 0, 0, 0, 0);
+                }
+                if (every(t, 6)) {
+                    world.spawnParticle(Particle.END_ROD,
+                            feet.clone().add(0, 1.1, 0), n(1), 0.4, 0.35, 0.4, 0.008);
+                }
+            }
+
             case WITCH_RING -> {
                 double angle = (t * 0.14) % (Math.PI * 2);
                 for (int i = 0; i < n(10); i++) {
@@ -315,6 +367,22 @@ public class AuraManager {
                         feet.clone().add(0, 0.4, 0), n(2), 0.4, 0.1, 0.4, 0.01);
             }
 
+            case COPPER_PATINA -> {
+                double angle = (t * 0.22) % (Math.PI * 2);
+                int pts = n(8);
+                for (int i = 0; i < pts; i++) {
+                    double a = angle + Math.PI * 2.0 / pts * i;
+                    double y = 0.9 + (i % 2) * 0.45;
+                    world.spawnParticle(Particle.SCRAPE,
+                            feet.clone().add(Math.cos(a)*0.8, y, Math.sin(a)*0.8),
+                            1, 0, 0, 0, 0);
+                }
+                if (every(t, 5)) {
+                    world.spawnParticle(Particle.WAX_OFF,
+                            feet.clone().add(0, 1.15, 0), n(2), 0.3, 0.25, 0.3, 0);
+                }
+            }
+
             case NETHER_FLAME -> {
                 for (int i = 0; i < n(3); i++) {
                     double a = Math.random() * Math.PI * 2;
@@ -326,6 +394,20 @@ public class AuraManager {
                 if (every(t, 4)) {
                     world.spawnParticle(Particle.SOUL,
                             feet.clone().add(0, 0.8, 0), n(1), 0.3, 0.1, 0.3, 0.02);
+                }
+            }
+
+            case SPORE_FALL -> {
+                for (int i = 0; i < n(4); i++) {
+                    double a = Math.random() * Math.PI * 2;
+                    double r = Math.random() * 0.85;
+                    world.spawnParticle(Particle.FALLING_SPORE_BLOSSOM,
+                            feet.clone().add(Math.cos(a)*r, 2.25, Math.sin(a)*r),
+                            1, 0, 0, 0, 0);
+                }
+                if (every(t, 5)) {
+                    world.spawnParticle(Particle.SPORE_BLOSSOM_AIR,
+                            feet.clone().add(0, 1.2, 0), n(2), 0.4, 0.35, 0.4, 0);
                 }
             }
 
@@ -382,6 +464,27 @@ public class AuraManager {
                 if (every(t, 5)) {
                     world.spawnParticle(Particle.SCULK_CHARGE_POP,
                             feet.clone().add(0, 1.0, 0), n(2), 0.3, 0.3, 0.3, 0);
+                }
+            }
+
+            case GLEAM_GLYPH -> {
+                double spin = t * 0.16;
+                Particle.DustOptions cyan = new Particle.DustOptions(Color.fromRGB(110, 210, 200), sz(1.1f));
+                Particle.DustOptions white = new Particle.DustOptions(Color.fromRGB(245, 250, 255), sz(0.95f));
+                int pts = n(8);
+                for (int i = 0; i < pts; i++) {
+                    double a = spin + Math.PI * 2.0 / pts * i;
+                    double r = 0.58 + (i % 2) * 0.18;
+                    double y = 0.35 + (Math.sin(t * 0.1 + i) * 0.55 + 0.85);
+                    Location p = feet.clone().add(Math.cos(a)*r, y, Math.sin(a)*r);
+                    world.spawnParticle(Particle.ENCHANT, p, 0, 0, 0.16, 0, 1.15);
+                    world.spawnParticle(Particle.DUST, p, 1, 0, 0, 0, 0, (i % 2 == 0) ? cyan : white);
+                }
+                if (every(t, 4)) {
+                    world.spawnParticle(Particle.ENCHANTED_HIT,
+                            feet.clone().add(0, 1.15, 0), n(2), 0.32, 0.38, 0.32, 0.02);
+                    world.spawnParticle(Particle.END_ROD,
+                            feet.clone().add(0, 0.4, 0), n(1), 0.3, 0.08, 0.3, 0.006);
                 }
             }
 

@@ -37,9 +37,24 @@ ECOS 终端 → **管理处**，或 `/ecos municipal`。
 | `config.auto-fill-missing` | 深度补缺键 |
 | `config.auto-update-docs` | 写出本 CONFIG.md |
 
+## 房产（1.20+）
+
+和领地分开：领地是 2D 地皮保护，房产是 3D 房间门牌（登记 / 买卖 / 传送）。**不提供方块保护**。
+
+ECOS 终端 → **出行 / 城市** → 房产，或 `/ecos estate`。
+
+分类：住宅 `residential` · 公共建筑 `public` · 商业建筑 `commercial`。  
+用途：house 住宅 / apartment 公寓 / shop 商铺 / workshop 工坊 / studio 工作室 / storage 仓库 / other 其他。
+
+玩家圈两点后免费登记，默认不上架。管理可用 `/ecos estate set` 放空闲挂牌房。牌子：`/ecos estate sign` 写「ES2注册单位」。
+
+看房：挂牌房在终端左键传到门口；潜行左键两次购买。`/ecos estate here` 看当前门牌。`/ecos estate visit <楼> <层> <号>`。
+
+配置：`estate.max-volume`。数据：`estates.yml`。
+
 ## 其它段
 
-`tax` `tax-report` `bankruptcy` `checkin` `territory` `report` `showcase` `newbie-guide` `broadcast` `lucky-block` `music.presets` `weapons` `audit` `tps` `afk` `commands`
+`tax` `tax-report` `bankruptcy` `checkin` `territory` `estate` `report` `showcase` `newbie-guide` `broadcast` `lucky-block` `music.presets` `weapons` `audit` `tps` `afk` `commands`
 
 ## 玩家技能（不绑武器）
 

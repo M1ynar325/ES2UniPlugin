@@ -21,7 +21,7 @@ import java.util.Set;
 public class ConfigManager {
 
     /** 与 config.yml 中 config-version 保持一致，每次新增配置项时 +1 */
-    private static final int CURRENT_VERSION = 29;
+    private static final int CURRENT_VERSION = 30;
 
     private final ES2UniPlugin plugin;
     private YamlConfiguration jarDefaults;

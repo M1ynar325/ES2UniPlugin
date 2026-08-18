@@ -28,8 +28,9 @@ jobs:
             "target/ES2UniPlugin-${VER}.jar" \
             --title "ES2UniPlugin ${VER}" \
             --notes "$(cat <<'EOF'
-          Gleam Arc「霁弧」：玩家技能，不绑武器。管理 /ecos skill grant <玩家> gleam_arc 后，潜行+F 放出白/霁青弧钉住目标，同一人连挨落雷。冷却 3 秒。普通 F 仍换副手。
+          房产系统（和领地分开）：3D 房间门牌，住宅 / 公共 / 商业。登记、牌子（ES2注册单位）、门口传送、挂牌买卖。
 
-          同包还含：回声散射视效加强、/ecos weapon save 手持存档、/pay 二次确认。
+          看房：终端房产页左键传到门口，潜行左键两次购买（15 秒确认）。
+          /ecos estate here 查看当前门牌。ECOS 终端改为分类翻页（概览/社交/出行/城市/娱乐/管理）。
           EOF
           )"
