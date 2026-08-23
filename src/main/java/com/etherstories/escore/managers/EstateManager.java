@@ -19,6 +19,7 @@ import org.bukkit.entity.Player;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -41,7 +42,12 @@ public class EstateManager {
 
     public record PendingBuy(UUID buyer, String unitId, long expireMs) {}
 
-    private static final Pattern ROOM = Pattern.compile("[A-Za-z0-9\\-]{1,8}");
+    private static final Pattern ROOM = Pattern.compile("[\\p{L}\\p{N}\\-_．·]{1,16}");
+
+    public record ParsedAddress(String building, int floor, String room) {}
+
+    public record ParsedRegister(String building, int floor, String room,
+                                 UnitKind kind, BuildingCategory cat, Double price) {}
 
     private final ES2UniPlugin plugin;
     private final File dataFile;
@@ -85,14 +91,27 @@ public class EstateManager {
         return selectionOf(uuid) != null;
     }
 
+    public boolean hasPos1(UUID uuid) {
+        return pos1.containsKey(uuid);
+    }
+
+    /** 玩家自建住宅/公寓收注册费；管理预制和商铺/公共免费。 */
+    public double registerFee(boolean admin, BuildingCategory category, UnitKind kind) {
+        if (admin) return 0;
+        boolean home = category == BuildingCategory.RESIDENTIAL
+                || kind == UnitKind.HOUSE || kind == UnitKind.APARTMENT || kind == UnitKind.HOTEL;
+        if (!home) return 0;
+        return Math.max(0, plugin.getConfig().getDouble("estate.register-fee", 2048));
+    }
+
     public String register(Player p, String building, int floor, String room,
                            UnitKind kind, BuildingCategory category, boolean admin, double price) {
         Selection sel = selectionOf(p.getUniqueId());
         if (sel == null) return "请先 /ecos estate pos1 和 pos2 圈出房间";
         String bName = building.trim();
-        if (bName.isEmpty() || bName.length() > 24) return "楼名 1–24 字";
+        if (bName.isEmpty() || bName.length() > 32) return "楼名 1–32 字（可含空格）";
         String roomId = room.trim();
-        if (!ROOM.matcher(roomId).matches()) return "房号只能是字母数字和短横，最多 8 位";
+        if (!ROOM.matcher(roomId).matches()) return "房号 1–16 字（中文/字母/数字/短横）";
         if (kind == null) return "未知用途";
         if (category == null) category = kind.defaultCategory();
         EstateUnit probe = new EstateUnit(UUID.randomUUID().toString(), bName, floor, roomId, kind, category,
@@ -107,6 +126,16 @@ public class EstateManager {
         if (find(bName, floor, roomId) != null) return "这个门牌已经有了: " + probe.address();
         EstateUnit hit = overlap(probe, null);
         if (hit != null) return "与「" + hit.address() + "」空间重叠";
+        double fee = registerFee(admin, category, kind);
+        if (fee > 0) {
+            if (!plugin.getVaultHook().isEnabled()) return "经济系统不可用，无法缴纳住宅注册费";
+            if (plugin.getVaultHook().getBalance(p) < fee) {
+                return "余额不足，住宅注册费 " + money(fee);
+            }
+            String pay = plugin.getVaultHook().withdraw(p, fee);
+            if (pay != null) return "扣款失败: " + pay;
+            depositSink(fee);
+        }
         units.add(probe);
         save();
         pos1.remove(p.getUniqueId());
@@ -162,6 +191,17 @@ public class EstateManager {
         return names;
     }
 
+    public List<EstateUnit> listedForSale() {
+        List<EstateUnit> list = new ArrayList<>();
+        for (EstateUnit u : units) {
+            if (u.listed() && u.price() > 0) list.add(u);
+        }
+        list.sort(Comparator.comparing(EstateUnit::building, String.CASE_INSENSITIVE_ORDER)
+                .thenComparingInt(EstateUnit::floor)
+                .thenComparing(EstateUnit::room));
+        return list;
+    }
+
     public List<EstateUnit> inBuilding(String building) {
         List<EstateUnit> list = new ArrayList<>();
         for (EstateUnit u : units) {
@@ -182,10 +222,62 @@ public class EstateManager {
     }
 
     public BuildingCategory categoryOf(String building) {
+        BuildingCategory first = null;
         for (EstateUnit u : units) {
-            if (u.building().equalsIgnoreCase(building)) return u.category();
+            if (!u.building().equalsIgnoreCase(building)) continue;
+            if (first == null) first = u.category();
+            else if (first != u.category()) return first;
         }
-        return BuildingCategory.RESIDENTIAL;
+        return first == null ? BuildingCategory.RESIDENTIAL : first;
+    }
+
+    public boolean mixedCategory(String building) {
+        BuildingCategory first = null;
+        for (EstateUnit u : units) {
+            if (!u.building().equalsIgnoreCase(building)) continue;
+            if (first == null) first = u.category();
+            else if (first != u.category()) return true;
+        }
+        return false;
+    }
+
+    public static ParsedAddress parseAddress(String[] tokens) {
+        if (tokens == null || tokens.length < 3) return null;
+        try {
+            int floor = Integer.parseInt(tokens[tokens.length - 2]);
+            String room = tokens[tokens.length - 1].trim();
+            String building = String.join(" ", Arrays.copyOfRange(tokens, 0, tokens.length - 2)).trim();
+            if (building.isEmpty()) return null;
+            return new ParsedAddress(building, floor, room);
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    public static ParsedRegister parseRegister(String[] tokens, boolean allowPrice) {
+        if (tokens == null || tokens.length < 4) return null;
+        int end = tokens.length - 1;
+        Double price = null;
+        if (allowPrice) {
+            try {
+                price = Double.parseDouble(tokens[end]);
+                end--;
+            } catch (NumberFormatException ignored) {}
+        }
+        if (end < 3) return null;
+        BuildingCategory cat = null;
+        UnitKind kind = UnitKind.fromKey(tokens[end]);
+        if (kind == null) {
+            cat = BuildingCategory.fromKey(tokens[end]);
+            if (cat == null || end < 4) return null;
+            end--;
+            kind = UnitKind.fromKey(tokens[end]);
+            if (kind == null) return null;
+        }
+        ParsedAddress addr = parseAddress(Arrays.copyOfRange(tokens, 0, end));
+        if (addr == null) return null;
+        if (cat == null) cat = kind.defaultCategory();
+        return new ParsedRegister(addr.building(), addr.floor(), addr.room(), kind, cat, price);
     }
 
     public int vacantCount(String building) {
@@ -213,6 +305,10 @@ public class EstateManager {
         boolean admin = p.hasPermission("es2uni.admin");
         if (!admin && !p.getUniqueId().equals(unit.owner())) return "只有房主能上架";
         if (listed && price <= 0) return "上架需要价格大于 0";
+        if (listed && plugin.getHotelManager() != null) {
+            var room = plugin.getHotelManager().roomOf(unit);
+            if (room != null && !room.vacant()) return "酒店还有住客，先退房再上架";
+        }
         replace(unit.withSale(Math.max(0, price), listed));
         return null;
     }
@@ -224,6 +320,7 @@ public class EstateManager {
             return "没有权限拆这间";
         }
         units.removeIf(u -> u.id().equals(unit.id()));
+        if (plugin.getHotelManager() != null) plugin.getHotelManager().detach(unit.id());
         save();
         return null;
     }
@@ -265,6 +362,7 @@ public class EstateManager {
             depositSink(paid);
         }
         replace(unit.withOwner(p.getUniqueId(), p.getName()).withSale(0, false));
+        if (plugin.getHotelManager() != null) plugin.getHotelManager().detach(unit.id());
         return null;
     }
 
@@ -296,7 +394,7 @@ public class EstateManager {
         }
         p.sendMessage(ColorUtil.colorize(unit.hasDoor() ? " &7门口已设" : " &8门口未设"));
         if (!mine && unit.listed() && unit.price() > 0) {
-            p.sendMessage(ColorUtil.colorize("&8看房/购买: 终端房产页左键看房，潜行左键购买"));
+            p.sendMessage(ColorUtil.colorize("&8看房/购买: 终端买房页左键看房，右键购买"));
         }
     }
 

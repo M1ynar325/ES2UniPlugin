@@ -9,7 +9,9 @@ import com.etherstories.escore.items.WeaponPreset;
 import com.etherstories.escore.estate.BuildingCategory;
 import com.etherstories.escore.estate.EstateUnit;
 import com.etherstories.escore.estate.UnitKind;
+import com.etherstories.escore.hotel.HotelRoomType;
 import com.etherstories.escore.managers.EstateManager;
+import com.etherstories.escore.managers.HotelManager;
 import com.etherstories.escore.managers.PlaytimeManager;
 import com.etherstories.escore.managers.RegionManager;
 import com.etherstories.escore.managers.TransitManager;
@@ -228,6 +230,11 @@ public class ES2UniCommand implements CommandExecutor, TabCompleter {
                 handleTerritory(p, args);
             }
 
+            case "hotel" -> {
+                if (!(sender instanceof Player p)) { sender.sendMessage("仅玩家可执行"); return true; }
+                handleHotel(p, args);
+            }
+
             case "estate" -> {
                 if (!(sender instanceof Player p)) { sender.sendMessage("仅玩家可执行"); return true; }
                 handleEstate(p, args);
@@ -286,17 +293,19 @@ public class ES2UniCommand implements CommandExecutor, TabCompleter {
                         sender.sendMessage(ColorUtil.colorize("&c用法: /ecos checkin ticket <玩家> <数量>"));
                         return true;
                     }
-                    Player t = Bukkit.getPlayerExact(args[2]);
-                    if (t == null) { sender.sendMessage(ColorUtil.colorize("&c玩家不在线")); return true; }
+                    OfflinePlayer t = resolvePlayed(args[2]);
+                    if (t == null) { sender.sendMessage(ColorUtil.colorize("&c找不到玩家（需进过服）")); return true; }
                     int n;
                     try { n = Integer.parseInt(args[3]); } catch (NumberFormatException e) {
                         sender.sendMessage(ColorUtil.colorize("&c数量无效")); return true;
                     }
                     plugin.getCheckInManager().giveMakeupTickets(t.getUniqueId(), n);
-                    sender.sendMessage(ColorUtil.colorize("&8[ECOS] &7已给 &f" + t.getName()
+                    String name = t.getName() != null ? t.getName() : args[2];
+                    sender.sendMessage(ColorUtil.colorize("&8[ECOS] &7已给 &f" + name
                             + " &7补签券 &e" + n + " &8(现有 "
                             + plugin.getCheckInManager().getMakeupTickets(t.getUniqueId()) + ")"));
-                    t.sendMessage(ColorUtil.colorize("&8[ECOS] &a获得补签券 x" + n + " &7（签到日历点红日使用）"));
+                    if (t.isOnline() && t.getPlayer() != null)
+                        t.getPlayer().sendMessage(ColorUtil.colorize("&8[ECOS] &a获得补签券 x" + n + " &7（签到日历点红日使用）"));
                     return true;
                 }
                 if (!(sender instanceof Player p)) { sender.sendMessage("仅玩家可执行"); return true; }
@@ -313,11 +322,10 @@ public class ES2UniCommand implements CommandExecutor, TabCompleter {
             }
 
             case "lucky" -> {
-                if (!(sender instanceof Player p)) { sender.sendMessage("仅玩家可执行"); return true; }
                 if (args.length >= 3 && args[1].equalsIgnoreCase("ticket")) {
                     if (!sender.hasPermission("es2uni.admin")) { noPerms(sender); return true; }
-                    Player t = Bukkit.getPlayerExact(args[2]);
-                    if (t == null) { sender.sendMessage(ColorUtil.colorize("&7玩家不在线")); return true; }
+                    OfflinePlayer t = resolvePlayed(args[2]);
+                    if (t == null) { sender.sendMessage(ColorUtil.colorize("&7找不到玩家（需进过服）")); return true; }
                     int n = 1;
                     if (args.length >= 4) {
                         try { n = Integer.parseInt(args[3]); } catch (NumberFormatException e) {
@@ -325,13 +333,16 @@ public class ES2UniCommand implements CommandExecutor, TabCompleter {
                         }
                     }
                     plugin.getLuckyBlockManager().giveTickets(t.getUniqueId(), n);
-                    sender.sendMessage(ColorUtil.colorize("&8[ECOS] &7已给 &f" + t.getName()
+                    String name = t.getName() != null ? t.getName() : args[2];
+                    sender.sendMessage(ColorUtil.colorize("&8[ECOS] &7已给 &f" + name
                             + " &7额外抽奖 &a+" + n + " &8(现有 "
                             + plugin.getLuckyBlockManager().getTickets(t.getUniqueId()) + ")"));
-                    t.sendMessage(ColorUtil.colorize("&8[ECOS] &a获得 "
-                            + plugin.getLuckyBlockManager().displayName() + " 额外次数 &f+" + n));
+                    if (t.isOnline() && t.getPlayer() != null)
+                        t.getPlayer().sendMessage(ColorUtil.colorize("&8[ECOS] &a获得 "
+                                + plugin.getLuckyBlockManager().displayName() + " 额外次数 &f+" + n));
                     return true;
                 }
+                if (!(sender instanceof Player p)) { sender.sendMessage("仅玩家可执行"); return true; }
                 plugin.getLuckyBlockManager().claimAnimated(p, msg ->
                         p.sendMessage(ColorUtil.colorize(msg)));
             }
@@ -1092,15 +1103,27 @@ public class ES2UniCommand implements CommandExecutor, TabCompleter {
     // ── 房产（3D 房间，和领地独立）──────────────────────────────────────────
 
     private static final String ESTATE_DISCLAIMER =
-            "&8登记只是门牌，不提供方块保护。不追究，但出问题不保障。";
+            "&8没按规定注册的房子不追究，但出问题不保障。注册成房产才受保障。";
 
     private void handleEstate(Player p, String[] args) {
         EstateManager em = plugin.getEstateManager();
-        if (args.length < 2 || args[1].equalsIgnoreCase("gui") || args[1].equalsIgnoreCase("menu")) {
+        if (args.length < 2) {
+            plugin.getEstateSaleGUI().open(p);
+            return;
+        }
+        if (args[1].equalsIgnoreCase("gui") || args[1].equalsIgnoreCase("menu")) {
             plugin.getEstateBuildingsGUI().open(p);
             return;
         }
         switch (args[1].toLowerCase(Locale.ROOT)) {
+            case "sale", "buy", "shop" -> {
+                plugin.getEstateSaleGUI().open(p);
+                return;
+            }
+            case "tools" -> {
+                plugin.getEstateToolsGUI().open(p);
+                return;
+            }
             case "help" -> openEstateHelp(p);
             case "pos1" -> {
                 em.setPos1(p);
@@ -1128,80 +1151,53 @@ public class ES2UniCommand implements CommandExecutor, TabCompleter {
                     p.sendMessage(ColorUtil.colorize("&8空间: &7" + probe.volume() + " 格  "
                             + probe.minX() + "," + probe.minY() + "," + probe.minZ()
                             + " → " + probe.maxX() + "," + probe.maxY() + "," + probe.maxZ()));
+                    double homeFee = em.registerFee(false, BuildingCategory.RESIDENTIAL, UnitKind.HOUSE);
+                    if (homeFee > 0) {
+                        p.sendMessage(ColorUtil.colorize("&8自建住宅登记费 &f" + money(homeFee)
+                                + "  &8管理预制免费"));
+                    }
                 }
             }
             case "register" -> {
-                if (args.length < 6) {
-                    p.sendMessage(ColorUtil.colorize("&c用法: /ecos estate register <楼> <层> <号> <用途> [分类]"));
-                    p.sendMessage(ColorUtil.colorize("&8用途: " + EstateManager.kindsHint()));
-                    p.sendMessage(ColorUtil.colorize("&8分类: " + EstateManager.catsHint() + "  &7可省略，按用途推断"));
+                EstateManager.ParsedRegister spec = EstateManager.parseRegister(
+                        Arrays.copyOfRange(args, 2, args.length), false);
+                if (spec == null) {
+                    p.sendMessage(ColorUtil.colorize("&c用法: /ecos estate register <楼名> <层> <号> <用途> [分类]"));
+                    p.sendMessage(ColorUtil.colorize("&8楼名可含空格。用途: " + EstateManager.kindsHint()));
+                    p.sendMessage(ColorUtil.colorize("&8分类: " + EstateManager.catsHint() + "  &7可省略"));
                     return;
                 }
-                Integer floor = parseFloor(p, args[3]);
-                if (floor == null) return;
-                UnitKind kind = UnitKind.fromKey(args[5]);
-                if (kind == null) {
-                    p.sendMessage(ColorUtil.colorize("&c未知用途。&8" + EstateManager.kindsHint()));
-                    return;
-                }
-                BuildingCategory cat = args.length >= 7 ? BuildingCategory.fromKey(args[6]) : kind.defaultCategory();
-                if (cat == null) {
-                    p.sendMessage(ColorUtil.colorize("&c未知分类。&8" + EstateManager.catsHint()));
-                    return;
-                }
-                String err = em.register(p, args[2], floor, args[4], kind, cat, false, 0);
+                double fee = em.registerFee(false, spec.cat(), spec.kind());
+                String err = em.register(p, spec.building(), spec.floor(), spec.room(), spec.kind(), spec.cat(), false, 0);
                 if (err != null) {
                     p.sendMessage(ColorUtil.colorize("&8[房产] &c" + err));
                     return;
                 }
-                EstateUnit u = em.find(args[2], floor, args[4]);
-                p.sendMessage(ColorUtil.colorize("&8[房产] &a已登记 &f" + (u == null ? args[2] : u.address())
-                        + " &8" + kind.label + " · " + cat.label));
+                EstateUnit u = em.find(spec.building(), spec.floor(), spec.room());
+                p.sendMessage(ColorUtil.colorize("&8[房产] &a已登记 &f" + (u == null ? spec.building() : u.address())
+                        + " &8" + spec.kind().label + " · " + spec.cat().label
+                        + (fee > 0 ? "  &e注册费 " + money(fee) : " &7免费")));
                 p.sendMessage(ColorUtil.colorize(ESTATE_DISCLAIMER));
                 p.sendMessage(ColorUtil.colorize("&8站在门口: &f/ecos estate door"));
                 p.sendMessage(ColorUtil.colorize("&8看墙写牌子: &f/ecos estate sign"));
-                p.sendMessage(ColorUtil.colorize("&8上架出售: &f/ecos estate price <金额> &7然后 &f/ecos estate sell"));
+                p.sendMessage(ColorUtil.colorize("&8上架出售: &f/ecos estate sell <楼> <层> <号> [金额]"));
             }
             case "set" -> {
                 if (!p.hasPermission("es2uni.admin")) { noPerms(p); return; }
-                if (args.length < 6) {
-                    p.sendMessage(ColorUtil.colorize("&c用法: /ecos estate set <楼> <层> <号> <用途> [分类] [价格]"));
+                EstateManager.ParsedRegister spec = EstateManager.parseRegister(
+                        Arrays.copyOfRange(args, 2, args.length), true);
+                if (spec == null) {
+                    p.sendMessage(ColorUtil.colorize("&c用法: /ecos estate set <楼名> <层> <号> <用途> [分类] [价格]"));
                     return;
                 }
-                Integer floor = parseFloor(p, args[3]);
-                if (floor == null) return;
-                UnitKind kind = UnitKind.fromKey(args[5]);
-                if (kind == null) {
-                    p.sendMessage(ColorUtil.colorize("&c未知用途。&8" + EstateManager.kindsHint()));
-                    return;
-                }
-                BuildingCategory cat = kind.defaultCategory();
-                double price = 0;
-                if (args.length >= 7) {
-                    BuildingCategory parsed = BuildingCategory.fromKey(args[6]);
-                    if (parsed != null) cat = parsed;
-                    else {
-                        try { price = Double.parseDouble(args[6]); }
-                        catch (NumberFormatException e) {
-                            p.sendMessage(ColorUtil.colorize("&c未知分类或价格。&8" + EstateManager.catsHint()));
-                            return;
-                        }
-                    }
-                }
-                if (args.length >= 8) {
-                    try { price = Double.parseDouble(args[7]); }
-                    catch (NumberFormatException e) {
-                        p.sendMessage(ColorUtil.colorize("&c价格必须是数字"));
-                        return;
-                    }
-                }
-                String err = em.register(p, args[2], floor, args[4], kind, cat, true, price);
+                double price = spec.price() == null ? 0 : spec.price();
+                String err = em.register(p, spec.building(), spec.floor(), spec.room(), spec.kind(), spec.cat(), true, price);
                 if (err != null) {
                     p.sendMessage(ColorUtil.colorize("&8[房产] &c" + err));
                     return;
                 }
-                EstateUnit u = em.find(args[2], floor, args[4]);
-                p.sendMessage(ColorUtil.colorize("&8[房产] &a管理登记 &f" + (u == null ? args[2] : u.address())
+                EstateUnit u = em.find(spec.building(), spec.floor(), spec.room());
+                p.sendMessage(ColorUtil.colorize("&8[房产] &a管理登记 &f" + (u == null ? spec.building() : u.address())
                         + (price > 0 ? " &e挂牌 " + money(price) : " &7空闲未挂牌")));
                 p.sendMessage(ColorUtil.colorize("&8门口 / 牌子: &f/ecos estate door &7· &f/ecos estate sign"));
             }
@@ -1275,41 +1271,33 @@ public class ES2UniCommand implements CommandExecutor, TabCompleter {
                 p.sendMessage(ColorUtil.colorize("&8[房产] &7已到 &f" + u.address()));
             }
             case "price" -> {
-                if (args.length < 3) {
-                    p.sendMessage(ColorUtil.colorize("&c用法: /ecos estate price <金额> [楼 层 号]"));
+                SaleArgs sale = parseSaleArgs(p, args, false);
+                if (sale == null) {
+                    p.sendMessage(ColorUtil.colorize("&c用法: /ecos estate price <楼> <层> <号> <金额>"));
+                    p.sendMessage(ColorUtil.colorize("&8或: /ecos estate price <金额>  &7(站在房里)"));
                     return;
                 }
-                double price;
-                try { price = Double.parseDouble(args[2]); }
-                catch (NumberFormatException e) {
-                    p.sendMessage(ColorUtil.colorize("&c金额必须是数字"));
+                if (sale.price == null) {
+                    p.sendMessage(ColorUtil.colorize("&c请写金额"));
                     return;
                 }
-                EstateUnit u = resolveEstate(p, args, 3);
-                boolean listed = u != null && u.listed() && price > 0;
-                String err = em.setSale(p, u, price, listed);
+                boolean listed = sale.unit != null && sale.unit.listed() && sale.price > 0;
+                String err = em.setSale(p, sale.unit, sale.price, listed);
                 if (err != null) p.sendMessage(ColorUtil.colorize("&8[房产] &c" + err));
-                else p.sendMessage(ColorUtil.colorize("&8[房产] &7标价 &f" + money(price)
+                else p.sendMessage(ColorUtil.colorize("&8[房产] &7标价 &f" + money(sale.price)
                         + (listed ? " &e(仍挂牌)" : " &8未上架，/ecos estate sell")));
             }
             case "sell" -> {
-                double extra = -1;
-                int idx = 2;
-                if (args.length >= 3) {
-                    try {
-                        extra = Double.parseDouble(args[2]);
-                        idx = 3;
-                    } catch (NumberFormatException ignored) {}
-                }
-                EstateUnit u = resolveEstate(p, args, idx);
-                if (u == null) {
+                SaleArgs sale = parseSaleArgs(p, args, true);
+                if (sale == null || sale.unit == null) {
                     p.sendMessage(ColorUtil.colorize("&8[房产] &7找不到房间"));
+                    p.sendMessage(ColorUtil.colorize("&c用法: /ecos estate sell <楼> <层> <号> [金额]"));
                     return;
                 }
-                double price = extra > 0 ? extra : u.price();
-                String err = em.setSale(p, u, price, true);
+                double price = sale.price != null && sale.price > 0 ? sale.price : sale.unit.price();
+                String err = em.setSale(p, sale.unit, price, true);
                 if (err != null) p.sendMessage(ColorUtil.colorize("&8[房产] &c" + err));
-                else p.sendMessage(ColorUtil.colorize("&8[房产] &a已挂牌 &f" + u.address() + " &e" + money(price)));
+                else p.sendMessage(ColorUtil.colorize("&8[房产] &a已挂牌 &f" + sale.unit.address() + " &e" + money(price)));
             }
             case "unsell" -> {
                 EstateUnit u = resolveEstate(p, args, 2);
@@ -1322,8 +1310,165 @@ public class ES2UniCommand implements CommandExecutor, TabCompleter {
                 plugin.getEstateMineGUI().openAdmin(p);
             }
             default -> p.sendMessage(ColorUtil.colorize(
-                    "&c用法: /ecos estate <pos1|pos2|register|door|sign|here|visit|sell|help>"));
+                    "&c用法: /ecos estate <sale|gui|tools|pos1|pos2|register|door|sign|here|help>"));
         }
+    }
+
+    private void handleHotel(Player p, String[] args) {
+        HotelManager hm = plugin.getHotelManager();
+        if (args.length < 2) {
+            plugin.getHotelListGUI().open(p);
+            return;
+        }
+        switch (args[1].toLowerCase(Locale.ROOT)) {
+            case "gui", "menu" -> plugin.getHotelListGUI().open(p);
+            case "create" -> {
+                if (args.length < 3) {
+                    p.sendMessage(ColorUtil.colorize("&c用法: /ecos hotel create <名称>"));
+                    return;
+                }
+                String name = String.join(" ", Arrays.copyOfRange(args, 2, args.length));
+                String err = hm.create(p, name);
+                p.sendMessage(ColorUtil.colorize(err == null ? "&8[酒店] &a已创建 &f" + name : "&8[酒店] &c" + err));
+            }
+            case "bind" -> {
+                HotelManager.Hotel h;
+                EstateUnit u;
+                if (args.length >= 3 && hm.byName(args[2]) != null) {
+                    h = hm.byName(args[2]);
+                    u = resolveEstate(p, args, 3);
+                } else {
+                    h = resolveHotel(p, null);
+                    u = resolveEstate(p, args, 2);
+                }
+                if (u == null) u = hm.at(p.getLocation());
+                String err = hm.bind(p, h, u);
+                p.sendMessage(ColorUtil.colorize(err == null
+                        ? "&8[酒店] &a已绑 &f" + (u == null ? "" : u.address()) : "&8[酒店] &c" + err));
+            }
+            case "unbind" -> {
+                EstateUnit u = resolveEstate(p, args, 2);
+                if (u == null) u = hm.at(p.getLocation());
+                String err = hm.unbind(p, hm.hotelOf(u), u);
+                p.sendMessage(ColorUtil.colorize(err == null ? "&8[酒店] &7已解绑" : "&8[酒店] &c" + err));
+            }
+            case "type" -> {
+                if (args.length < 3) {
+                    p.sendMessage(ColorUtil.colorize("&c用法: /ecos hotel type <房型>  &8" + HotelRoomType.hint()));
+                    return;
+                }
+                EstateUnit u = hm.at(p.getLocation());
+                String err = hm.setType(p, hm.roomOf(u), HotelRoomType.fromKey(args[2]));
+                p.sendMessage(ColorUtil.colorize(err == null ? "&8[酒店] &7房型已改" : "&8[酒店] &c" + err));
+            }
+            case "price" -> {
+                if (args.length < 3) {
+                    p.sendMessage(ColorUtil.colorize("&c用法: /ecos hotel price <金额>"));
+                    return;
+                }
+                try {
+                    double price = Double.parseDouble(args[2]);
+                    EstateUnit u = hm.at(p.getLocation());
+                    String err = hm.setPrice(p, hm.roomOf(u), price);
+                    p.sendMessage(ColorUtil.colorize(err == null
+                            ? "&8[酒店] &7标价 &f" + hm.money(price) : "&8[酒店] &c" + err));
+                } catch (NumberFormatException e) {
+                    p.sendMessage(ColorUtil.colorize("&c金额必须是数字"));
+                }
+            }
+            case "lock" -> {
+                String err = hm.setLocked(p, hm.roomOf(hm.at(p.getLocation())), true);
+                p.sendMessage(ColorUtil.colorize(err == null ? "&8[酒店] &c已上锁" : "&8[酒店] &c" + err));
+            }
+            case "unlock" -> {
+                String err = hm.setLocked(p, hm.roomOf(hm.at(p.getLocation())), false);
+                p.sendMessage(ColorUtil.colorize(err == null ? "&8[酒店] &a已开锁" : "&8[酒店] &c" + err));
+            }
+            case "checkin" -> {
+                EstateUnit u = resolveEstate(p, args, 2);
+                if (u == null) u = hm.at(p.getLocation());
+                String err = hm.checkin(p, hm.roomOf(u));
+                p.sendMessage(ColorUtil.colorize(err == null ? "&8[酒店] &a已入住，房卡已发放" : "&8[酒店] &c" + err));
+            }
+            case "checkout" -> {
+                HotelManager.Room stay = hm.stayOf(p.getUniqueId());
+                EstateUnit u = hm.at(p.getLocation());
+                HotelManager.Room room = stay != null ? stay : hm.roomOf(u);
+                String err = hm.checkout(p, room);
+                p.sendMessage(ColorUtil.colorize(err == null ? "&8[酒店] &7已退房" : "&8[酒店] &c" + err));
+            }
+            case "card" -> {
+                HotelManager.Room stay = hm.stayOf(p.getUniqueId());
+                HotelManager.Hotel h = hm.hotelOfRoom(stay);
+                String err = h == null ? "当前没有入住" : hm.giveCard(p, h, stay, hm.unitOf(stay));
+                p.sendMessage(ColorUtil.colorize(err == null ? "&8[酒店] &a已补领房卡" : "&8[酒店] &c" + err));
+            }
+            case "manager" -> {
+                if (args.length < 4) {
+                    p.sendMessage(ColorUtil.colorize("&c用法: /ecos hotel manager <add|remove> <玩家> [酒店]"));
+                    return;
+                }
+                HotelManager.Hotel h = resolveHotel(p, args.length >= 5 ? args[4] : null);
+                OfflinePlayer who = resolvePlayed(args[3]);
+                String err;
+                if (args[2].equalsIgnoreCase("add")) err = hm.addManager(p, h, who);
+                else err = who == null ? "找不到玩家" : hm.removeManager(p, h, who.getUniqueId());
+                p.sendMessage(ColorUtil.colorize(err == null ? "&8[酒店] &a已更新管理者" : "&8[酒店] &c" + err));
+            }
+            case "transfer" -> {
+                if (args.length < 3) {
+                    p.sendMessage(ColorUtil.colorize("&c用法: /ecos hotel transfer <玩家> [酒店]"));
+                    return;
+                }
+                String err = hm.transfer(p, resolveHotel(p, args.length >= 4 ? args[3] : null), resolvePlayed(args[2]));
+                p.sendMessage(ColorUtil.colorize(err == null ? "&8[酒店] &a已转让" : "&8[酒店] &c" + err));
+            }
+            case "here", "info" -> hm.sendHere(p, hm.at(p.getLocation()));
+            case "list" -> {
+                var list = hm.ownedOrManaged(p.getUniqueId());
+                if (list.isEmpty()) list = hm.all();
+                p.sendMessage(ColorUtil.colorize("&8[酒店] &f" + list.size() + " 家"));
+                for (HotelManager.Hotel h : list) {
+                    int vacant = 0;
+                    for (HotelManager.Room r : h.rooms) if (r.vacant()) vacant++;
+                    p.sendMessage(ColorUtil.colorize("  &f" + h.name + " &8" + h.rooms.size()
+                            + " 间 空 " + vacant + "  &7" + h.ownerName));
+                }
+            }
+            case "help" -> p.sendMessage(ColorUtil.colorize(
+                    "&8[酒店] &f/ecos hotel create <名>\n"
+                            + " &7bind / unbind / type / price / lock / unlock\n"
+                            + " &7checkin / checkout / card / manager add|remove\n"
+                            + " &7transfer / here / list / gui"));
+            default -> p.sendMessage(ColorUtil.colorize("&c用法: /ecos hotel <gui|create|bind|checkin|help>"));
+        }
+    }
+
+    private HotelManager.Hotel resolveHotel(Player p, String name) {
+        HotelManager hm = plugin.getHotelManager();
+        if (name != null && !name.isBlank()) {
+            HotelManager.Hotel h = hm.byName(name);
+            if (h == null) p.sendMessage(ColorUtil.colorize("&8[酒店] &c没有这家: &f" + name));
+            return h;
+        }
+        var list = hm.ownedOrManaged(p.getUniqueId());
+        if (list.isEmpty()) {
+            p.sendMessage(ColorUtil.colorize("&8[酒店] &c你没有酒店。&7/ecos hotel create <名>"));
+            return null;
+        }
+        if (list.size() > 1) {
+            p.sendMessage(ColorUtil.colorize("&8[酒店] &c你有多家酒店，请在指令里写店名"));
+            return null;
+        }
+        return list.get(0);
+    }
+
+    private OfflinePlayer resolvePlayed(String name) {
+        Player online = Bukkit.getPlayerExact(name);
+        if (online != null) return online;
+        OfflinePlayer off = Bukkit.getOfflinePlayer(name);
+        if (off.hasPlayedBefore() || off.isOnline()) return off;
+        return null;
     }
 
     private Integer parseFloor(Player p, String raw) {
@@ -1335,14 +1480,66 @@ public class ES2UniCommand implements CommandExecutor, TabCompleter {
         }
     }
 
+    private record SaleArgs(EstateUnit unit, Double price) {}
+
+    /** 同时接受 金额在前 / 门牌在前；楼名可含空格。 */
+    private SaleArgs parseSaleArgs(Player p, String[] args, boolean priceOptional) {
+        EstateManager em = plugin.getEstateManager();
+        if (args.length == 2) {
+            EstateUnit u = em.at(p.getLocation());
+            return u == null ? null : new SaleArgs(u, null);
+        }
+        String[] rest = Arrays.copyOfRange(args, 2, args.length);
+        Double price = null;
+        String[] addrTok = rest;
+        try {
+            double last = Double.parseDouble(rest[rest.length - 1]);
+            if (rest.length == 1) return new SaleArgs(em.at(p.getLocation()), last);
+            if (rest.length >= 4) {
+                String[] maybe = Arrays.copyOfRange(rest, 0, rest.length - 1);
+                if (EstateManager.parseAddress(maybe) != null) {
+                    price = last;
+                    addrTok = maybe;
+                }
+            }
+        } catch (NumberFormatException ignored) {}
+        if (price == null && addrTok.length >= 1) {
+            try {
+                double first = Double.parseDouble(addrTok[0]);
+                if (addrTok.length == 1) return new SaleArgs(em.at(p.getLocation()), first);
+                String[] maybe = Arrays.copyOfRange(addrTok, 1, addrTok.length);
+                if (EstateManager.parseAddress(maybe) != null) {
+                    price = first;
+                    addrTok = maybe;
+                }
+            } catch (NumberFormatException ignored) {}
+        }
+        EstateManager.ParsedAddress addr = EstateManager.parseAddress(addrTok);
+        if (addr == null) {
+            if (priceOptional) {
+                EstateUnit here = em.at(p.getLocation());
+                return here == null ? null : new SaleArgs(here, price);
+            }
+            return null;
+        }
+        EstateUnit u = em.find(addr.building(), addr.floor(), addr.room());
+        if (u == null) p.sendMessage(ColorUtil.colorize("&8[房产] &7没有这间: " + addr.building()
+                + " " + addr.floor() + "-" + addr.room()));
+        return new SaleArgs(u, price);
+    }
+
     private EstateUnit resolveEstate(Player p, String[] args, int start) {
         EstateManager em = plugin.getEstateManager();
         if (args.length >= start + 3) {
-            Integer floor = parseFloor(p, args[start + 1]);
-            if (floor == null) return null;
-            EstateUnit u = em.find(args[start], floor, args[start + 2]);
+            EstateManager.ParsedAddress addr = EstateManager.parseAddress(
+                    Arrays.copyOfRange(args, start, args.length));
+            if (addr == null) {
+                p.sendMessage(ColorUtil.colorize("&c层必须是整数，例如 3 或 -1"));
+                return null;
+            }
+            EstateUnit u = em.find(addr.building(), addr.floor(), addr.room());
             if (u == null) p.sendMessage(ColorUtil.colorize("&8[房产] &7没有这间: "
-                    + args[start] + " " + floor + "-" + args[start + 2]));
+                    + addr.building() + " " + addr.floor() + "-" + addr.room()));
             return u;
         }
         return em.at(p.getLocation());
@@ -1363,10 +1560,11 @@ public class ES2UniCommand implements CommandExecutor, TabCompleter {
                 "§0§l房产系统\n\n" +
                 "§8和领地不是一回事。\n" +
                 "§0领地是 2D 地皮保护。\n" +
-                "§0房产是 3D 房间门牌：\n" +
+                "§0房产是按规定登记的房间：\n" +
                 "登记、买卖、传送。\n\n" +
-                "§c不提供方块保护。\n" +
-                "§8不追究，出问题不保障。\n\n" +
+                "§c没按规定注册的房子，\n" +
+                "§c出问题不保障。\n" +
+                "§0注册成房产才受保障。\n\n" +
                 "§0地址例：\n" +
                 "§8星港一号 3-301");
         meta.addPage(
@@ -1377,7 +1575,8 @@ public class ES2UniCommand implements CommandExecutor, TabCompleter {
                 "§0§l房间用途\n" +
                 "§8house 住宅\n" +
                 "apartment 公寓\n" +
-                "shop 商铺\n" +
+                "hotel 客房（可绑酒店）\n" +
+                "shop 商铺（免费）\n" +
                 "workshop 工坊\n" +
                 "studio 工作室\n" +
                 "storage 仓库\n" +
@@ -1388,9 +1587,11 @@ public class ES2UniCommand implements CommandExecutor, TabCompleter {
                 "§8/ecos estate pos1\n\n" +
                 "§82. §0对角（含高度）\n" +
                 "§8/ecos estate pos2\n\n" +
-                "§83. §0登记（免费）\n" +
+                "§83. §0登记（住宅收注册费）\n" +
                 "§8/ecos estate register\n" +
-                "§8<楼> <层> <号> <用途>\n\n" +
+                "§8<楼名可空格> <层> <号> <用途>\n" +
+                "§8商铺 shop 免费；住宅收费\n" +
+                "§8管理预制 /ecos estate set 免费\n\n" +
                 "§84. §0站门口\n" +
                 "§8/ecos estate door\n\n" +
                 "§85. §0看墙放牌子\n" +
@@ -1404,8 +1605,9 @@ public class ES2UniCommand implements CommandExecutor, TabCompleter {
                 "§8/ecos estate price <金额>\n" +
                 "§8/ecos estate sell\n" +
                 "§8/ecos estate unsell\n\n" +
-                "§0终端房产页：挂牌房左键看房，\n" +
-                "潜行左键两次购买（15秒）。\n\n" +
+                "§0终端出行/城市：§6买房§0 待售列表，\n" +
+                "左键看房，右键购买（再点确认）。\n" +
+                "§8登记 / 门口 在「登记房产」页。\n\n" +
                 "§8/ecos estate here\n" +
                 "§0站在房间里看门牌。\n" +
                 "§8/ecos estate visit 楼 层 号\n\n" +
@@ -2308,7 +2510,7 @@ public class ES2UniCommand implements CommandExecutor, TabCompleter {
                     "friends", "friend", "mail", "mailbox", "online",
                     "notice", "notices", "leaderboard", "lb", "top",
                     "checkin", "death", "deaths", "status", "r", "reply",
-                    "wp", "waypoint", "estate", "territory", "aura", "particle", "particles", "kit", "music",
+                    "wp", "waypoint", "estate", "hotel", "territory", "aura", "particle", "particles", "kit", "music",
                     "reload", "broadcast", "give", "claim", "tpsalert", "admin",
                     "region", "weapon", "skill", "kitadmin", "kits",
                     "audit", "tradereport", "taxreport", "reports", "report",
@@ -2346,8 +2548,13 @@ public class ES2UniCommand implements CommandExecutor, TabCompleter {
                 case "region"            -> filterPrefix(args[1], List.of("pos1", "pos2", "create", "delete", "list"));
                 case "territory"         -> filterPrefix(args[1], List.of("pos1", "pos2", "claim", "delete", "list", "visible", "spawn", "help"));
                 case "estate"            -> filterPrefix(args[1], List.of(
-                        "gui", "help", "pos1", "pos2", "register", "set", "door", "sign",
+                        "gui", "sale", "buy", "tools", "help", "pos1", "pos2", "register", "set", "door", "sign",
                         "here", "visit", "delete", "list", "tp", "price", "sell", "unsell", "admin"));
+                case "hotel"             -> filterPrefix(args[1], List.of(
+                        "gui", "create", "bind", "unbind", "type", "price", "lock", "unlock",
+                        "checkin", "checkout", "card", "manager", "transfer", "here", "list", "help"));
+                case "lucky"             -> filterPrefix(args[1], List.of("ticket"));
+                case "checkin"           -> filterPrefix(args[1], List.of("ticket", "gui"));
                 case "wp","waypoint"     -> filterPrefix(args[1], List.of("add", "remove", "tp", "list"));
                 case "transit", "rail", "metro" -> filterPrefix(args[1], List.of(
                         "gui", "map", "history", "board", "rank", "list", "help", "line", "station", "edge", "give", "gate", "tvm", "adjust", "type"));

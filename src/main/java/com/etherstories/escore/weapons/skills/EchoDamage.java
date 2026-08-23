@@ -6,8 +6,7 @@ import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 
 /**
- * 回声伤害：魔法系，绕过护甲（不抗魔的坦克吃满）。
- * 结算仍是 A：每发独立 damage，可累加。
+ * 回声伤害：魔法系，绕过护甲。清无敌帧，否则连发只结算 1～2 下。
  */
 public final class EchoDamage {
 
@@ -15,6 +14,7 @@ public final class EchoDamage {
 
     public static void magic(LivingEntity target, Player attacker, double amount) {
         if (target == null || target.isDead() || attacker == null || amount <= 0) return;
+        target.setNoDamageTicks(0);
         try {
             DamageSource src = DamageSource.builder(DamageType.MAGIC)
                     .withCausingEntity(attacker)
@@ -22,7 +22,6 @@ public final class EchoDamage {
                     .build();
             target.damage(amount, src);
         } catch (Throwable t) {
-            // 极旧 API 兜底（仍可能吃甲，尽量不用）
             target.damage(amount, attacker);
         }
     }

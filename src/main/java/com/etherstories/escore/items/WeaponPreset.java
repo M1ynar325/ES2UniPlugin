@@ -99,6 +99,18 @@ public class WeaponPreset {
                 SkillBinder.Slot.SNEAK_RIGHT, SkillType.ECHO_BARRAGE,
                 true),
 
+            build("still_veil",
+                "Still Veil", "静幕",
+                Material.IRON_SWORD,
+                new String[]{"unbreaking:3"},
+                new String[]{
+                    "&f&l不是刀快，是这一秒被你裁掉了。",
+                    "&3霁青与灰白漫开三十步，幕在，谁都不许先动。"
+                },
+                SkillBinder.Slot.RIGHT, SkillType.STILL_VEIL,
+                null, null,
+                true),
+
             build("singularity",
                 "Singularity", "奇点",
                 Material.NETHERITE_SWORD,

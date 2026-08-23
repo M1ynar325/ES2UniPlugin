@@ -1,5 +1,5 @@
 name: ES2UniPlugin
-version: 1.20.1
+version: 1.20.8
 main: com.etherstories.escore.ES2UniPlugin
 api-version: "1.21"
 description: EtherStories Unified Plugin — ECOS Terminal

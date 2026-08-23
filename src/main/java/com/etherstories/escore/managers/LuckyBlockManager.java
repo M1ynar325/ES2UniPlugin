@@ -2,6 +2,7 @@ package com.etherstories.escore.managers;
 
 import com.etherstories.escore.ES2UniPlugin;
 import com.etherstories.escore.utils.ColorUtil;
+import com.etherstories.escore.auras.AuraType;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -204,27 +205,113 @@ public class LuckyBlockManager {
         save();
 
         String tip = usedTicket ? " &8(使用额外次数，剩余 " + getTickets(id) + ")" : "";
-        int roll = rng.nextInt(100);
-        if (roll < 50 && plugin.getVaultHook().isEnabled()) {
+        return "&8[ECOS] &d" + displayName() + " &7→ " + rollReward(player) + tip;
+    }
+
+    private String rollReward(Player player) {
+        List<Map<String, Object>> pool = new ArrayList<>();
+        int total = 0;
+        List<?> raw = plugin.getConfig().getList("lucky-block.rewards");
+        if (raw != null) {
+            for (Object o : raw) {
+                if (!(o instanceof Map<?, ?> m)) continue;
+                Map<String, Object> row = new HashMap<>();
+                m.forEach((k, v) -> row.put(String.valueOf(k), v));
+                int w = asInt(row.get("weight"), 0);
+                if (w <= 0) continue;
+                pool.add(row);
+                total += w;
+            }
+        }
+        if (pool.isEmpty() || total <= 0) return fallbackReward(player);
+
+        int pick = rng.nextInt(total);
+        int acc = 0;
+        Map<String, Object> hit = pool.get(pool.size() - 1);
+        for (Map<String, Object> row : pool) {
+            acc += asInt(row.get("weight"), 0);
+            if (pick < acc) {
+                hit = row;
+                break;
+            }
+        }
+        return applyReward(player, hit);
+    }
+
+    private String applyReward(Player player, Map<String, Object> row) {
+        String type = String.valueOf(row.getOrDefault("type", "money")).toLowerCase();
+        return switch (type) {
+            case "money" -> giveMoney(player, asInt(row.get("min"), 50), asInt(row.get("max"), 200));
+            case "item" -> giveItem(player, String.valueOf(row.getOrDefault("material", "COOKED_BEEF")),
+                    asInt(row.get("min"), asInt(row.get("amount"), 1)),
+                    asInt(row.get("max"), asInt(row.get("amount"), 1)));
+            case "makeup" -> {
+                int n = Math.max(1, asInt(row.get("amount"), 1));
+                plugin.getCheckInManager().giveMakeupTickets(player.getUniqueId(), n);
+                yield "&a补签券 x" + n;
+            }
+            case "lucky_ticket" -> {
+                int n = Math.max(1, asInt(row.get("amount"), 1));
+                giveTickets(player.getUniqueId(), n);
+                yield "&a" + displayName() + " 额外次数 +" + n;
+            }
+            case "aura_random" -> giveRandomAura(player);
+            default -> fallbackReward(player);
+        };
+    }
+
+    private static int asInt(Object o, int def) {
+        if (o instanceof Number n) return n.intValue();
+        if (o == null) return def;
+        try { return Integer.parseInt(o.toString()); }
+        catch (NumberFormatException e) { return def; }
+    }
+
+    private String giveMoney(Player player, int min, int max) {
+        if (!plugin.getVaultHook().isEnabled()) return fallbackReward(player);
+        int lo = Math.min(min, max);
+        int hi = Math.max(min, max);
+        double amount = lo + rng.nextInt(Math.max(1, hi - lo + 1));
+        plugin.getVaultHook().deposit(player, amount);
+        return "&e" + plugin.getVaultHook().format(amount);
+    }
+
+    private String giveItem(Player player, String matName, int min, int max) {
+        Material mat;
+        try {
+            mat = Material.valueOf(matName.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            return fallbackReward(player);
+        }
+        int lo = Math.max(1, Math.min(min, max));
+        int hi = Math.max(min, max);
+        int n = lo + rng.nextInt(Math.max(1, hi - lo + 1));
+        ItemStack item = new ItemStack(mat, n);
+        player.getInventory().addItem(item).values()
+                .forEach(left -> player.getWorld().dropItemNaturally(player.getLocation(), left));
+        return "&f" + matName.toLowerCase().replace('_', ' ') + " x" + n;
+    }
+
+    private String giveRandomAura(Player player) {
+        List<AuraType> missing = new ArrayList<>();
+        for (AuraType t : AuraType.values()) {
+            if (!plugin.getAuraManager().owns(player.getUniqueId(), t)) missing.add(t);
+        }
+        if (missing.isEmpty()) return giveMoney(player, 200, 400);
+        AuraType pick = missing.get(rng.nextInt(missing.size()));
+        plugin.getAuraManager().giveAura(player.getUniqueId(), pick);
+        return "&b光环 &f" + pick.displayName();
+    }
+
+    private String fallbackReward(Player player) {
+        if (plugin.getVaultHook().isEnabled()) {
             double amount = 50 + rng.nextInt(151);
             plugin.getVaultHook().deposit(player, amount);
-            return "&8[ECOS] &d" + displayName() + " &7→ &e"
-                    + plugin.getVaultHook().format(amount) + tip;
+            return "&e" + plugin.getVaultHook().format(amount);
         }
-        if (roll < 80) {
-            ItemStack item = new ItemStack(Material.COOKED_BEEF, 8 + rng.nextInt(9));
-            player.getInventory().addItem(item).values()
-                    .forEach(left -> player.getWorld().dropItemNaturally(player.getLocation(), left));
-            return "&8[ECOS] &d" + displayName() + " &7→ &f烤牛肉 x" + item.getAmount() + tip;
-        }
-        if (roll < 95) {
-            ItemStack item = new ItemStack(Material.IRON_INGOT, 2 + rng.nextInt(5));
-            player.getInventory().addItem(item).values()
-                    .forEach(left -> player.getWorld().dropItemNaturally(player.getLocation(), left));
-            return "&8[ECOS] &d" + displayName() + " &7→ &f铁锭 x" + item.getAmount() + tip;
-        }
-        plugin.getCheckInManager().giveMakeupTickets(player.getUniqueId(), 1);
-        return "&8[ECOS] &d" + displayName() + " &7→ &a补签券 x1" + tip;
+        ItemStack item = new ItemStack(Material.COOKED_BEEF, 8);
+        player.getInventory().addItem(item);
+        return "&f烤牛肉 x8";
     }
 
     private void ensureDay() {

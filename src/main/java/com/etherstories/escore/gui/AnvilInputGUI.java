@@ -1,9 +1,11 @@
 package com.etherstories.escore.gui;
 
 import com.etherstories.escore.ES2UniPlugin;
+import com.etherstories.escore.managers.HotelManager;
 import com.etherstories.escore.utils.ColorUtil;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
 
 import java.util.HashMap;
@@ -13,9 +15,11 @@ import java.util.UUID;
 public class AnvilInputGUI {
 
     public enum Context {
-        CREATE_EVENT_NAME, PAY_AMOUNT, ADD_FRIEND_NAME, SET_STATUS, ADD_WAYPOINT, CREATE_KIT_NAME,
+        CREATE_EVENT_NAME, PAY_AMOUNT, PAY_ALL_AMOUNT, ADD_FRIEND_NAME, SET_STATUS, ADD_WAYPOINT, CREATE_KIT_NAME,
         MUSIC_SEARCH, MUSIC_ADD_ID,
-        JOB_TITLE, JOB_REWARD, JOB_SLOTS, JOB_DESC, JOB_EDIT_TITLE
+        JOB_TITLE, JOB_REWARD, JOB_SLOTS, JOB_DESC, JOB_EDIT_TITLE,
+        ESTATE_REGISTER, ESTATE_PRICE,
+        HOTEL_CREATE, HOTEL_PRICE, HOTEL_TRANSFER, HOTEL_MGR, GRANT_TICKET
     }
 
     public record InputState(Context context, String currentInput, UUID metadata, String placeholder) {}
@@ -32,6 +36,10 @@ public class AnvilInputGUI {
     private final ES2UniPlugin plugin;
     private final Map<UUID, InputState> pending = new HashMap<>();
     private final Map<UUID, JobDraft> jobDrafts = new HashMap<>();
+    private final Map<UUID, String> estatePriceUnit = new HashMap<>();
+    private final Map<UUID, String> hotelPriceUnit = new HashMap<>();
+    private final Map<UUID, String> hotelContext = new HashMap<>();
+    private final Map<UUID, String> grantKind = new HashMap<>();
 
     public AnvilInputGUI(ES2UniPlugin plugin) {
         this.plugin = plugin;
@@ -76,10 +84,57 @@ public class AnvilInputGUI {
                 "目标: " + name + (target.isOnline() ? "" : " (离线)") + " — 输入数字金额");
     }
 
+    public void openForPayAllAmount(Player player) {
+        int n = Math.max(0, org.bukkit.Bukkit.getOnlinePlayers().size() - 1);
+        open(player, Context.PAY_ALL_AMOUNT, "0", null,
+                "全员转账",
+                "给除自己外 " + n + " 人各转一笔 — 输入每人金额");
+    }
+
     /** Admin: create kit name. */
     public void openForKitName(Player player) {
         open(player, Context.CREATE_KIT_NAME, "套件名称", null,
                 "新建 Kit", "输入套件 ID（字母/数字/_/-）");
+    }
+
+    public void openForEstateRegister(Player player) {
+        open(player, Context.ESTATE_REGISTER, "星港商场 1 101 shop", null,
+                "登记房产",
+                "输入: 楼名 层 号 用途 [分类]  楼名可空格  住宅收注册费，shop/workshop 免费");
+    }
+
+    public void openForEstatePrice(Player player, com.etherstories.escore.estate.EstateUnit unit) {
+        estatePriceUnit.put(player.getUniqueId(), unit.id());
+        String hint = unit.price() > 0 ? String.format("%.0f", unit.price()) : "2048";
+        open(player, Context.ESTATE_PRICE, hint, null,
+                "挂牌标价",
+                "输入 " + unit.address() + " 的出售金额，确认后上架");
+    }
+
+    public void openForHotelCreate(Player player) {
+        open(player, Context.HOTEL_CREATE, "星港酒店", null, "创建酒店", "输入酒店名称");
+    }
+
+    public void openForHotelPrice(Player player, String unitId, String hint) {
+        hotelPriceUnit.put(player.getUniqueId(), unitId);
+        open(player, Context.HOTEL_PRICE, hint, null, "酒店房价", "输入入住标价（客人另付税）");
+    }
+
+    public void openForHotelTransfer(Player player, String hotelId) {
+        hotelContext.put(player.getUniqueId(), hotelId);
+        open(player, Context.HOTEL_TRANSFER, "玩家名", null, "转让酒店", "输入新店主游戏名（进过服即可）");
+    }
+
+    public void openForHotelMgr(Player player, String hotelId) {
+        hotelContext.put(player.getUniqueId(), hotelId);
+        open(player, Context.HOTEL_MGR, "add 玩家", null, "酒店管理者", "输入: add 玩家  或  remove 玩家");
+    }
+
+    public void openForGrant(Player player, String kind) {
+        grantKind.put(player.getUniqueId(), kind);
+        open(player, Context.GRANT_TICKET, "玩家 1", null,
+                kind.equals("lucky") ? "发幸运次数" : "发补签券",
+                "输入: 玩家名 数量   离线也可");
     }
 
     /** AllMusic: search song by name. */
@@ -132,6 +187,7 @@ public class AnvilInputGUI {
         switch (state.context()) {
             case CREATE_EVENT_NAME -> confirmEventName(player, state);
             case PAY_AMOUNT        -> confirmPayAmount(player, state);
+            case PAY_ALL_AMOUNT    -> confirmPayAllAmount(player, state);
             case ADD_FRIEND_NAME   -> confirmFriendName(player, state);
             case SET_STATUS        -> confirmStatus(player, state);
             case ADD_WAYPOINT      -> confirmWaypoint(player, state);
@@ -143,12 +199,23 @@ public class AnvilInputGUI {
             case JOB_SLOTS         -> confirmJobSlots(player, state);
             case JOB_DESC          -> confirmJobDesc(player, state);
             case JOB_EDIT_TITLE    -> confirmJobEditTitle(player, state);
+            case ESTATE_REGISTER  -> confirmEstateRegister(player, state);
+            case ESTATE_PRICE     -> confirmEstatePrice(player, state);
+            case HOTEL_CREATE     -> confirmHotelCreate(player, state);
+            case HOTEL_PRICE      -> confirmHotelPrice(player, state);
+            case HOTEL_TRANSFER   -> confirmHotelTransfer(player, state);
+            case HOTEL_MGR        -> confirmHotelMgr(player, state);
+            case GRANT_TICKET     -> confirmGrant(player, state);
         }
     }
 
     public void cancel(Player player) {
         pending.remove(player.getUniqueId());
         jobDrafts.remove(player.getUniqueId());
+        estatePriceUnit.remove(player.getUniqueId());
+        hotelPriceUnit.remove(player.getUniqueId());
+        hotelContext.remove(player.getUniqueId());
+        grantKind.remove(player.getUniqueId());
     }
 
     /** True if text is empty or still the placeholder. */
@@ -418,6 +485,200 @@ public class AnvilInputGUI {
 
         Bukkit.getScheduler().runTask(plugin,
                 () -> plugin.getPayConfirmGUI().open(player, target, amount));
+    }
+
+    private void confirmPayAllAmount(Player player, InputState state) {
+        double amount;
+        try {
+            amount = Double.parseDouble(sanitize(state.currentInput()));
+        } catch (NumberFormatException e) {
+            player.sendMessage(ColorUtil.colorize("&c[ES2] 请输入有效数字。"));
+            Bukkit.getScheduler().runTask(plugin, () -> openForPayAllAmount(player));
+            return;
+        }
+        if (amount <= 0) {
+            player.sendMessage(ColorUtil.colorize("&8[ECOS] &7金额必须大于 0"));
+            Bukkit.getScheduler().runTask(plugin, () -> openForPayAllAmount(player));
+            return;
+        }
+        Bukkit.getScheduler().runTask(plugin,
+                () -> plugin.getPayConfirmGUI().openAll(player, amount));
+    }
+
+    private void confirmEstateRegister(Player player, InputState state) {
+        if (isBlankOrPlaceholder(state)) {
+            player.sendMessage(ColorUtil.colorize("&8[房产] &7已取消"));
+            Bukkit.getScheduler().runTask(plugin, () -> plugin.getEstateToolsGUI().open(player));
+            return;
+        }
+        var spec = com.etherstories.escore.managers.EstateManager.parseRegister(
+                sanitize(state.currentInput()).split("\\s+"), false);
+        if (spec == null) {
+            player.sendMessage(ColorUtil.colorize("&8[房产] &c格式: 楼名 层 号 用途  &8例: 星港 商场 1 101 shop"));
+            Bukkit.getScheduler().runTask(plugin, () -> plugin.getEstateToolsGUI().open(player));
+            return;
+        }
+        String err = plugin.getEstateManager().register(player, spec.building(), spec.floor(), spec.room(),
+                spec.kind(), spec.cat(), false, 0);
+        if (err != null) {
+            player.sendMessage(ColorUtil.colorize("&8[房产] &c" + err));
+            Bukkit.getScheduler().runTask(plugin, () -> plugin.getEstateToolsGUI().open(player));
+            return;
+        }
+        var u = plugin.getEstateManager().find(spec.building(), spec.floor(), spec.room());
+        double fee = plugin.getEstateManager().registerFee(false, spec.cat(), spec.kind());
+        player.sendMessage(ColorUtil.colorize("&8[房产] &a已登记 &f" + (u == null ? spec.building() : u.address())
+                + " &8" + spec.kind().label + " · " + spec.cat().label
+                + (fee > 0 ? "  &e注册费已扣" : " &7免费")));
+        player.sendMessage(ColorUtil.colorize("&8没按规定注册的房子不追究，但出问题不保障。注册成房产才受保障。"));
+        Bukkit.getScheduler().runTask(plugin, () -> plugin.getEstateToolsGUI().open(player));
+    }
+
+    private void confirmEstatePrice(Player player, InputState state) {
+        String unitId = estatePriceUnit.remove(player.getUniqueId());
+        if (isBlankOrPlaceholder(state) || unitId == null) {
+            player.sendMessage(ColorUtil.colorize("&8[房产] &7已取消"));
+            Bukkit.getScheduler().runTask(plugin, () -> plugin.getEstateMineGUI().openMine(player));
+            return;
+        }
+        double price;
+        try {
+            price = Double.parseDouble(sanitize(state.currentInput()));
+        } catch (NumberFormatException e) {
+            player.sendMessage(ColorUtil.colorize("&8[房产] &c金额必须是数字"));
+            Bukkit.getScheduler().runTask(plugin, () -> plugin.getEstateMineGUI().openMine(player));
+            return;
+        }
+        var u = plugin.getEstateManager().byId(unitId);
+        String err = plugin.getEstateManager().setSale(player, u, price, true);
+        if (err != null) player.sendMessage(ColorUtil.colorize("&8[房产] &c" + err));
+        else player.sendMessage(ColorUtil.colorize("&8[房产] &a已挂牌 &f"
+                + (u == null ? "" : u.address()) + " &e"
+                + (plugin.getVaultHook().isEnabled()
+                ? plugin.getVaultHook().format(price) : String.format("%.0f", price))));
+        Bukkit.getScheduler().runTask(plugin, () -> plugin.getEstateMineGUI().openMine(player));
+    }
+
+    private void confirmHotelCreate(Player player, InputState state) {
+        if (isBlankOrPlaceholder(state)) {
+            player.sendMessage(ColorUtil.colorize("&8[酒店] &7已取消"));
+            Bukkit.getScheduler().runTask(plugin, () -> plugin.getHotelListGUI().open(player));
+            return;
+        }
+        String err = plugin.getHotelManager().create(player, sanitize(state.currentInput()));
+        if (err != null) player.sendMessage(ColorUtil.colorize("&8[酒店] &c" + err));
+        else player.sendMessage(ColorUtil.colorize("&8[酒店] &a已创建 &f" + sanitize(state.currentInput())
+                + " &7站在房产里打开酒店页绑房"));
+        Bukkit.getScheduler().runTask(plugin, () -> plugin.getHotelListGUI().open(player));
+    }
+
+    private void confirmHotelPrice(Player player, InputState state) {
+        String unitId = hotelPriceUnit.remove(player.getUniqueId());
+        var unit = plugin.getEstateManager().byId(unitId);
+        var room = plugin.getHotelManager().roomOf(unit);
+        var hotel = plugin.getHotelManager().hotelOf(unit);
+        if (isBlankOrPlaceholder(state) || room == null) {
+            player.sendMessage(ColorUtil.colorize("&8[酒店] &7已取消"));
+            if (hotel != null) Bukkit.getScheduler().runTask(plugin, () -> plugin.getHotelDeskGUI().open(player, hotel));
+            return;
+        }
+        try {
+            double price = Double.parseDouble(sanitize(state.currentInput()));
+            String err = plugin.getHotelManager().setPrice(player, room, price);
+            player.sendMessage(ColorUtil.colorize(err == null
+                    ? "&8[酒店] &7标价 &f" + plugin.getHotelManager().money(price) : "&8[酒店] &c" + err));
+        } catch (NumberFormatException e) {
+            player.sendMessage(ColorUtil.colorize("&8[酒店] &c金额必须是数字"));
+        }
+        if (hotel != null) Bukkit.getScheduler().runTask(plugin, () -> plugin.getHotelDeskGUI().open(player, hotel));
+    }
+
+    private void confirmHotelTransfer(Player player, InputState state) {
+        String hid = hotelContext.remove(player.getUniqueId());
+        var hotel = plugin.getHotelManager().byId(hid);
+        if (isBlankOrPlaceholder(state) || hotel == null) {
+            player.sendMessage(ColorUtil.colorize("&8[酒店] &7已取消"));
+            if (hotel != null) {
+                HotelManager.Hotel open = hotel;
+                Bukkit.getScheduler().runTask(plugin, () -> plugin.getHotelDeskGUI().open(player, open));
+            }
+            return;
+        }
+        OfflinePlayer to = Bukkit.getOfflinePlayer(sanitize(state.currentInput()));
+        String err = plugin.getHotelManager().transfer(player, hotel, to);
+        player.sendMessage(ColorUtil.colorize(err == null
+                ? "&8[酒店] &a已转让给 &f" + (to.getName() == null ? sanitize(state.currentInput()) : to.getName())
+                : "&8[酒店] &c" + err));
+        HotelManager.Hotel after = plugin.getHotelManager().byId(hid);
+        if (after != null) {
+            Bukkit.getScheduler().runTask(plugin, () -> plugin.getHotelDeskGUI().open(player, after));
+        }
+    }
+
+    private void confirmHotelMgr(Player player, InputState state) {
+        String hid = hotelContext.remove(player.getUniqueId());
+        var hotel = plugin.getHotelManager().byId(hid);
+        if (isBlankOrPlaceholder(state) || hotel == null) {
+            player.sendMessage(ColorUtil.colorize("&8[酒店] &7已取消"));
+            if (hotel != null) Bukkit.getScheduler().runTask(plugin, () -> plugin.getHotelDeskGUI().open(player, hotel));
+            return;
+        }
+        String[] parts = sanitize(state.currentInput()).split("\\s+");
+        if (parts.length < 2) {
+            player.sendMessage(ColorUtil.colorize("&8[酒店] &c用法: add 玩家  或  remove 玩家"));
+            Bukkit.getScheduler().runTask(plugin, () -> plugin.getHotelDeskGUI().open(player, hotel));
+            return;
+        }
+        OfflinePlayer who = Bukkit.getOfflinePlayer(parts[1]);
+        String err;
+        if (parts[0].equalsIgnoreCase("add")) err = plugin.getHotelManager().addManager(player, hotel, who);
+        else if (parts[0].equalsIgnoreCase("remove") || parts[0].equalsIgnoreCase("rm"))
+            err = plugin.getHotelManager().removeManager(player, hotel, who.getUniqueId());
+        else err = "用法: add 玩家  或  remove 玩家";
+        player.sendMessage(ColorUtil.colorize(err == null ? "&8[酒店] &a已更新管理者" : "&8[酒店] &c" + err));
+        Bukkit.getScheduler().runTask(plugin, () -> plugin.getHotelDeskGUI().open(player, hotel));
+    }
+
+    private void confirmGrant(Player player, InputState state) {
+        String kind = grantKind.remove(player.getUniqueId());
+        if (isBlankOrPlaceholder(state)) {
+            player.sendMessage(ColorUtil.colorize("&8[ECOS] &7已取消"));
+            Bukkit.getScheduler().runTask(plugin, () -> plugin.getAdminGrantGUI().open(player));
+            return;
+        }
+        String[] parts = sanitize(state.currentInput()).split("\\s+");
+        if (parts.length < 2) {
+            player.sendMessage(ColorUtil.colorize("&8[ECOS] &c用法: 玩家 数量"));
+            Bukkit.getScheduler().runTask(plugin, () -> plugin.getAdminGrantGUI().open(player));
+            return;
+        }
+        OfflinePlayer t = Bukkit.getOfflinePlayer(parts[0]);
+        if (!t.hasPlayedBefore() && !t.isOnline()) {
+            player.sendMessage(ColorUtil.colorize("&8[ECOS] &c找不到玩家（需进过服）"));
+            Bukkit.getScheduler().runTask(plugin, () -> plugin.getAdminGrantGUI().open(player));
+            return;
+        }
+        int n;
+        try { n = Integer.parseInt(parts[1]); }
+        catch (NumberFormatException e) {
+            player.sendMessage(ColorUtil.colorize("&8[ECOS] &c数量无效"));
+            Bukkit.getScheduler().runTask(plugin, () -> plugin.getAdminGrantGUI().open(player));
+            return;
+        }
+        String name = t.getName() != null ? t.getName() : parts[0];
+        if ("lucky".equals(kind)) {
+            plugin.getLuckyBlockManager().giveTickets(t.getUniqueId(), n);
+            player.sendMessage(ColorUtil.colorize("&8[ECOS] &7已给 &f" + name + " &7额外抽奖 &a+" + n));
+            if (t.isOnline() && t.getPlayer() != null)
+                t.getPlayer().sendMessage(ColorUtil.colorize("&8[ECOS] &a获得 "
+                        + plugin.getLuckyBlockManager().displayName() + " 额外次数 &f+" + n));
+        } else {
+            plugin.getCheckInManager().giveMakeupTickets(t.getUniqueId(), n);
+            player.sendMessage(ColorUtil.colorize("&8[ECOS] &7已给 &f" + name + " &7补签券 &e" + n));
+            if (t.isOnline() && t.getPlayer() != null)
+                t.getPlayer().sendMessage(ColorUtil.colorize("&8[ECOS] &a获得补签券 x" + n));
+        }
+        Bukkit.getScheduler().runTask(plugin, () -> plugin.getAdminGrantGUI().open(player));
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────

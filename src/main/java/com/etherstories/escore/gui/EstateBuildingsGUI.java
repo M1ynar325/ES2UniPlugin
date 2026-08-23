@@ -20,12 +20,13 @@ import java.util.UUID;
 public class EstateBuildingsGUI {
 
     public static final String TITLE = ColorUtil.colorize("&2&l房产");
-    public static final int SLOT_ALL = 45;
-    public static final int SLOT_RES = 46;
-    public static final int SLOT_PUB = 47;
-    public static final int SLOT_COM = 48;
-    public static final int SLOT_MINE = 49;
-    public static final int SLOT_ADMIN = 50;
+    public static final int SLOT_SALE = 45;
+    public static final int SLOT_ALL = 46;
+    public static final int SLOT_RES = 47;
+    public static final int SLOT_PUB = 48;
+    public static final int SLOT_COM = 49;
+    public static final int SLOT_MINE = 50;
+    public static final int SLOT_TOOLS = 51;
     public static final int SLOT_BACK = 52;
     public static final int SLOT_CLOSE = 53;
 
@@ -56,17 +57,25 @@ public class EstateBuildingsGUI {
             int vacant = plugin.getEstateManager().vacantCount(name);
             BuildingCategory c = plugin.getEstateManager().categoryOf(name);
             List<String> lore = new ArrayList<>();
-            lore.add(" &7" + c.label);
+            lore.add(" &7" + (cat != null ? cat.label : c.label)
+                    + (plugin.getEstateManager().mixedCategory(name) ? " &8(混合)" : ""));
             lore.add(" &7房间: &f" + rooms.size() + "  &8空闲 &a" + vacant);
             lore.add("");
             lore.add("&a▸ 点击查看房间");
-            inv.setItem(i, ECOSTerminalGUI.item(c.icon, "&f" + name, lore));
+            inv.setItem(i, ECOSTerminalGUI.item(cat != null ? cat.icon : c.icon, "&f" + name, lore));
         }
         if (names.isEmpty()) {
             inv.setItem(22, ECOSTerminalGUI.item(Material.BARRIER, "&7这一类还没有楼",
-                    List.of("&8圈空间后 /ecos estate register", "&8或管理 /ecos estate set")));
+                    List.of("&8终端出行页「登记房产」",
+                            "&8自建住宅收注册费",
+                            "&8管理预制走管理页")));
         }
 
+        int onSale = plugin.getEstateManager().listedForSale().size();
+        ItemStack sale = ECOSTerminalGUI.item(Material.GOLD_INGOT, "&e买房 · 待售",
+                List.of(" &7挂牌: &f" + onSale, "", "&e▸ 打开"));
+        if (onSale > 0) sale = ECOSTerminalGUI.glint(sale);
+        inv.setItem(SLOT_SALE, sale);
         inv.setItem(SLOT_ALL, tab(Material.MAP, "全部", cat == null));
         inv.setItem(SLOT_RES, tab(BuildingCategory.RESIDENTIAL.icon, "住宅", cat == BuildingCategory.RESIDENTIAL));
         inv.setItem(SLOT_PUB, tab(BuildingCategory.PUBLIC.icon, "公共建筑", cat == BuildingCategory.PUBLIC));
@@ -74,10 +83,8 @@ public class EstateBuildingsGUI {
         inv.setItem(SLOT_MINE, ECOSTerminalGUI.item(Material.OAK_DOOR, "&e我的房产",
                 List.of(" &7" + plugin.getEstateManager().ownedBy(player.getUniqueId()).size() + " 间",
                         "", "&e▸ 点击打开")));
-        if (player.hasPermission("es2uni.admin")) {
-            inv.setItem(SLOT_ADMIN, ECOSTerminalGUI.item(Material.COMMAND_BLOCK, "&c全部房产",
-                    List.of(" &7管理总表", "", "&c▸ 点击打开")));
-        }
+        inv.setItem(SLOT_TOOLS, ECOSTerminalGUI.item(Material.OAK_SIGN, "&a登记 / 门口",
+                List.of("&8点1 · 点2 · 登记 · 牌子", "", "&a▸ 打开")));
         inv.setItem(SLOT_BACK, ECOSTerminalGUI.item(Material.ARROW, "&7返回终端", null));
         inv.setItem(SLOT_CLOSE, ECOSTerminalGUI.item(Material.BARRIER, "&c关闭", null));
         player.openInventory(inv);

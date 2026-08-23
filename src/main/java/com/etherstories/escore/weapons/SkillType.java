@@ -13,7 +13,8 @@ public enum SkillType {
     CELESTIAL_ASCENT  ("Celestial Ascent",     "天升",      "celestial_ascent"),
     ECHO_SCATTER      ("Echo Scatter",         "回声散射",  "echo_scatter"),
     ECHO_BARRAGE      ("Echo Seek",            "回声寻踪",  "echo_barrage"),
-    GLEAM_ARC         ("Gleam Arc",            "霁弧",      "gleam_arc");
+    GLEAM_ARC         ("Gleam Arc",            "霁弧",      "gleam_arc"),
+    STILL_VEIL        ("Still Veil",           "静幕",      "still_veil");
 
     public final String englishName;
     public final String chineseName;

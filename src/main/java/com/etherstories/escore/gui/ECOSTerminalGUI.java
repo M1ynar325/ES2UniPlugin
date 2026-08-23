@@ -256,8 +256,21 @@ public class ECOSTerminalGUI {
                 : plugin.getEstateManager().ownedBy(player.getUniqueId()).size();
         put(inv, act, 7, "estate", item(Material.OAK_DOOR, "&2房产", List.of(
                 " &7我的房间: &f" + rooms,
-                " &7楼盘 · 买卖 · 传送",
+                " &7楼盘 · 登记 · 门牌",
                 "", "&2▸ 打开")));
+        int sale = plugin.getEstateManager() == null ? 0
+                : plugin.getEstateManager().listedForSale().size();
+        put(inv, act, 8, "estate-sale", item(Material.GOLD_INGOT, "&e买房", List.of(
+                " &7挂牌: &f" + sale,
+                " &7左键看房 · 右键购买",
+                "", "&e▸ 打开")));
+        put(inv, act, 9, "estate-tools", item(Material.OAK_SIGN, "&a登记房产", List.of(
+                "&8点1 / 点2 / 登记 / 门口", "", "&a▸ 打开")));
+        put(inv, act, 10, "estate-list", item(Material.GOLD_NUGGET, "&e挂牌", List.of(
+                "&8改价 / 上架 / 下架", "", "&e▸ 打开我的房产")));
+        int hotels = plugin.getHotelManager() == null ? 0 : plugin.getHotelManager().all().size();
+        put(inv, act, 11, "hotel", item(Material.BELL, "&9酒店", List.of(
+                " &7酒店: &f" + hotels, " &7入住 · 房卡 · 门锁", "", "&9▸ 打开")));
     }
 
     private void fillCity(Inventory inv, Map<Integer, String> act, Player player) {
@@ -292,6 +305,15 @@ public class ECOSTerminalGUI {
                 " &7展示点: &f" + plugin.getShowcaseManager().all().size(), "", "&d▸ 打开")));
         put(inv, act, 7, "estate", item(Material.DARK_OAK_DOOR, "&2房产", List.of(
                 " &7住宅 / 公共 / 商业", "", "&2▸ 打开")));
+        int sale = plugin.getEstateManager() == null ? 0
+                : plugin.getEstateManager().listedForSale().size();
+        put(inv, act, 8, "estate-sale", item(Material.GOLD_INGOT, "&e买房", List.of(
+                " &7挂牌: &f" + sale, "", "&e▸ 打开")));
+        put(inv, act, 9, "estate-list", item(Material.GOLD_NUGGET, "&e挂牌", List.of(
+                "&8我的房产上架 / 改价", "", "&e▸ 打开")));
+        int hotels = plugin.getHotelManager() == null ? 0 : plugin.getHotelManager().all().size();
+        put(inv, act, 10, "hotel", item(Material.BELL, "&9酒店", List.of(
+                " &7" + hotels + " 家", "", "&9▸ 打开")));
     }
 
     private void fillPlay(Inventory inv, Map<Integer, String> act, Player player) {
@@ -340,6 +362,8 @@ public class ECOSTerminalGUI {
                 "", "&c▸ 打开")));
         put(inv, act, 7, "adm-estate", item(Material.COMMAND_BLOCK, "&c全部房产", List.of(
                 " &7" + plugin.getEstateManager().all().size() + " 间", "", "&c▸ 打开")));
+        put(inv, act, 8, "adm-grant", item(Material.SUNFLOWER, "&c发放", List.of(
+                " &7补签券 / 幸运方块次数", "", "&c▸ 打开")));
     }
 
     public static ItemStack item(Material mat, String name, List<String> lore) {

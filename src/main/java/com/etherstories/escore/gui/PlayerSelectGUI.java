@@ -20,6 +20,7 @@ public class PlayerSelectGUI {
     public enum SelectContext { TPA, TPA_HERE, PAY, MAIL }
 
     private static final int SIZE = 54;
+    private static final int ALL_SLOT   = SIZE - 6;
     private static final int BACK_SLOT  = SIZE - 5;
     private static final int CLOSE_SLOT = SIZE - 1;
     private static final Material BG    = Material.GRAY_STAINED_GLASS_PANE;
@@ -65,6 +66,13 @@ public class PlayerSelectGUI {
 
         slotMaps.put(viewer.getUniqueId(), slotMap);
 
+        if (context == SelectContext.PAY) {
+            int n = Math.max(0, Bukkit.getOnlinePlayers().size() - 1);
+            inv.setItem(ALL_SLOT, ECOSTerminalGUI.item(Material.NETHER_STAR, ColorUtil.colorize("&e全体在线"),
+                    List.of(ColorUtil.colorize(" &7给除自己外每人转一笔"),
+                            ColorUtil.colorize(" &7当前: &f" + n + " 人"),
+                            "", ColorUtil.colorize("&e▸ 输入金额后确认"))));
+        }
         inv.setItem(BACK_SLOT,  ECOSTerminalGUI.item(Material.ARROW, ColorUtil.colorize("&f返回终端"), null));
         inv.setItem(CLOSE_SLOT, ECOSTerminalGUI.item(Material.BARRIER, ColorUtil.colorize("&c关闭"), null));
 
@@ -106,6 +114,7 @@ public class PlayerSelectGUI {
         slotMaps.remove(viewer.getUniqueId());
     }
 
+    public static int getAllSlot()   { return ALL_SLOT;   }
     public static int getBackSlot()  { return BACK_SLOT;  }
     public static int getCloseSlot() { return CLOSE_SLOT; }
 }

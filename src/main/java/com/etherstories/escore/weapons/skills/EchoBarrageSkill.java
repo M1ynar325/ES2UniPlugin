@@ -26,7 +26,7 @@ import java.util.UUID;
 
 /**
  * Echo Seek「回声寻踪」—
- * 发散 → 停顿 → 逐发制导追击；伤害按发累加，命中后缓慢并叠共鸣层。
+ * 身周凝粒子后自锁追击；高伤，命中落雷（默认视效雷）。
  */
 public class EchoBarrageSkill implements SkillInstance {
 
@@ -66,6 +66,7 @@ public class EchoBarrageSkill implements SkillInstance {
     private final int holdTicks;
     private final int fireInterval;
     private final int flyTicks;
+    private final boolean realLightning;
 
     private Phase phase = Phase.EXPAND;
     private LivingEntity lockedTarget;
@@ -79,20 +80,22 @@ public class EchoBarrageSkill implements SkillInstance {
         this.wm = wm;
         this.ownerUUID = player.getUniqueId();
 
-        int count = wm.getCfgInt(SkillType.ECHO_BARRAGE, "particle-count", 16);
-        this.damage = wm.getCfgDouble(SkillType.ECHO_BARRAGE, "damage", 5.5);
-        this.speed = wm.getCfgDouble(SkillType.ECHO_BARRAGE, "speed", 2.0);
-        this.hitRadius = wm.getCfgDouble(SkillType.ECHO_BARRAGE, "hit-radius", 1.05);
+        int count = wm.getCfgInt(SkillType.ECHO_BARRAGE, "particle-count", 8);
+        this.damage = wm.getCfgDouble(SkillType.ECHO_BARRAGE, "damage", 12.0);
+        this.speed = wm.getCfgDouble(SkillType.ECHO_BARRAGE, "speed", 2.35);
+        this.hitRadius = wm.getCfgDouble(SkillType.ECHO_BARRAGE, "hit-radius", 1.15);
         this.explodePower = wm.getCfgDouble(SkillType.ECHO_BARRAGE, "explode-power", 0);
-        this.explodeDamage = wm.getCfgDouble(SkillType.ECHO_BARRAGE, "explode-damage", 2.6);
+        this.explodeDamage = wm.getCfgDouble(SkillType.ECHO_BARRAGE, "explode-damage", 4.5);
         this.explodeRadius = wm.getCfgDouble(SkillType.ECHO_BARRAGE, "explode-radius", 2.0);
-        this.dodgeChance = wm.getCfgDouble(SkillType.ECHO_BARRAGE, "dodge-chance", 0.2);
+        this.dodgeChance = wm.getCfgDouble(SkillType.ECHO_BARRAGE, "dodge-chance", 0.12);
         this.dodgeSpeedMin = wm.getCfgDouble(SkillType.ECHO_BARRAGE, "dodge-speed-min", 0.28);
         this.targetRange = wm.getCfgDouble(SkillType.ECHO_BARRAGE, "target-range", 36.0);
-        this.expandTicks = wm.getCfgInt(SkillType.ECHO_BARRAGE, "expand-ticks", 14);
+        this.expandTicks = wm.getCfgInt(SkillType.ECHO_BARRAGE, "expand-ticks", 12);
         this.holdTicks = wm.getCfgInt(SkillType.ECHO_BARRAGE, "hold-ticks", 10);
         this.fireInterval = wm.getCfgInt(SkillType.ECHO_BARRAGE, "fire-interval-ticks", 2);
-        this.flyTicks = wm.getCfgInt(SkillType.ECHO_BARRAGE, "fly-ticks", 30);
+        this.flyTicks = wm.getCfgInt(SkillType.ECHO_BARRAGE, "fly-ticks", 36);
+        this.realLightning = plugin.getConfig().getBoolean(
+                "weapons.skills.echo_barrage.real-lightning", false);
 
         this.center = player.getLocation().add(0, 1.1, 0);
         this.lockedTarget = findByCrosshair();
@@ -137,12 +140,12 @@ public class EchoBarrageSkill implements SkillInstance {
         if (lockedTarget != null && (!lockedTarget.isValid() || lockedTarget.isDead())) {
             lockedTarget = null;
         }
-        // 持续锁定特效 + 允许换锁
-        if (tick % 5 == 0) {
+        // 自锁：没有目标才重新锁定，有目标则钉死直到死亡
+        if (lockedTarget == null && tick % 4 == 0) {
             LivingEntity aim = findByCrosshair();
-            if (aim != null && (lockedTarget == null || !aim.getUniqueId().equals(lockedTarget.getUniqueId()))) {
+            if (aim != null) {
                 lockedTarget = aim;
-                WeaponManager.sendActionBar(player, "&e换锁 &f→ &d" + nameOf(aim), 30);
+                WeaponManager.sendActionBar(player, "&d回声寻踪 &f锁定 &e" + nameOf(aim), 30);
             }
         }
         if (lockedTarget != null) {
@@ -168,10 +171,12 @@ public class EchoBarrageSkill implements SkillInstance {
                     new Particle.DustOptions(b.color, 1.2f));
             if (i % 3 == 0) w.spawnParticle(Particle.END_ROD, pos, 1, 0.02, 0.02, 0.02, 0);
         }
+        drawHalo(w, center, 0.4 + t * 2.4, tick);
         if (tick >= expandTicks) {
             phase = Phase.HOLD;
             tick = 0;
             w.playSound(center, Sound.BLOCK_NOTE_BLOCK_PLING, 0.7f, 1.2f);
+            w.playSound(center, Sound.ENTITY_LIGHTNING_BOLT_THUNDER, 0.18f, 1.9f);
         }
         return true;
     }
@@ -188,12 +193,14 @@ public class EchoBarrageSkill implements SkillInstance {
                     new Particle.DustOptions(b.color, 0.95f));
             if (i % 5 == 0) w.spawnParticle(Particle.END_ROD, pos, 1, 0.02, 0.02, 0.02, 0);
         }
+        drawHalo(w, center, 2.8, tick);
         if (tick >= holdTicks) {
             phase = Phase.FIRE;
             tick = 0;
             nextFireIndex = 0;
             fireCooldown = 0;
             w.playSound(center, Sound.ENTITY_FIREWORK_ROCKET_LAUNCH, 0.7f, 1.4f);
+            w.playSound(center, Sound.ENTITY_EVOKER_CAST_SPELL, 0.65f, 1.5f);
         }
         return true;
     }
@@ -247,7 +254,7 @@ public class EchoBarrageSkill implements SkillInstance {
                 Vector desired = lockedTarget.getEyeLocation().toVector().subtract(b.loc.toVector());
                 if (desired.lengthSquared() > 1e-4) {
                     desired.normalize();
-                    b.dir = b.dir.clone().multiply(0.62).add(desired.multiply(0.38));
+                    b.dir = b.dir.clone().multiply(0.22).add(desired.multiply(0.78));
                     if (b.dir.lengthSquared() > 1e-6) b.dir.normalize();
                 }
             }
@@ -269,6 +276,7 @@ public class EchoBarrageSkill implements SkillInstance {
                 // A：每发独立魔法伤（绕甲）→ 再叠共鸣/缓慢
                 EchoDamage.magic(le, player, damage);
                 EchoResonance.onHit(le, player, true);
+                strikeLightning(w, le.getLocation());
                 smallBlast(w, b.loc);
                 it.remove();
                 hit = true;
@@ -375,6 +383,27 @@ public class EchoBarrageSkill implements SkillInstance {
         if (le instanceof Monster) return true;
         if (le instanceof Animals || le instanceof Villager) return false;
         return true;
+    }
+
+    private static void drawHalo(World w, Location origin, double radius, int spin) {
+        Color ring = Color.fromRGB(120, 220, 255);
+        for (int i = 0; i < 20; i++) {
+            double a = (Math.PI * 2 / 20) * i + spin * 0.16;
+            Location p = origin.clone().add(
+                    Math.cos(a) * radius, 0.12 + Math.sin(spin * 0.2) * 0.1, Math.sin(a) * radius);
+            w.spawnParticle(Particle.DUST, p, 1, 0, 0, 0, 0, new Particle.DustOptions(ring, 1.05f));
+            if (i % 4 == 0) w.spawnParticle(Particle.END_ROD, p, 1, 0, 0, 0, 0);
+            if (i % 5 == 0) w.spawnParticle(Particle.ELECTRIC_SPARK, p, 1, 0.04, 0.04, 0.04, 0.02);
+        }
+    }
+
+    private void strikeLightning(World w, Location at) {
+        if (realLightning) w.strikeLightning(at);
+        else w.strikeLightningEffect(at);
+        w.playSound(at, Sound.ENTITY_LIGHTNING_BOLT_IMPACT, 0.7f, 1.35f);
+        w.playSound(at, Sound.ENTITY_LIGHTNING_BOLT_THUNDER, 0.35f, 1.7f);
+        Location mid = at.clone().add(0, 1.0, 0);
+        w.spawnParticle(Particle.ELECTRIC_SPARK, mid, 18, 0.25, 0.6, 0.25, 0.1);
     }
 
     private static String nameOf(LivingEntity le) {

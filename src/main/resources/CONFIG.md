@@ -39,16 +39,16 @@ ECOS 终端 → **管理处**，或 `/ecos municipal`。
 
 ## 房产（1.20+）
 
-和领地分开：领地是 2D 地皮保护，房产是 3D 房间门牌（登记 / 买卖 / 传送）。**不提供方块保护**。
+和领地分开：领地是 2D 地皮保护。房产是按规定登记的 3D 房间（买卖 / 传送）。**没按规定注册的房子出问题不保障；注册成房产才受保障。**
 
 ECOS 终端 → **出行 / 城市** → 房产，或 `/ecos estate`。
 
 分类：住宅 `residential` · 公共建筑 `public` · 商业建筑 `commercial`。  
 用途：house 住宅 / apartment 公寓 / shop 商铺 / workshop 工坊 / studio 工作室 / storage 仓库 / other 其他。
 
-玩家圈两点后免费登记，默认不上架。管理可用 `/ecos estate set` 放空闲挂牌房。牌子：`/ecos estate sign` 写「ES2注册单位」。
+玩家自建住宅/公寓收注册费 `estate.register-fee`（默认 2048），圈两点后登记，默认不上架。管理 `/ecos estate set` 预制不收费。牌子：`/ecos estate sign` 写「ES2注册单位」。
 
-看房：挂牌房在终端左键传到门口；潜行左键两次购买。`/ecos estate here` 看当前门牌。`/ecos estate visit <楼> <层> <号>`。
+看房：终端 **买房** 页左键传到门口，右键两次购买。`/ecos estate here` 看当前门牌。`/ecos estate visit <楼> <层> <号>`。登记、门口、牌子在终端「登记房产」。
 
 配置：`estate.max-volume`。数据：`estates.yml`。
 

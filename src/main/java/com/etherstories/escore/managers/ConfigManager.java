@@ -21,7 +21,7 @@ import java.util.Set;
 public class ConfigManager {
 
     /** 与 config.yml 中 config-version 保持一致，每次新增配置项时 +1 */
-    private static final int CURRENT_VERSION = 30;
+    private static final int CURRENT_VERSION = 34;
 
     private final ES2UniPlugin plugin;
     private YamlConfiguration jarDefaults;
@@ -132,6 +132,19 @@ public class ConfigManager {
             cfg.set("weapons.skills.echo_barrage.explode-damage", 2.6);
             plugin.getLogger().info("配置迁移 v28: 回声散射制导展开 / 两技能伤害上调");
             needSave = true;
+        }
+
+        if (fileVersion < 33) {
+            int n = cfg.getInt("weapons.skills.still_veil.particle-count", 64);
+            if (n <= 120) {
+                cfg.set("weapons.skills.still_veil.particle-count", 520);
+                needSave = true;
+            }
+            if (!cfg.contains("weapons.skills.still_veil.height")) {
+                cfg.set("weapons.skills.still_veil.height", 24.0);
+                needSave = true;
+            }
+            plugin.getLogger().info("配置迁移 v33: 静幕圆柱匀铺粒子 / 冻结敌对生物");
         }
 
         boolean autoFill = cfg.getBoolean("config.auto-fill-missing", true);

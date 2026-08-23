@@ -58,6 +58,7 @@ public class ES2UniPlugin extends JavaPlugin {
     private RecycleBinManager recycleBinManager;
     private TransitManager   transitManager;
     private EstateManager    estateManager;
+    private HotelManager     hotelManager;
 
     // Hooks
     private EssentialsHook essentialsHook;
@@ -128,6 +129,11 @@ public class ES2UniPlugin extends JavaPlugin {
     private EstateBuildingsGUI estateBuildingsGUI;
     private EstateRoomsGUI     estateRoomsGUI;
     private EstateMineGUI      estateMineGUI;
+    private EstateSaleGUI      estateSaleGUI;
+    private EstateToolsGUI     estateToolsGUI;
+    private HotelListGUI       hotelListGUI;
+    private HotelDeskGUI       hotelDeskGUI;
+    private AdminGrantGUI      adminGrantGUI;
 
     // Tasks
     private TabTask        tabTask;
@@ -146,6 +152,7 @@ public class ES2UniPlugin extends JavaPlugin {
         WeaponPreset.init(this);
         com.etherstories.escore.items.TransitItems.init(this);
         com.etherstories.escore.items.PveItems.init(this);
+        com.etherstories.escore.items.HotelCard.init(this);
         saveDefaultConfig();
 
         configManager    = new ConfigManager(this);
@@ -182,6 +189,7 @@ public class ES2UniPlugin extends JavaPlugin {
         recycleBinManager = new RecycleBinManager(this);
         transitManager   = new TransitManager(this);
         estateManager    = new EstateManager(this);
+        hotelManager     = new HotelManager(this);
 
         essentialsHook = new EssentialsHook(); essentialsHook.hook();
         vaultHook      = new VaultHook();      vaultHook.hook();
@@ -247,6 +255,11 @@ public class ES2UniPlugin extends JavaPlugin {
         estateBuildingsGUI = new EstateBuildingsGUI(this);
         estateRoomsGUI     = new EstateRoomsGUI(this);
         estateMineGUI      = new EstateMineGUI(this);
+        estateSaleGUI      = new EstateSaleGUI(this);
+        estateToolsGUI     = new EstateToolsGUI(this);
+        hotelListGUI       = new HotelListGUI(this);
+        hotelDeskGUI       = new HotelDeskGUI(this);
+        adminGrantGUI      = new AdminGrantGUI(this);
 
         getServer().getPluginManager().registerEvents(new PlayerListener(this), this);
         getServer().getPluginManager().registerEvents(new AFKListener(this), this);
@@ -254,11 +267,15 @@ public class ES2UniPlugin extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new GUIListener(this), this);
         getServer().getPluginManager().registerEvents(new WeaponListener(this), this);
         getServer().getPluginManager().registerEvents(
+                new com.etherstories.escore.listeners.TimeStopListener(), this);
+        getServer().getPluginManager().registerEvents(
                 new com.etherstories.escore.listeners.PveListener(this), this);
         getServer().getPluginManager().registerEvents(
                 new com.etherstories.escore.listeners.TransitGateListener(this), this);
         getServer().getPluginManager().registerEvents(
                 new com.etherstories.escore.listeners.PayCommandTaxListener(this), this);
+        getServer().getPluginManager().registerEvents(
+                new com.etherstories.escore.listeners.HotelListener(this), this);
         new com.etherstories.escore.listeners.QuickShopTaxListener(this).tryRegister();
 
         ES2UniCommand cmd = new ES2UniCommand(this);
@@ -293,6 +310,7 @@ public class ES2UniPlugin extends JavaPlugin {
         if (recycleBinManager != null) recycleBinManager.save();
         if (transitManager != null) transitManager.save();
         if (estateManager != null) estateManager.save();
+        if (hotelManager != null) hotelManager.save();
         stopTasks();
         getLogger().info("ES2UniPlugin disabled.");
     }
@@ -304,6 +322,10 @@ public class ES2UniPlugin extends JavaPlugin {
         if (weaponSaveManager != null) weaponSaveManager.reload();
         if (transitManager != null) transitManager.load();
         if (estateManager != null) estateManager.load();
+        if (hotelManager != null) {
+            hotelManager.load();
+            hotelManager.sweepOrphans();
+        }
         stopTasks();
         startTasks();
         if (tradeStatsManager != null) tradeStatsManager.startScheduler();
@@ -436,4 +458,10 @@ public class ES2UniPlugin extends JavaPlugin {
     public EstateBuildingsGUI getEstateBuildingsGUI() { return estateBuildingsGUI; }
     public EstateRoomsGUI getEstateRoomsGUI() { return estateRoomsGUI; }
     public EstateMineGUI getEstateMineGUI() { return estateMineGUI; }
+    public EstateSaleGUI getEstateSaleGUI() { return estateSaleGUI; }
+    public EstateToolsGUI getEstateToolsGUI() { return estateToolsGUI; }
+    public HotelManager getHotelManager() { return hotelManager; }
+    public HotelListGUI getHotelListGUI() { return hotelListGUI; }
+    public HotelDeskGUI getHotelDeskGUI() { return hotelDeskGUI; }
+    public AdminGrantGUI getAdminGrantGUI() { return adminGrantGUI; }
 }

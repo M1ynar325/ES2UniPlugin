@@ -8,7 +8,7 @@
 # ============================================================
 
 # 配置文件版本，请勿修改此项（插件会自动迁移；不会覆盖你改过的数值）
-config-version: 30
+config-version: 34
 
 # ── 配置自维护（升级时自动补键 / 同步说明文档）────────────────
 config:
@@ -96,6 +96,21 @@ lucky-block:
   enabled: true
   display-name: "幸运方块"
   fx-style: hypixel
+  rewards:
+    - { weight: 40, type: money, min: 50, max: 200 }
+    - { weight: 24, type: item, material: COOKED_BEEF, min: 8, max: 16 }
+    - { weight: 12, type: item, material: IRON_INGOT, min: 2, max: 6 }
+    - { weight: 4, type: makeup, amount: 1 }
+    - { weight: 8, type: money, min: 200, max: 800 }
+    - { weight: 3, type: money, min: 1000, max: 3000 }
+    - { weight: 3, type: item, material: DIAMOND, min: 1, max: 3 }
+    - { weight: 3, type: item, material: GOLD_INGOT, min: 8, max: 16 }
+    - { weight: 2, type: item, material: EXPERIENCE_BOTTLE, min: 8, max: 16 }
+    - { weight: 1, type: item, material: NETHERITE_SCRAP, min: 1, max: 2 }
+    - { weight: 1, type: item, material: ENCHANTED_GOLDEN_APPLE, min: 1, max: 1 }
+    - { weight: 1, type: item, material: TOTEM_OF_UNDYING, min: 1, max: 1 }
+    - { weight: 2, type: lucky_ticket, amount: 1 }
+    - { weight: 1, type: aura_random }
 
 # ── 新玩家引导清单 ────────────────────────────────────────────
 # window-minutes: 建议完成窗口；超时仍可打开补完
@@ -212,7 +227,8 @@ commands:
      &7/ecos status [签名]              &f— 查看/设置个人签名
      &7/ecos r <内容>                   &f— 回复最近私信
      &7/ecos wp <add|remove|tp|list>   &f— 坐标收藏
-     &7/ecos estate [gui|here|visit]    &f— 房产（看房 / 门牌）
+     &7/ecos estate                    &f— 买房（待售） / gui 楼盘 / tools 登记
+     &7/ecos hotel                     &f— 酒店入住 / 房卡 / 管理
      &7/ecos territory help            &f— 领地说明
      &7/ecos aura|particle [shop|...]  &f— 粒子特效（同 aura）
      &7/ecos music [search|queue|…]    &f— 点歌（AllMusic）
@@ -228,7 +244,8 @@ commands:
      &7/ecos reload                    &f— 重载配置（补全新键+同步 CONFIG.md）
      &7/ecos music preset              &f— 氛围预设歌单
      &7/ecos broadcast <消息>           &f— 手动广播
-     &7/ecos checkin ticket <玩家> <n>  &f— 发补签券
+     &7/ecos checkin ticket <玩家> <n>  &f— 发补签券（可离线）
+     &7/ecos lucky ticket <玩家> <n>    &f— 发幸运方块次数（可离线）
      &7/ecos give                      &f— 获取 ECOS 终端物品
      &7/ecos tpsalert <on|off>         &f— TPS 告警开关
      &7/ecos admin event               &f— 活动管理
@@ -374,6 +391,15 @@ weapons:
       damage: 4.0
       real-lightning: false  # true = 真雷（会纵火）
 
+    still_veil:              # Still Veil「静幕」时停，再按绑定键提前结束
+      cooldown-seconds: 45
+      charge-ticks: 0
+      radius: 30.0
+      height: 24.0               # 圆柱高（施法者上下各一半）
+      duration-ticks: 160        # 8 秒
+      settle-ticks: 40           # 结束后粒子沉降 2 秒
+      particle-count: 520        # 圆柱内匀铺，漫天但不浓
+
 # ── 领地 ───────────────────────────────────────────────────────────────────
 territory:
   # 每格地皮单价（经济）。费用 = 单价 × 面积
@@ -385,9 +411,14 @@ territory:
   # 删除领地退款比例（0.0 ~ 1.0），默认 0.5 = 退 50%
   refund-ratio: 0.5
 
-# ── 房产（3D 房间登记，和领地独立；不提供方块保护）────────────────
+# ── 房产（按规定登记的 3D 房间，和领地独立）────────────────
 estate:
   max-volume: 32768   # 玩家自助登记体积上限（格）；管理 /ecos estate set 不受限
+  register-fee: 2048  # 玩家自建住宅/公寓注册费；管理预制、商铺/公共免费
+
+# ── 酒店（入住制，房间先登记房产再绑）────────────────────────
+hotel:
+  default-price: 256
 
 # ── 轨道交通（闸机 / 单程票 / 交通卡 / 闪付）────────────────────────
 # 票款进 transit.sink-account；空则用 tax.sink-account

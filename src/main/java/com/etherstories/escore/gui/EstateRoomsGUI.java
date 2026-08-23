@@ -65,10 +65,10 @@ public class EstateRoomsGUI {
         boolean mine = viewer.getUniqueId().equals(u.owner());
         if (mine) {
             lore.add("&a左键: 传送到门口");
-            lore.add(u.listed() ? "&e右键: 取消挂牌" : "&e右键: 按当前标价上架（需先 /ecos estate price）");
+            lore.add(u.listed() ? "&e右键: 取消挂牌" : "&e右键: 上架（没标价会问金额）");
         } else if (u.listed() && u.price() > 0) {
             lore.add("&a左键: 看房（传到门口）");
-            lore.add("&e潜行左键: 购买（15秒内再潜行确认）");
+            lore.add("&e右键: 购买（再点一次确认）");
         } else if (viewer.hasPermission("es2uni.admin")) {
             lore.add("&c管理: 左键传送  潜行左键删除");
         } else {

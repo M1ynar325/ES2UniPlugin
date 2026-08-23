@@ -6,6 +6,7 @@ import org.bukkit.Material;
 public enum UnitKind {
     HOUSE     ("house",     "住宅",   Material.OAK_DOOR),
     APARTMENT ("apartment", "公寓",   Material.DARK_OAK_DOOR),
+    HOTEL     ("hotel",     "客房",   Material.WHITE_BED),
     SHOP      ("shop",      "商铺",   Material.CHEST),
     WORKSHOP  ("workshop",  "工坊",   Material.SMITHING_TABLE),
     STUDIO    ("studio",    "工作室", Material.LECTERN),
@@ -24,7 +25,7 @@ public enum UnitKind {
 
     public BuildingCategory defaultCategory() {
         return switch (this) {
-            case HOUSE, APARTMENT -> BuildingCategory.RESIDENTIAL;
+            case HOUSE, APARTMENT, HOTEL -> BuildingCategory.RESIDENTIAL;
             case SHOP, WORKSHOP, STUDIO, STORAGE -> BuildingCategory.COMMERCIAL;
             case OTHER -> BuildingCategory.PUBLIC;
         };
@@ -37,5 +38,9 @@ public enum UnitKind {
                     || k.label.equals(raw)) return k;
         }
         return null;
+    }
+
+    public boolean hotelBindable() {
+        return this == HOUSE || this == APARTMENT || this == HOTEL;
     }
 }

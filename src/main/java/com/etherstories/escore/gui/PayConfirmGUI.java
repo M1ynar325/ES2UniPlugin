@@ -25,14 +25,38 @@ public class PayConfirmGUI {
     // Store pending transaction per viewer
     private final Map<UUID, PendingPay> pending = new HashMap<>();
 
-    public record PendingPay(UUID targetUuid, double amount) {}
+    public record PendingPay(UUID targetUuid, double amount, boolean all) {}
 
     public PayConfirmGUI(ES2UniPlugin plugin) {
         this.plugin = plugin;
     }
 
+    public void openAll(Player payer, double amount) {
+        pending.put(payer.getUniqueId(), new PendingPay(null, amount, true));
+        int n = Math.max(0, Bukkit.getOnlinePlayers().size() - 1);
+        String title = ColorUtil.colorize(plugin.getConfigManager().getPayConfirmTitle());
+        Inventory inv = Bukkit.createInventory(null, SIZE, title);
+        ItemStack bg = ECOSTerminalGUI.item(BG, " ", null);
+        for (int i = 0; i < SIZE; i++) inv.setItem(i, bg);
+        double taxEach = plugin.getTaxManager().isPayTaxEnabled()
+                ? plugin.getTaxManager().calcTax(amount, plugin.getTaxManager().getPayTaxRate()) : 0;
+        double total = n * (amount + taxEach);
+        String fmt = plugin.getVaultHook().format(amount);
+        inv.setItem(13, ECOSTerminalGUI.item(Material.NETHER_STAR, "&e全体在线 &f× " + n,
+                List.of(" &7每人: &a" + fmt,
+                        taxEach > 0 ? " &7含税实付: &c" + plugin.getVaultHook().format(total) : " &7合计: &f"
+                                + plugin.getVaultHook().format(n * amount),
+                        " &7余额: &f" + plugin.getVaultHook().format(plugin.getVaultHook().getBalance(payer)),
+                        "", "&e请确认此操作")));
+        inv.setItem(CONFIRM_SLOT, ECOSTerminalGUI.item(Material.LIME_WOOL, "&a&l✔ 确认全员转账",
+                List.of("&7给 &f" + n + " &7人各转 &a" + fmt, "", "&a点击确认（不可撤销）")));
+        inv.setItem(CANCEL_SLOT, ECOSTerminalGUI.item(Material.RED_WOOL, "&c&l✗ 取消",
+                List.of(ColorUtil.colorize("&7返回终端，不执行转账"))));
+        payer.openInventory(inv);
+    }
+
     public void open(Player payer, org.bukkit.OfflinePlayer target, double amount) {
-        pending.put(payer.getUniqueId(), new PendingPay(target.getUniqueId(), amount));
+        pending.put(payer.getUniqueId(), new PendingPay(target.getUniqueId(), amount, false));
 
         String title = ColorUtil.colorize(plugin.getConfigManager().getPayConfirmTitle());
         Inventory inv = Bukkit.createInventory(null, SIZE, title);

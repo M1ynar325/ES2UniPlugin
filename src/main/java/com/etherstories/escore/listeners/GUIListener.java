@@ -115,6 +115,16 @@ public class GUIListener implements Listener {
             handleEstateRooms(event, player);
         } else if (title.equals(EstateMineGUI.TITLE) || title.equals(EstateMineGUI.ADMIN_TITLE)) {
             handleEstateMine(event, player);
+        } else if (title.equals(EstateSaleGUI.TITLE)) {
+            handleEstateSale(event, player);
+        } else if (title.equals(EstateToolsGUI.TITLE)) {
+            handleEstateTools(event, player);
+        } else if (title.equals(HotelListGUI.TITLE)) {
+            handleHotelList(event, player);
+        } else if (title.equals(HotelDeskGUI.TITLE)) {
+            handleHotelDesk(event, player);
+        } else if (title.equals(AdminGrantGUI.TITLE)) {
+            handleAdminGrant(event, player);
         } else if (title.equals(t(AdminRegionGUI.TITLE))) {
             handleAdminRegion(event, player);
         } else if (title.equals(AuraShopGUI.TITLE)) {
@@ -294,10 +304,31 @@ public class GUIListener implements Listener {
                 player.closeInventory();
                 Bukkit.getScheduler().runTask(plugin, () -> plugin.getEstateBuildingsGUI().open(player));
             }
+            case "estate-sale" -> {
+                player.closeInventory();
+                Bukkit.getScheduler().runTask(plugin, () -> plugin.getEstateSaleGUI().open(player));
+            }
+            case "estate-tools" -> {
+                player.closeInventory();
+                Bukkit.getScheduler().runTask(plugin, () -> plugin.getEstateToolsGUI().open(player));
+            }
             case "adm-estate" -> {
                 if (!player.hasPermission("es2uni.admin")) return;
                 player.closeInventory();
                 Bukkit.getScheduler().runTask(plugin, () -> plugin.getEstateMineGUI().openAdmin(player));
+            }
+            case "estate-list" -> {
+                player.closeInventory();
+                Bukkit.getScheduler().runTask(plugin, () -> plugin.getEstateMineGUI().openMine(player));
+            }
+            case "hotel" -> {
+                player.closeInventory();
+                Bukkit.getScheduler().runTask(plugin, () -> plugin.getHotelListGUI().open(player));
+            }
+            case "adm-grant" -> {
+                if (!player.hasPermission("es2uni.admin")) return;
+                player.closeInventory();
+                Bukkit.getScheduler().runTask(plugin, () -> plugin.getAdminGrantGUI().open(player));
             }
             case "trade" -> {
                 player.closeInventory();
@@ -470,6 +501,11 @@ public class GUIListener implements Listener {
             Bukkit.getScheduler().runTask(plugin, () -> plugin.getEcosTerminalGUI().open(player));
             return;
         }
+        if (slot == EstateBuildingsGUI.SLOT_SALE) {
+            player.closeInventory();
+            Bukkit.getScheduler().runTask(plugin, () -> plugin.getEstateSaleGUI().open(player));
+            return;
+        }
         if (slot == EstateBuildingsGUI.SLOT_ALL) {
             Bukkit.getScheduler().runTask(plugin, () -> plugin.getEstateBuildingsGUI().open(player, null));
             return;
@@ -494,10 +530,9 @@ public class GUIListener implements Listener {
             Bukkit.getScheduler().runTask(plugin, () -> plugin.getEstateMineGUI().openMine(player));
             return;
         }
-        if (slot == EstateBuildingsGUI.SLOT_ADMIN) {
-            if (!player.hasPermission("es2uni.admin")) return;
+        if (slot == EstateBuildingsGUI.SLOT_TOOLS) {
             player.closeInventory();
-            Bukkit.getScheduler().runTask(plugin, () -> plugin.getEstateMineGUI().openAdmin(player));
+            Bukkit.getScheduler().runTask(plugin, () -> plugin.getEstateToolsGUI().open(player));
             return;
         }
         String name = plugin.getEstateBuildingsGUI().buildingAt(player, slot);
@@ -523,7 +558,13 @@ public class GUIListener implements Listener {
         if (u == null) return;
         boolean mine = player.getUniqueId().equals(u.owner());
         boolean admin = player.hasPermission("es2uni.admin");
+        boolean forSale = u.listed() && u.price() > 0 && !mine;
         if (event.isRightClick() && mine) {
+            if (!u.listed() && u.price() <= 0) {
+                player.closeInventory();
+                plugin.getAnvilInputGUI().openForEstatePrice(player, u);
+                return;
+            }
             boolean next = !u.listed();
             String err = em.setSale(player, u, u.price(), next);
             if (err != null) player.sendMessage(ColorUtil.colorize("&8[房产] &c" + err));
@@ -531,6 +572,10 @@ public class GUIListener implements Listener {
                     ? "&8[房产] &a已挂牌 &f" + u.address()
                     : "&8[房产] &7已下架 &f" + u.address()));
             Bukkit.getScheduler().runTask(plugin, () -> plugin.getEstateRoomsGUI().open(player, building));
+            return;
+        }
+        if (event.isRightClick() && forSale) {
+            estateTryBuy(player, u, () -> plugin.getEstateRoomsGUI().open(player, building));
             return;
         }
         if (event.isLeftClick() && event.isShiftClick() && admin) {
@@ -554,7 +599,7 @@ public class GUIListener implements Listener {
             player.sendMessage(ColorUtil.colorize(mine
                     ? "&8[房产] &7已到 &f" + u.address()
                     : "&8[房产] &7看房 &f" + u.address()
-                    + (u.listed() && u.price() > 0 && !mine ? "  &8潜行左键购买" : "")));
+                    + (u.listed() && u.price() > 0 && !mine ? "  &8右键购买" : "")));
         }
     }
 
@@ -580,10 +625,292 @@ public class GUIListener implements Listener {
             Bukkit.getScheduler().runTask(plugin, () -> plugin.getEstateMineGUI().openAdmin(player));
             return;
         }
+        if (event.isRightClick() && event.isShiftClick()) {
+            player.closeInventory();
+            plugin.getAnvilInputGUI().openForEstatePrice(player, u);
+            return;
+        }
+        if (event.isRightClick()) {
+            if (!u.listed() && u.price() <= 0) {
+                player.closeInventory();
+                plugin.getAnvilInputGUI().openForEstatePrice(player, u);
+                return;
+            }
+            boolean next = !u.listed();
+            String err = em.setSale(player, u, u.price(), next);
+            if (err != null) player.sendMessage(ColorUtil.colorize("&8[房产] &c" + err));
+            else player.sendMessage(ColorUtil.colorize(next
+                    ? "&8[房产] &a已挂牌 &f" + u.address()
+                    : "&8[房产] &7已下架 &f" + u.address()));
+            Bukkit.getScheduler().runTask(plugin, () -> {
+                if (adminView) plugin.getEstateMineGUI().openAdmin(player);
+                else plugin.getEstateMineGUI().openMine(player);
+            });
+            return;
+        }
         if (event.isLeftClick()) {
             player.closeInventory();
             em.teleport(player, u);
             player.sendMessage(ColorUtil.colorize("&8[房产] &7已到 &f" + u.address()));
+        }
+    }
+
+    private void handleEstateSale(InventoryClickEvent event, Player player) {
+        event.setCancelled(true);
+        int slot = event.getRawSlot();
+        if (slot == EstateSaleGUI.SLOT_CLOSE) { player.closeInventory(); return; }
+        if (slot == EstateSaleGUI.SLOT_BUILDINGS) {
+            player.closeInventory();
+            Bukkit.getScheduler().runTask(plugin, () -> plugin.getEstateBuildingsGUI().open(player));
+            return;
+        }
+        if (slot == EstateSaleGUI.SLOT_MINE) {
+            player.closeInventory();
+            Bukkit.getScheduler().runTask(plugin, () -> plugin.getEstateMineGUI().openMine(player));
+            return;
+        }
+        if (slot == EstateSaleGUI.SLOT_TOOLS) {
+            player.closeInventory();
+            Bukkit.getScheduler().runTask(plugin, () -> plugin.getEstateToolsGUI().open(player));
+            return;
+        }
+        if (slot == EstateSaleGUI.SLOT_HELP) {
+            player.closeInventory();
+            Bukkit.dispatchCommand(player, "ecos estate help");
+            return;
+        }
+        if (slot == EstateSaleGUI.SLOT_HERE) {
+            player.closeInventory();
+            Bukkit.dispatchCommand(player, "ecos estate here");
+            return;
+        }
+        var u = plugin.getEstateSaleGUI().unitAt(player, slot);
+        if (u == null) return;
+        u = plugin.getEstateManager().byId(u.id());
+        if (u == null) return;
+        boolean mine = player.getUniqueId().equals(u.owner());
+        if (event.isRightClick() && !mine) {
+            estateTryBuy(player, u, () -> plugin.getEstateSaleGUI().open(player));
+            return;
+        }
+        if (event.isLeftClick()) {
+            player.closeInventory();
+            String err = plugin.getEstateManager().visit(player, u);
+            if (err != null) player.sendMessage(ColorUtil.colorize("&8[房产] &c" + err));
+            else player.sendMessage(ColorUtil.colorize("&8[房产] &7看房 &f" + u.address()
+                    + (mine ? "" : "  &8右键购买")));
+        }
+    }
+
+    private void handleEstateTools(InventoryClickEvent event, Player player) {
+        event.setCancelled(true);
+        int slot = event.getRawSlot();
+        if (slot == EstateToolsGUI.SLOT_CLOSE) { player.closeInventory(); return; }
+        if (slot == EstateToolsGUI.SLOT_SALE) {
+            player.closeInventory();
+            Bukkit.getScheduler().runTask(plugin, () -> plugin.getEstateSaleGUI().open(player));
+            return;
+        }
+        if (slot == EstateToolsGUI.SLOT_MINE) {
+            player.closeInventory();
+            Bukkit.getScheduler().runTask(plugin, () -> plugin.getEstateMineGUI().openMine(player));
+            return;
+        }
+        if (slot == EstateToolsGUI.SLOT_BUILDINGS) {
+            player.closeInventory();
+            Bukkit.getScheduler().runTask(plugin, () -> plugin.getEstateBuildingsGUI().open(player));
+            return;
+        }
+        if (slot == EstateToolsGUI.SLOT_HELP) {
+            player.closeInventory();
+            Bukkit.dispatchCommand(player, "ecos estate help");
+            return;
+        }
+        if (slot == EstateToolsGUI.SLOT_POS1) {
+            Bukkit.dispatchCommand(player, "ecos estate pos1");
+            Bukkit.getScheduler().runTask(plugin, () -> plugin.getEstateToolsGUI().open(player));
+            return;
+        }
+        if (slot == EstateToolsGUI.SLOT_POS2) {
+            Bukkit.dispatchCommand(player, "ecos estate pos2");
+            Bukkit.getScheduler().runTask(plugin, () -> plugin.getEstateToolsGUI().open(player));
+            return;
+        }
+        if (slot == EstateToolsGUI.SLOT_REGISTER) {
+            if (!plugin.getEstateManager().hasSelection(player.getUniqueId())) {
+                player.sendMessage(ColorUtil.colorize("&8[房产] &c请先点1、点2圈出房间"));
+                return;
+            }
+            player.closeInventory();
+            plugin.getAnvilInputGUI().openForEstateRegister(player);
+            return;
+        }
+        if (slot == EstateToolsGUI.SLOT_DOOR) {
+            player.closeInventory();
+            Bukkit.dispatchCommand(player, "ecos estate door");
+            return;
+        }
+        if (slot == EstateToolsGUI.SLOT_SIGN) {
+            player.closeInventory();
+            Bukkit.dispatchCommand(player, "ecos estate sign");
+            return;
+        }
+        if (slot == EstateToolsGUI.SLOT_HERE) {
+            player.closeInventory();
+            Bukkit.dispatchCommand(player, "ecos estate here");
+            return;
+        }
+        if (slot == EstateToolsGUI.SLOT_SELL) {
+            player.closeInventory();
+            var here = plugin.getEstateManager().at(player.getLocation());
+            if (here == null) {
+                player.sendMessage(ColorUtil.colorize("&8[房产] &c先站进自己的房间"));
+                return;
+            }
+            if (here.price() <= 0) {
+                plugin.getAnvilInputGUI().openForEstatePrice(player, here);
+                return;
+            }
+            Bukkit.dispatchCommand(player, "ecos estate sell");
+            return;
+        }
+        if (slot == EstateToolsGUI.SLOT_UNSELL) {
+            player.closeInventory();
+            Bukkit.dispatchCommand(player, "ecos estate unsell");
+        }
+    }
+
+    private void handleHotelList(InventoryClickEvent event, Player player) {
+        event.setCancelled(true);
+        int slot = event.getRawSlot();
+        HotelListGUI gui = plugin.getHotelListGUI();
+        if (slot == HotelListGUI.SLOT_CLOSE) { gui.cleanup(player); player.closeInventory(); return; }
+        if (slot == HotelListGUI.SLOT_BACK) {
+            gui.cleanup(player);
+            player.closeInventory();
+            Bukkit.getScheduler().runTask(plugin, () -> plugin.getEcosTerminalGUI().open(player));
+            return;
+        }
+        if (slot == HotelListGUI.SLOT_MINE) {
+            gui.cleanup(player);
+            player.closeInventory();
+            Bukkit.getScheduler().runTask(plugin, () -> plugin.getHotelListGUI().openMine(player));
+            return;
+        }
+        if (slot == HotelListGUI.SLOT_CREATE) {
+            player.closeInventory();
+            plugin.getAnvilInputGUI().openForHotelCreate(player);
+            return;
+        }
+        if (slot == HotelListGUI.SLOT_CARD) {
+            var stay = plugin.getHotelManager().stayOf(player.getUniqueId());
+            var hotel = plugin.getHotelManager().hotelOfRoom(stay);
+            var unit = plugin.getHotelManager().unitOf(stay);
+            String err = hotel == null ? "当前没有入住" : plugin.getHotelManager().giveCard(player, hotel, stay, unit);
+            player.sendMessage(ColorUtil.colorize(err == null ? "&8[酒店] &a已补领房卡" : "&8[酒店] &c" + err));
+            return;
+        }
+        if (slot == HotelListGUI.SLOT_CHECKOUT) {
+            var stay = plugin.getHotelManager().stayOf(player.getUniqueId());
+            String err = plugin.getHotelManager().checkout(player, stay);
+            player.sendMessage(ColorUtil.colorize(err == null ? "&8[酒店] &7已退房" : "&8[酒店] &c" + err));
+            Bukkit.getScheduler().runTask(plugin, () -> plugin.getHotelListGUI().open(player));
+            return;
+        }
+        var hotel = gui.hotelAt(player, slot);
+        if (hotel == null) return;
+        gui.cleanup(player);
+        player.closeInventory();
+        Bukkit.getScheduler().runTask(plugin, () -> plugin.getHotelDeskGUI().open(player, hotel));
+    }
+
+    private void handleHotelDesk(InventoryClickEvent event, Player player) {
+        event.setCancelled(true);
+        int slot = event.getRawSlot();
+        HotelDeskGUI gui = plugin.getHotelDeskGUI();
+        var hotel = gui.hotelOf(player);
+        if (slot == HotelDeskGUI.SLOT_CLOSE) { gui.cleanup(player); player.closeInventory(); return; }
+        if (slot == HotelDeskGUI.SLOT_BACK) {
+            gui.cleanup(player);
+            player.closeInventory();
+            Bukkit.getScheduler().runTask(plugin, () -> plugin.getHotelListGUI().open(player));
+            return;
+        }
+        if (hotel == null) return;
+        if (slot == HotelDeskGUI.SLOT_BIND) {
+            var unit = plugin.getEstateManager().at(player.getLocation());
+            String err = plugin.getHotelManager().bind(player, hotel, unit);
+            player.sendMessage(ColorUtil.colorize(err == null
+                    ? "&8[酒店] &a已绑 &f" + (unit == null ? "" : unit.address()) : "&8[酒店] &c" + err));
+            Bukkit.getScheduler().runTask(plugin, () -> plugin.getHotelDeskGUI().open(player, hotel));
+            return;
+        }
+        if (slot == HotelDeskGUI.SLOT_MGR) {
+            player.closeInventory();
+            plugin.getAnvilInputGUI().openForHotelMgr(player, hotel.id);
+            return;
+        }
+        if (slot == HotelDeskGUI.SLOT_TRANSFER) {
+            player.closeInventory();
+            plugin.getAnvilInputGUI().openForHotelTransfer(player, hotel.id);
+            return;
+        }
+        var room = gui.roomAt(player, slot);
+        if (room == null) return;
+        if (event.isRightClick() && event.isShiftClick() && plugin.getHotelManager().staff(player, hotel)) {
+            player.closeInventory();
+            plugin.getAnvilInputGUI().openForHotelPrice(player, room.unitId,
+                    room.price > 0 ? String.format("%.0f", room.price) : "256");
+            return;
+        }
+        if (event.isLeftClick() && event.isShiftClick() && plugin.getHotelManager().staff(player, hotel)) {
+            var next = gui.nextType(room.type);
+            String err = plugin.getHotelManager().setType(player, room, next);
+            player.sendMessage(ColorUtil.colorize(err == null ? "&8[酒店] &7房型 &f" + next.label : "&8[酒店] &c" + err));
+            Bukkit.getScheduler().runTask(plugin, () -> plugin.getHotelDeskGUI().open(player, hotel));
+            return;
+        }
+        if (event.isRightClick() && plugin.getHotelManager().staff(player, hotel)) {
+            String err = plugin.getHotelManager().setLocked(player, room, !room.locked);
+            player.sendMessage(ColorUtil.colorize(err == null
+                    ? "&8[酒店] &7门锁 " + (room.locked ? "&c已上锁" : "&a已开锁") : "&8[酒店] &c" + err));
+            Bukkit.getScheduler().runTask(plugin, () -> plugin.getHotelDeskGUI().open(player, hotel));
+            return;
+        }
+        if (event.isLeftClick()) {
+            if (room.vacant()) {
+                String err = plugin.getHotelManager().checkin(player, room);
+                player.sendMessage(ColorUtil.colorize(err == null
+                        ? "&8[酒店] &a已入住，房卡已发放" : "&8[酒店] &c" + err));
+            } else if (room.guest != null && room.guest.equals(player.getUniqueId())) {
+                String err = plugin.getHotelManager().checkout(player, room);
+                player.sendMessage(ColorUtil.colorize(err == null ? "&8[酒店] &7已退房" : "&8[酒店] &c" + err));
+            } else if (plugin.getHotelManager().staff(player, hotel)) {
+                String err = plugin.getHotelManager().checkout(player, room);
+                player.sendMessage(ColorUtil.colorize(err == null ? "&8[酒店] &7已退房/驱逐" : "&8[酒店] &c" + err));
+            }
+            Bukkit.getScheduler().runTask(plugin, () -> plugin.getHotelDeskGUI().open(player, hotel));
+        }
+    }
+
+    private void handleAdminGrant(InventoryClickEvent event, Player player) {
+        event.setCancelled(true);
+        if (!player.hasPermission("es2uni.admin")) return;
+        int slot = event.getRawSlot();
+        if (slot == AdminGrantGUI.SLOT_CLOSE) { player.closeInventory(); return; }
+        if (slot == AdminGrantGUI.SLOT_BACK) {
+            player.closeInventory();
+            Bukkit.getScheduler().runTask(plugin, () -> plugin.getEcosTerminalGUI().open(player));
+            return;
+        }
+        if (slot == AdminGrantGUI.SLOT_MAKEUP) {
+            player.closeInventory();
+            plugin.getAnvilInputGUI().openForGrant(player, "makeup");
+            return;
+        }
+        if (slot == AdminGrantGUI.SLOT_LUCKY) {
+            player.closeInventory();
+            plugin.getAnvilInputGUI().openForGrant(player, "lucky");
         }
     }
 
@@ -698,6 +1025,12 @@ public class GUIListener implements Listener {
             Bukkit.getScheduler().runTask(plugin, () -> plugin.getEcosTerminalGUI().open(player));
             return;
         }
+        if (slot == PlayerSelectGUI.getAllSlot() && gui.getContext(player) == PlayerSelectGUI.SelectContext.PAY) {
+            gui.cleanup(player);
+            player.closeInventory();
+            Bukkit.getScheduler().runTask(plugin, () -> plugin.getAnvilInputGUI().openForPayAllAmount(player));
+            return;
+        }
 
         UUID targetUuid = gui.getTargetAt(player, slot);
         if (targetUuid == null) return;
@@ -756,6 +1089,12 @@ public class GUIListener implements Listener {
             if (pay == null) { player.closeInventory(); return; }
             gui.cleanup(player);
             player.closeInventory();
+
+            if (pay.all()) {
+                player.sendMessage(ColorUtil.colorize(
+                        com.etherstories.escore.listeners.PayCommandTaxListener.payAll(plugin, player, pay.amount())));
+                return;
+            }
 
             org.bukkit.OfflinePlayer target = Bukkit.getOfflinePlayer(pay.targetUuid());
             if (!target.hasPlayedBefore() && !target.isOnline()) {
@@ -2439,6 +2778,9 @@ public class GUIListener implements Listener {
         plugin.getEstateBuildingsGUI().cleanup(event.getPlayer());
         plugin.getEstateRoomsGUI().cleanup(event.getPlayer());
         plugin.getEstateMineGUI().cleanup(event.getPlayer());
+        plugin.getEstateSaleGUI().cleanup(event.getPlayer());
+        plugin.getHotelListGUI().cleanup(event.getPlayer());
+        plugin.getHotelDeskGUI().cleanup(event.getPlayer());
         plugin.getAdminRegionGUI().cleanup(event.getPlayer());
         plugin.getAdminKitGUI().cleanup(event.getPlayer());
         plugin.getKitEditGUI().cleanup(event.getPlayer());
