@@ -6,6 +6,7 @@ import com.etherstories.escore.managers.LoginLogManager;
 import com.etherstories.escore.utils.ColorUtil;
 import com.etherstories.escore.utils.TPSUtil;
 import com.sun.net.httpserver.HttpExchange;
+import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
@@ -15,15 +16,24 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
+import java.net.URI;
+import java.net.URLDecoder;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class EcosWebServer {
 
@@ -31,8 +41,20 @@ public class EcosWebServer {
     private final WebSessions sessions;
     private final ChatFeed chat;
     private HttpServer http;
+    private ExecutorService pool;
     private byte[] indexHtml = new byte[0];
     private final Map<UUID, Long> lastSay = new ConcurrentHashMap<>();
+    private final Map<UUID, Boolean> linkPref = new ConcurrentHashMap<>();
+    private final Semaphore streams = new Semaphore(2);
+    private volatile MusicSnap musicSnap;
+    private final HttpClient httpClient = HttpClient.newBuilder()
+            .followRedirects(HttpClient.Redirect.NORMAL)
+            .connectTimeout(Duration.ofSeconds(6))
+            .build();
+
+    private record MusicSnap(long at, AllMusicHook.NowPlaying now, AllMusicHook.LyricNow ly, String play) {}
+    @FunctionalInterface
+    private interface ExHandler { void handle(HttpExchange ex) throws Exception; }
 
     public EcosWebServer(ES2UniPlugin plugin, WebSessions sessions, ChatFeed chat) {
         this.plugin = plugin;
@@ -50,18 +72,27 @@ public class EcosWebServer {
         }
         String bind = plugin.getConfig().getString("web.bind", "0.0.0.0");
         int port = plugin.getConfig().getInt("web.port", 8766);
-        http = HttpServer.create(new InetSocketAddress(bind, port), 0);
-        http.createContext("/", this::root);
-        http.createContext("/v1/info", this::info);
-        http.createContext("/v1/pair", this::pair);
-        http.createContext("/v1/desk", this::desk);
-        http.createContext("/v1/now", this::now);
-        http.createContext("/v1/logout", this::logout);
-        http.createContext("/v1/search", this::search);
-        http.createContext("/v1/music", this::music);
-        http.createContext("/v1/chat", this::say);
-        http.createContext("/v1/mute", this::mute);
-        http.setExecutor(Executors.newFixedThreadPool(4));
+        AtomicInteger n = new AtomicInteger();
+        pool = Executors.newFixedThreadPool(16, r -> {
+            Thread t = new Thread(r, "ecos-web-" + n.incrementAndGet());
+            t.setDaemon(true);
+            return t;
+        });
+        http = HttpServer.create(new InetSocketAddress(bind, port), 64);
+        http.createContext("/", wrap("root", this::root));
+        http.createContext("/v1/info", wrap("info", this::info));
+        http.createContext("/v1/pair", wrap("pair", this::pair));
+        http.createContext("/v1/desk", wrap("desk", this::desk));
+        http.createContext("/v1/now", wrap("now", this::now));
+        http.createContext("/v1/logout", wrap("logout", this::logout));
+        http.createContext("/v1/search", wrap("search", this::search));
+        http.createContext("/v1/music", wrap("music", this::music));
+        http.createContext("/v1/chat", wrap("say", this::say));
+        http.createContext("/v1/complete", wrap("complete", this::complete));
+        http.createContext("/v1/link", wrap("link", this::link));
+        http.createContext("/v1/mute", wrap("mute", this::mute));
+        http.createContext("/v1/stream", wrap("stream", this::stream));
+        http.setExecutor(pool);
         http.start();
         plugin.getLogger().info("ECOS Web  http://" + bind + ":" + port + "/");
     }
@@ -71,6 +102,28 @@ public class EcosWebServer {
             http.stop(0);
             http = null;
         }
+        if (pool != null) {
+            pool.shutdownNow();
+            pool = null;
+        }
+    }
+
+    private HttpHandler wrap(String name, ExHandler h) {
+        return ex -> {
+            try {
+                h.handle(ex);
+            } catch (Throwable t) {
+                plugin.getLogger().warning("ECOS Web " + name + ": "
+                        + (t.getMessage() == null ? t.getClass().getSimpleName() : t.getMessage()));
+                try {
+                    if (ex.getResponseCode() == -1) {
+                        send(ex, 500, "application/json", "{\"ok\":false,\"error\":\"终端暂时无法应答\"}");
+                    }
+                } catch (Exception ignored) {}
+            } finally {
+                try { ex.close(); } catch (Exception ignored) {}
+            }
+        };
     }
 
     private void root(HttpExchange ex) throws IOException {
@@ -93,7 +146,7 @@ public class EcosWebServer {
             send(ex, 405, "application/json", "{\"ok\":false}");
             return;
         }
-        AllMusicHook.NowPlaying now = plugin.getAllMusicHook().getNowPlaying();
+        AllMusicHook.NowPlaying now = musicSnap().now();
         String song = now == null ? "" : now.name();
         send(ex, 200, "application/json", "{\"ok\":true,\"name\":\"ECOS\",\"version\":\""
                 + esc(pluginVer()) + "\",\"online\":"
@@ -105,11 +158,11 @@ public class EcosWebServer {
             send(ex, 405, "application/json", "{\"ok\":false}");
             return;
         }
-        String body = new String(ex.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+        String body = readBody(ex);
         String code = extract(body, "code");
         WebSessions.Session s = sessions.consume(code);
         if (s == null) {
-            send(ex, 401, "application/json", "{\"ok\":false,\"error\":\"码无效或过期\"}");
+            send(ex, 401, "application/json", "{\"ok\":false,\"error\":\"连接码无效或已过期\"}");
             return;
         }
         if (plugin.getLoginLogManager() != null) {
@@ -128,7 +181,7 @@ public class EcosWebServer {
     private void desk(HttpExchange ex) throws IOException {
         WebSessions.Session s = sessionOf(ex);
         if (s == null) {
-            send(ex, 401, "application/json", "{\"ok\":false,\"error\":\"未连接\"}");
+            send(ex, 401, "application/json", "{\"ok\":false,\"error\":\"请先接入终端\"}");
             return;
         }
         send(ex, 200, "application/json", buildDesk(s, ex));
@@ -139,11 +192,12 @@ public class EcosWebServer {
             send(ex, 405, "application/json", "{\"ok\":false}");
             return;
         }
-        if (sessionOf(ex) == null) {
-            send(ex, 401, "application/json", "{\"ok\":false,\"error\":\"未连接\"}");
+        WebSessions.Session s = sessionOf(ex);
+        if (s == null) {
+            send(ex, 401, "application/json", "{\"ok\":false,\"error\":\"请先接入终端\"}");
             return;
         }
-        send(ex, 200, "application/json", buildNow(true));
+        send(ex, 200, "application/json", buildNow(true, webOnline(s)));
     }
 
     private void search(HttpExchange ex) throws IOException {
@@ -153,10 +207,10 @@ public class EcosWebServer {
         }
         WebSessions.Session s = sessionOf(ex);
         if (s == null) {
-            send(ex, 401, "application/json", "{\"ok\":false,\"error\":\"未连接\"}");
+            send(ex, 401, "application/json", "{\"ok\":false,\"error\":\"请先接入终端\"}");
             return;
         }
-        String body = new String(ex.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+        String body = readBody(ex);
         plugin.getAllMusicHook().ensureHooked(plugin.getLogger());
         String dir = extract(body, "dir");
         AllMusicHook.SearchPack pack;
@@ -167,13 +221,13 @@ public class EcosWebServer {
             if (q.isBlank()) q = extract(body, "query");
             if (q.isBlank() && !body.contains("\"")) q = body.trim();
             if (q.isBlank()) {
-                send(ex, 400, "application/json", "{\"ok\":false,\"error\":\"输入歌名\"}");
+                send(ex, 400, "application/json", "{\"ok\":false,\"error\":\"请先写下歌曲或歌手\"}");
                 return;
             }
             pack = plugin.getAllMusicHook().searchByName(s.name(), q);
         }
         if (pack == null) {
-            send(ex, 503, "application/json", "{\"ok\":false,\"error\":\"AllMusic 未加载\"}");
+            send(ex, 503, "application/json", "{\"ok\":false,\"error\":\"点歌服务尚未就绪\"}");
             return;
         }
         sendSearch(ex, pack);
@@ -205,12 +259,31 @@ public class EcosWebServer {
         }
         WebSessions.Session s = sessionOf(ex);
         if (s == null) {
-            send(ex, 401, "application/json", "{\"ok\":false,\"error\":\"未连接\"}");
+            send(ex, 401, "application/json", "{\"ok\":false,\"error\":\"请先接入终端\"}");
             return;
         }
-        String id = extract(new String(ex.getRequestBody().readAllBytes(), StandardCharsets.UTF_8), "id");
+        String body = readBody(ex);
+        String act = extract(body, "action");
+        if ("vote".equalsIgnoreCase(act)) {
+            plugin.getAllMusicHook().ensureHooked(plugin.getLogger());
+            runAsPlayer(s, "music vote");
+            send(ex, 200, "application/json", "{\"ok\":true,\"msg\":\"已投下切歌一票\"}");
+            return;
+        }
+        if ("next".equalsIgnoreCase(act)) {
+            if (!isAdmin(s)) {
+                send(ex, 403, "application/json", "{\"ok\":false,\"error\":\"切歌需要管理权限\"}");
+                return;
+            }
+            plugin.getAllMusicHook().ensureHooked(plugin.getLogger());
+            Bukkit.getScheduler().runTask(plugin, () ->
+                    Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "music next"));
+            send(ex, 200, "application/json", "{\"ok\":true,\"msg\":\"已切到下一首\"}");
+            return;
+        }
+        String id = extract(body, "id");
         if (id.isBlank()) {
-            send(ex, 400, "application/json", "{\"ok\":false,\"error\":\"缺少歌曲 id\"}");
+            send(ex, 400, "application/json", "{\"ok\":false,\"error\":\"请先选择一首歌曲\"}");
             return;
         }
         plugin.getAllMusicHook().ensureHooked(plugin.getLogger());
@@ -226,21 +299,21 @@ public class EcosWebServer {
         }
         WebSessions.Session s = sessionOf(ex);
         if (s == null) {
-            send(ex, 401, "application/json", "{\"ok\":false,\"error\":\"未连接\"}");
+            send(ex, 401, "application/json", "{\"ok\":false,\"error\":\"请先接入终端\"}");
             return;
         }
-        long now = System.currentTimeMillis();
-        Long prev = lastSay.get(s.uuid());
-        if (prev != null && now - prev < 800) {
-            send(ex, 429, "application/json", "{\"ok\":false,\"error\":\"慢一点\"}");
-            return;
-        }
-        String text = extract(new String(ex.getRequestBody().readAllBytes(), StandardCharsets.UTF_8), "text");
+        String text = extract(readBody(ex), "text");
         text = text.replace('\n', ' ').replace('\r', ' ').replace('\u00a7', ' ')
                 .replaceAll("&[0-9A-Fa-fk-orK-OR#]", "").trim();
         if (text.length() > 200) text = text.substring(0, 200);
         if (text.isBlank()) {
-            send(ex, 400, "application/json", "{\"ok\":false,\"error\":\"空消息\"}");
+            send(ex, 400, "application/json", "{\"ok\":false,\"error\":\"请先写下想说的话\"}");
+            return;
+        }
+        long now = System.currentTimeMillis();
+        Long prev = lastSay.get(s.uuid());
+        if (prev != null && now - prev < 400) {
+            send(ex, 429, "application/json", "{\"ok\":false,\"error\":\"请稍候再发送\"}");
             return;
         }
         lastSay.put(s.uuid(), now);
@@ -251,9 +324,40 @@ public class EcosWebServer {
         chat.add(s.name(), text, "web");
         final String name = s.name();
         final String msg = text;
-        Bukkit.getScheduler().runTask(plugin, () ->
-                Bukkit.broadcastMessage(ColorUtil.colorize("&7[Web] &f<" + name + "> " + msg)));
-        send(ex, 200, "application/json", "{\"ok\":true}");
+        final UUID uid = s.uuid();
+        final boolean cross = linkOn(uid);
+        Bukkit.getScheduler().runTask(plugin, () -> {
+            Bukkit.broadcastMessage(ColorUtil.colorize("&7[Web] &f<" + name + "> " + msg));
+            if (cross) plugin.getESLinkHook().forwardChat(uid, name, "[Web] " + msg);
+        });
+        send(ex, 200, "application/json", "{\"ok\":true,\"link\":" + cross + "}");
+    }
+
+    private void link(HttpExchange ex) throws IOException {
+        if (!"POST".equalsIgnoreCase(ex.getRequestMethod())
+                && !"GET".equalsIgnoreCase(ex.getRequestMethod())) {
+            send(ex, 405, "application/json", "{\"ok\":false}");
+            return;
+        }
+        WebSessions.Session s = sessionOf(ex);
+        if (s == null) {
+            send(ex, 401, "application/json", "{\"ok\":false,\"error\":\"请先接入终端\"}");
+            return;
+        }
+        if (!plugin.getESLinkHook().present()) {
+            send(ex, 200, "application/json", "{\"ok\":true,\"hasLink\":false,\"link\":false}");
+            return;
+        }
+        if ("POST".equalsIgnoreCase(ex.getRequestMethod())) {
+            String body = readBody(ex);
+            boolean all = body.contains("\"all\":true")
+                    || "true".equalsIgnoreCase(extract(body, "all"))
+                    || "all".equalsIgnoreCase(extract(body, "all"));
+            linkPref.put(s.uuid(), all);
+            plugin.getESLinkHook().setChatAll(s.uuid(), all);
+        }
+        boolean on = linkOn(s.uuid());
+        send(ex, 200, "application/json", "{\"ok\":true,\"hasLink\":true,\"link\":" + on + "}");
     }
 
     private void runCommand(HttpExchange ex, WebSessions.Session s, String cmd) throws IOException {
@@ -271,13 +375,13 @@ public class EcosWebServer {
                 boolean ok;
                 if (online != null) {
                     ok = online.performCommand(run);
-                    if (!ok) replies.add("未知指令");
-                    else replies.add("已执行，回执在游戏里");
+                    if (!ok) replies.add("没有找到这条指令");
+                    else replies.add("已为您执行，回执请在游戏中查看");
                 } else {
                     WebCommandSender sender = new WebCommandSender(s.uuid(), s.name(), isAdmin(s));
                     ok = Bukkit.dispatchCommand(sender, run);
                     replies.addAll(sender.replies());
-                    if (replies.isEmpty()) replies.add(ok ? "已执行 /" + run : "未知指令或需要上线");
+                    if (replies.isEmpty()) replies.add(ok ? "已为您执行 /" + run : "没有找到这条指令，或需要进入游戏");
                 }
                 chat.add(s.name(), "/" + run, "cmd", s.uuid());
                 for (String line : replies) chat.add("系统", line, "sys", s.uuid());
@@ -293,7 +397,7 @@ public class EcosWebServer {
         try {
             replies = fut.get(5, TimeUnit.SECONDS);
         } catch (Exception e) {
-            send(ex, 504, "application/json", "{\"ok\":false,\"error\":\"服务器忙\"}");
+            send(ex, 504, "application/json", "{\"ok\":false,\"error\":\"服务器正忙，请稍后再试\"}");
             return;
         }
         StringBuilder sb = new StringBuilder(128);
@@ -306,6 +410,76 @@ public class EcosWebServer {
         send(ex, 200, "application/json", sb.toString());
     }
 
+    private void complete(HttpExchange ex) throws IOException {
+        if (!"POST".equalsIgnoreCase(ex.getRequestMethod())
+                && !"GET".equalsIgnoreCase(ex.getRequestMethod())) {
+            send(ex, 405, "application/json", "{\"ok\":false}");
+            return;
+        }
+        WebSessions.Session s = sessionOf(ex);
+        if (s == null) {
+            send(ex, 401, "application/json", "{\"ok\":false,\"error\":\"请先接入终端\"}");
+            return;
+        }
+        String text = "GET".equalsIgnoreCase(ex.getRequestMethod())
+                ? queryValue(ex, "text")
+                : extract(readBody(ex), "text");
+        text = text.replace('\n', ' ').replace('\r', ' ').trim();
+        if (text.startsWith("/")) text = text.substring(1);
+        if (text.isBlank() || text.length() > 180) {
+            send(ex, 200, "application/json", "{\"ok\":true,\"hints\":[]}");
+            return;
+        }
+        final String line = text;
+        CompletableFuture<List<String>> fut = new CompletableFuture<>();
+        Bukkit.getScheduler().runTask(plugin, () -> {
+            try {
+                Player online = Bukkit.getPlayer(s.uuid());
+                org.bukkit.command.CommandSender sender = online != null
+                        ? online
+                        : new WebCommandSender(s.uuid(), s.name(), isAdmin(s));
+                List<String> raw = Bukkit.getCommandMap().tabComplete(sender, line);
+                List<String> hints = new ArrayList<>();
+                if (raw != null) {
+                    for (String h : raw) {
+                        if (h == null || h.isBlank()) continue;
+                        hints.add(h);
+                        if (hints.size() >= 40) break;
+                    }
+                }
+                fut.complete(hints);
+            } catch (Exception e) {
+                fut.complete(List.of());
+            }
+        });
+        List<String> hints;
+        try {
+            hints = fut.get(2, TimeUnit.SECONDS);
+        } catch (Exception e) {
+            send(ex, 200, "application/json", "{\"ok\":true,\"hints\":[]}");
+            return;
+        }
+        StringBuilder sb = new StringBuilder(128);
+        sb.append("{\"ok\":true,\"hints\":[");
+        for (int i = 0; i < hints.size(); i++) {
+            if (i > 0) sb.append(',');
+            sb.append('"').append(esc(hints.get(i))).append('"');
+        }
+        sb.append("]}");
+        send(ex, 200, "application/json", sb.toString());
+    }
+
+    private static String queryValue(HttpExchange ex, String key) {
+        String raw = ex.getRequestURI().getRawQuery();
+        if (raw == null) return "";
+        for (String part : raw.split("&")) {
+            int eq = part.indexOf('=');
+            if (eq <= 0 || !key.equals(part.substring(0, eq))) continue;
+            return URLDecoder.decode(part.substring(eq + 1), StandardCharsets.UTF_8);
+        }
+        return "";
+    }
+
     private void mute(HttpExchange ex) throws IOException {
         if (!"POST".equalsIgnoreCase(ex.getRequestMethod())) {
             send(ex, 405, "application/json", "{\"ok\":false}");
@@ -313,10 +487,10 @@ public class EcosWebServer {
         }
         WebSessions.Session s = sessionOf(ex);
         if (s == null) {
-            send(ex, 401, "application/json", "{\"ok\":false,\"error\":\"未连接\"}");
+            send(ex, 401, "application/json", "{\"ok\":false,\"error\":\"请先接入终端\"}");
             return;
         }
-        String body = new String(ex.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+        String body = readBody(ex);
         boolean muted = body.contains("\"muted\":true") || "true".equalsIgnoreCase(extract(body, "muted"));
         plugin.getAllMusicHook().ensureHooked(plugin.getLogger());
         Player online = Bukkit.getPlayer(s.uuid());
@@ -335,23 +509,117 @@ public class EcosWebServer {
                 if (kv.length == 2 && kv[0].equals("ecos")) return sessions.get(kv[1]);
             }
         }
-        return sessions.get(header(ex, "X-ECOS-Token"));
+        WebSessions.Session header = sessions.get(header(ex, "X-ECOS-Token"));
+        if (header != null) return header;
+        String raw = ex.getRequestURI().getRawQuery();
+        if (raw != null) {
+            for (String part : raw.split("&")) {
+                int eq = part.indexOf('=');
+                if (eq <= 0 || !"token".equals(part.substring(0, eq))) continue;
+                String tok = URLDecoder.decode(part.substring(eq + 1), StandardCharsets.UTF_8);
+                WebSessions.Session q = sessions.get(tok);
+                if (q != null) return q;
+            }
+        }
+        return null;
+    }
+
+    /** Arclight 退服后 getPlayer 有时还挂着，必须连着才算在线。 */
+    private static boolean webOnline(WebSessions.Session s) {
+        if (s == null) return false;
+        Player p = Bukkit.getPlayer(s.uuid());
+        return p != null && p.isOnline() && p.isConnected();
+    }
+
+    private void stream(HttpExchange ex) throws IOException {
+        if (!"GET".equalsIgnoreCase(ex.getRequestMethod())
+                && !"HEAD".equalsIgnoreCase(ex.getRequestMethod())) {
+            send(ex, 405, "text/plain", "method");
+            return;
+        }
+        WebSessions.Session s = sessionOf(ex);
+        if (s == null) {
+            send(ex, 401, "text/plain", "未连接");
+            return;
+        }
+        if (webOnline(s)) {
+            send(ex, 204, "text/plain", "");
+            return;
+        }
+        String url = musicSnap().play();
+        if (url == null || url.isBlank()) {
+            send(ex, 204, "text/plain", "");
+            return;
+        }
+        if ("HEAD".equalsIgnoreCase(ex.getRequestMethod())) {
+            send(ex, 200, "audio/mpeg", "");
+            return;
+        }
+        if (!streams.tryAcquire()) {
+            send(ex, 503, "text/plain", "busy");
+            return;
+        }
+        try {
+            proxyAudio(ex, url);
+        } finally {
+            streams.release();
+        }
+    }
+
+    private void proxyAudio(HttpExchange ex, String url) throws IOException {
+        try {
+            HttpRequest req = HttpRequest.newBuilder(URI.create(url))
+                    .timeout(Duration.ofSeconds(12))
+                    .header("User-Agent", "Mozilla/5.0")
+                    .header("Referer", "https://music.163.com/")
+                    .GET()
+                    .build();
+            HttpResponse<InputStream> res = httpClient.send(req, HttpResponse.BodyHandlers.ofInputStream());
+            if (res.statusCode() >= 400) {
+                res.body().close();
+                send(ex, 502, "text/plain", "upstream");
+                return;
+            }
+            String type = res.headers().firstValue("Content-Type").orElse("audio/mpeg");
+            ex.getResponseHeaders().set("Content-Type", type);
+            ex.getResponseHeaders().set("Cache-Control", "no-store");
+            ex.sendResponseHeaders(200, 0);
+            byte[] buf = new byte[8192];
+            long n = 0;
+            try (InputStream in = res.body(); OutputStream out = ex.getResponseBody()) {
+                int r;
+                while (n < 20_000_000 && (r = in.read(buf)) >= 0) {
+                    out.write(buf, 0, r);
+                    n += r;
+                }
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            if (ex.getResponseCode() == -1) send(ex, 502, "text/plain", "stream");
+        } catch (Exception e) {
+            if (ex.getResponseCode() == -1) send(ex, 502, "text/plain", "stream");
+        }
     }
 
     private String buildDesk(WebSessions.Session s, HttpExchange ex) {
         String name = s == null ? "" : s.name();
-        boolean online = s != null && Bukkit.getPlayer(s.uuid()) != null;
+        boolean online = webOnline(s);
         boolean admin = isAdmin(s);
-        int mail = s == null ? 0 : plugin.getMailManager().unreadCount(s.uuid());
-        boolean checked = s != null && plugin.getCheckInManager().hasCheckedInToday(s.uuid());
-        int streak = s == null ? 0 : plugin.getCheckInManager().getStreak(s.uuid());
-        String status = s == null ? "" : nz(plugin.getStatusManager().getStatus(s.uuid()));
+        int mail = 0;
+        if (s != null && plugin.getMailManager() != null) mail = plugin.getMailManager().unreadCount(s.uuid());
+        boolean checked = s != null && plugin.getCheckInManager() != null
+                && plugin.getCheckInManager().hasCheckedInToday(s.uuid());
+        int streak = s == null || plugin.getCheckInManager() == null
+                ? 0 : plugin.getCheckInManager().getStreak(s.uuid());
+        String status = s == null || plugin.getStatusManager() == null
+                ? "" : nz(plugin.getStatusManager().getStatus(s.uuid()));
         String bal = "";
-        if (s != null && plugin.getVaultHook().isEnabled()) {
+        if (s != null && plugin.getVaultHook() != null && plugin.getVaultHook().isEnabled()) {
             OfflinePlayer off = Bukkit.getOfflinePlayer(s.uuid());
             bal = plugin.getVaultHook().format(plugin.getVaultHook().getBalance(off));
         }
-        AllMusicHook.NowPlaying now = plugin.getAllMusicHook().getNowPlaying();
+        MusicSnap snap = musicSnap();
+        AllMusicHook.NowPlaying now = snap.now();
         StringBuilder sb = new StringBuilder(1536);
         String skin = "";
         if (s != null) {
@@ -371,7 +639,16 @@ public class EcosWebServer {
                 .append(",\"balance\":\"").append(esc(bal)).append("\"")
                 .append(",\"map\":\"").append(esc(mapUrl(ex))).append("\"")
                 .append(",\"muted\":").append(plugin.getAllMusicHook().isMuted(name))
-                .append(",\"url\":\"").append(esc(online ? "" : plugin.getAllMusicHook().getPlayUrl())).append("\"");
+                .append(",\"hasLink\":").append(plugin.getESLinkHook().present())
+                .append(",\"link\":").append(s != null && linkOn(s.uuid()));
+        String play = online ? "" : snap.play();
+        String stream = "";
+        if (play != null && !play.isBlank() && now != null && now.id() != null && !now.id().isBlank()) {
+            stream = "/v1/stream?id=" + now.id();
+        } else if (play != null && !play.isBlank()) {
+            stream = "/v1/stream?id=live";
+        }
+        sb.append(",\"url\":\"").append(esc(stream)).append("\"");
         if (admin) {
             sb.append(",\"tps\":").append(String.format(java.util.Locale.US, "%.2f", TPSUtil.getTPS()))
                     .append(",\"mspt\":").append(String.format(java.util.Locale.US, "%.1f", TPSUtil.getMSPT()));
@@ -404,7 +681,7 @@ public class EcosWebServer {
         }
         sb.append(']');
         sb.append(",\"now\":");
-        appendNowObj(sb, now, plugin.getAllMusicHook().getLyricNow());
+        appendNowObj(sb, now, snap.ly());
         sb.append(",\"queue\":[");
         List<AllMusicHook.QueueSong> q = plugin.getAllMusicHook().getQueue();
         for (int i = 0; i < q.size(); i++) {
@@ -455,16 +732,17 @@ public class EcosWebServer {
     private List<String> tapeLines(String name, boolean online, int mail, boolean checked,
                                   int streak, String status, String bal, AllMusicHook.NowPlaying now) {
         List<String> t = new ArrayList<>();
-        t.add("Etharia Central OS · " + (name.isBlank() ? "ECOS" : name) + " · " + (online ? "终端在线" : "网页待机"));
-        t.add("在线 " + Bukkit.getOnlinePlayers().size() + " 人");
+        t.add("Etharia Central OS · " + (name.isBlank() ? "ECOS" : name) + " · "
+                + (online ? "您正在游戏中" : "您尚未进入游戏"));
+        t.add("此刻在线 " + Bukkit.getOnlinePlayers().size() + " 人");
         if (!bal.isBlank()) t.add("余额 " + bal);
-        t.add("邮件未读 " + mail + " · 签到" + (checked ? "已签" : "未签") + " · 连签 " + streak);
+        t.add("未读来信 " + mail + " · 签到" + (checked ? "今日已签" : "今日尚未签到") + " · 连签 " + streak + " 日");
         if (status != null && !status.isBlank()) t.add("签名 「" + status + "」");
         if (now != null && now.name() != null && !now.name().isBlank() && !now.name().equals("（无）")) {
             String song = now.author() == null || now.author().isBlank() ? now.name() : now.author() + " / " + now.name();
             if (now.album() != null && !now.album().isBlank()) song += " · " + now.album();
-            if (now.caller() != null && !now.caller().isBlank()) song += " · " + now.caller() + " 点的";
-            t.add("点播 " + song + " · 队列 " + now.queueSize());
+            if (now.caller() != null && !now.caller().isBlank()) song += " · 由 " + now.caller() + " 点播";
+            t.add("正在播放 " + song + " · 队列 " + now.queueSize());
         }
         List<ChatFeed.Line> lines = chat.recent(null, false);
         if (!lines.isEmpty()) {
@@ -476,11 +754,12 @@ public class EcosWebServer {
         return t;
     }
 
-    private String buildNow(boolean wrap) {
-        AllMusicHook.NowPlaying now = plugin.getAllMusicHook().getNowPlaying();
-        AllMusicHook.LyricNow ly = plugin.getAllMusicHook().getLyricNow();
+    private String buildNow(boolean wrap, boolean online) {
+        MusicSnap snap = musicSnap();
+        AllMusicHook.NowPlaying now = snap.now();
+        AllMusicHook.LyricNow ly = snap.ly();
         StringBuilder sb = new StringBuilder(384);
-        if (wrap) sb.append("{\"ok\":true,\"now\":");
+        if (wrap) sb.append("{\"ok\":true,\"online\":").append(online).append(",\"now\":");
         appendNowObj(sb, now, ly);
         if (wrap) sb.append('}');
         return sb.toString();
@@ -524,6 +803,24 @@ public class EcosWebServer {
         return Bukkit.getOfflinePlayer(s.uuid()).isOp();
     }
 
+    private boolean linkOn(UUID uuid) {
+        if (uuid == null || !plugin.getESLinkHook().present()) return false;
+        Boolean from = plugin.getESLinkHook().isChatAll(uuid);
+        if (from != null) return from;
+        return linkPref.getOrDefault(uuid, false);
+    }
+
+    private void runAsPlayer(WebSessions.Session s, String cmd) {
+        Bukkit.getScheduler().runTask(plugin, () -> {
+            Player online = Bukkit.getPlayer(s.uuid());
+            if (online != null) {
+                online.performCommand(cmd);
+                return;
+            }
+            Bukkit.dispatchCommand(new WebCommandSender(s.uuid(), s.name(), isAdmin(s)), cmd);
+        });
+    }
+
     private static String clientIp(HttpExchange ex) {
         String fwd = header(ex, "X-Forwarded-For");
         if (fwd != null && !fwd.isBlank()) {
@@ -556,17 +853,76 @@ public class EcosWebServer {
         return ex.getRequestHeaders().getFirst(name);
     }
 
+    private MusicSnap musicSnap() {
+        MusicSnap s = musicSnap;
+        long now = System.currentTimeMillis();
+        if (s != null && now - s.at() < 300) return s;
+        synchronized (this) {
+            s = musicSnap;
+            if (s != null && now - s.at() < 300) return s;
+            AllMusicHook hook = plugin.getAllMusicHook();
+            musicSnap = new MusicSnap(now, hook.getNowPlaying(), hook.getLyricNow(), hook.getPlayUrl());
+            return musicSnap;
+        }
+    }
+
+    private static String readBody(HttpExchange ex) throws IOException {
+        byte[] raw = ex.getRequestBody().readNBytes(8193);
+        if (raw.length > 8192) return "";
+        return new String(raw, StandardCharsets.UTF_8);
+    }
+
     private static String extract(String json, String key) {
-        if (json == null) return "";
+        if (json == null || key == null) return "";
         String needle = "\"" + key + "\"";
         int i = json.indexOf(needle);
-        if (i < 0) return json.replaceAll("[^0-9A-Za-z]", "").trim();
+        if (i < 0) return "";
         int c = json.indexOf(':', i + needle.length());
         if (c < 0) return "";
-        int q = json.indexOf('"', c + 1);
-        if (q < 0) return json.substring(c + 1).replaceAll("[^0-9A-Za-z]", "").trim();
-        int q2 = json.indexOf('"', q + 1);
-        return q2 < 0 ? "" : json.substring(q + 1, q2);
+        int j = c + 1;
+        while (j < json.length() && Character.isWhitespace(json.charAt(j))) j++;
+        if (j >= json.length()) return "";
+        if (json.charAt(j) != '"') {
+            int k = j;
+            while (k < json.length()) {
+                char ch = json.charAt(k);
+                if (ch == ',' || ch == '}' || Character.isWhitespace(ch)) break;
+                k++;
+            }
+            return json.substring(j, k);
+        }
+        StringBuilder b = new StringBuilder();
+        for (int p = j + 1; p < json.length(); p++) {
+            char ch = json.charAt(p);
+            if (ch == '\\' && p + 1 < json.length()) {
+                char n = json.charAt(++p);
+                switch (n) {
+                    case 'n' -> b.append('\n');
+                    case 'r' -> b.append('\r');
+                    case 't' -> b.append('\t');
+                    case '"' -> b.append('"');
+                    case '\\' -> b.append('\\');
+                    case '/' -> b.append('/');
+                    case 'u' -> {
+                        if (p + 4 < json.length()) {
+                            try {
+                                b.append((char) Integer.parseInt(json.substring(p + 1, p + 5), 16));
+                                p += 4;
+                            } catch (NumberFormatException e) {
+                                b.append('u');
+                            }
+                        } else {
+                            b.append('u');
+                        }
+                    }
+                    default -> b.append(n);
+                }
+                continue;
+            }
+            if (ch == '"') break;
+            b.append(ch);
+        }
+        return b.toString();
     }
 
     private String pluginVer() {

@@ -19,7 +19,7 @@ NOW = int(time.time() * 1000)
 DESK = {
     "ok": True,
     "name": "node0",
-    "version": "1.20.38",
+    "version": "1.20.39",
     "online": True,
     "admin": True,
     "tps": 19.94,
@@ -29,6 +29,8 @@ DESK = {
     "checked": True,
     "streak": 14,
     "muted": False,
+    "hasLink": True,
+    "link": False,
     "url": "",
     "status": "在绿野修路",
     "tape": [
@@ -174,7 +176,7 @@ class Handler(BaseHTTPRequestHandler):
             self._send(200, "text/html; charset=utf-8", PHONE)
             return
         if path == "/v1/info":
-            self._json(200, {"ok": True, "name": "ECOS", "version": "1.20.38", "online": 7, "song": "夜航星"})
+            self._json(200, {"ok": True, "name": "ECOS", "version": "1.20.39", "online": 7, "song": "夜航星"})
             return
         if path == "/v1/desk":
             if not self._auth():
@@ -271,6 +273,22 @@ class Handler(BaseHTTPRequestHandler):
             })
             self._json(200, {"ok": True})
             return
+        if path == "/v1/complete":
+            if not self._auth():
+                self._json(401, {"ok": False, "error": "未连接"})
+                return
+            text = str(body.get("text") or "").lstrip("/")
+            hints = [w for w in ("ecos", "es2", "music", "list", "help") if w.startswith(text.split()[-1] if text else "")]
+            self._json(200, {"ok": True, "hints": hints})
+            return
+        if path == "/v1/link":
+            if not self._auth():
+                self._json(401, {"ok": False, "error": "未连接"})
+                return
+            if "all" in body:
+                DESK["link"] = bool(body.get("all"))
+            self._json(200, {"ok": True, "hasLink": True, "link": bool(DESK.get("link"))})
+            return
         if path == "/v1/mute":
             if not self._auth():
                 self._json(401, {"ok": False, "error": "未连接"})
@@ -282,6 +300,18 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/v1/music":
             if not self._auth():
                 self._json(401, {"ok": False, "error": "未连接"})
+                return
+            act = str(body.get("action") or "").strip().lower()
+            if act == "vote":
+                self._json(200, {"ok": True, "msg": "已投下切歌一票"})
+                return
+            if act == "next":
+                if not DESK.get("admin"):
+                    self._json(403, {"ok": False, "error": "切歌需要管理权限"})
+                    return
+                if DESK["queue"]:
+                    DESK["queue"].pop(0)
+                self._json(200, {"ok": True, "msg": "已切到下一首"})
                 return
             sid = str(body.get("id") or "").strip()
             if not sid:
