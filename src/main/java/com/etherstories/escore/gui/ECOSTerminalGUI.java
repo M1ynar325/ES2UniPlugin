@@ -11,6 +11,7 @@ import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.inventory.meta.SkullMeta;
+import org.bukkit.persistence.PersistentDataType;
 
 import java.util.HashMap;
 import java.util.List;
@@ -45,15 +46,38 @@ public class ECOSTerminalGUI {
     private final ES2UniPlugin plugin;
     private final Map<UUID, Page> pages = new HashMap<>();
     private final Map<UUID, Map<Integer, String>> actions = new HashMap<>();
+    private static org.bukkit.NamespacedKey menuKey;
 
     public ECOSTerminalGUI(ES2UniPlugin plugin) {
         this.plugin = plugin;
+        menuKey = new org.bukkit.NamespacedKey(plugin, "ecos_menu");
+    }
+
+    public static boolean isMenuItem(org.bukkit.inventory.ItemStack item) {
+        if (item == null || item.getType().isAir() || !item.hasItemMeta() || menuKey == null) return false;
+        return item.getItemMeta().getPersistentDataContainer().has(menuKey, PersistentDataType.BYTE);
     }
 
     public static boolean isTitle(String title) {
         if (title == null) return false;
         String s = org.bukkit.ChatColor.stripColor(title);
         return s != null && s.contains("[ ECOS");
+    }
+
+    /** 27 格且至少 8 个带标 → 主菜单（holder/标题在 Youer 上会丢）。单箱里 1～2 个脏格子不够。 */
+    public static boolean looksLikeMenu(org.bukkit.inventory.Inventory top) {
+        if (top == null || top.getSize() != SIZE) return false;
+        int tagged = 0;
+        for (int i = 0; i < SIZE; i++) {
+            if (isMenuItem(top.getItem(i))) tagged++;
+        }
+        return tagged >= 8;
+    }
+
+    public void cleanup(Player player) {
+        UUID id = player.getUniqueId();
+        pages.remove(id);
+        actions.remove(id);
     }
 
     public void open(Player player) {
@@ -67,7 +91,9 @@ public class ECOSTerminalGUI {
         actions.put(player.getUniqueId(), act);
 
         String title = EcosStyle.terminal(page.label);
-        Inventory inv = Bukkit.createInventory(null, SIZE, title);
+        EcosHolder holder = new EcosHolder(EcosHolder.Kind.TERMINAL);
+        Inventory inv = Bukkit.createInventory(holder, SIZE, title);
+        holder.bind(inv);
 
         putTab(inv, act, SLOT_TAB_OVERVIEW, Page.OVERVIEW, page, Material.BOOK, "概览", "签到 · 邮件 · 钱");
         putTab(inv, act, SLOT_TAB_SOCIAL, Page.SOCIAL, page, Material.PLAYER_HEAD, "社交", "好友 · 在线 · 公告");
@@ -93,6 +119,7 @@ public class ECOSTerminalGUI {
             case ADMIN -> fillAdmin(inv, act, player);
         }
         fillTabBar(inv);
+        for (int i = 0; i < SIZE; i++) mark(inv.getItem(i));
         player.openInventory(inv);
     }
 
@@ -138,6 +165,7 @@ public class ECOSTerminalGUI {
             ));
             skull.setItemMeta(skullMeta);
         }
+        mark(skull);
         inv.setItem(SLOT_HEAD, skull);
     }
 
@@ -405,6 +433,14 @@ public class ECOSTerminalGUI {
             s.setItemMeta(m);
         }
         return s;
+    }
+
+    private static void mark(ItemStack stack) {
+        if (stack == null || menuKey == null) return;
+        ItemMeta meta = stack.getItemMeta();
+        if (meta == null) return;
+        meta.getPersistentDataContainer().set(menuKey, PersistentDataType.BYTE, (byte) 1);
+        stack.setItemMeta(meta);
     }
 
     public static boolean isCloseSlot(int slot) { return slot == SLOT_CLOSE; }

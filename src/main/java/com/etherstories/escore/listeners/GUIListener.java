@@ -17,13 +17,17 @@ import org.bukkit.Location;
 import org.bukkit.NamespacedKey;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
+import org.bukkit.event.Event;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
+import org.bukkit.event.inventory.InventoryCreativeEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.event.inventory.InventoryOpenEvent;
 import org.bukkit.event.player.AsyncPlayerChatEvent;
+import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.player.PlayerEditBookEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import io.papermc.paper.event.player.AsyncChatEvent;
@@ -65,7 +69,32 @@ public class GUIListener implements Listener {
 
     // ── All inventory clicks ──────────────────────────────────────────────────
 
-    @EventHandler
+    private static boolean isEcosMenu(org.bukkit.inventory.InventoryView view) {
+        if (view == null) return false;
+        org.bukkit.inventory.Inventory top = view.getTopInventory();
+        if (EcosHolder.isTerminal(top.getHolder())) return true;
+        try {
+            if (ECOSTerminalGUI.isTitle(view.getTitle())) return true;
+        } catch (Throwable ignored) {}
+        return ECOSTerminalGUI.looksLikeMenu(top);
+    }
+
+    private static void deny(org.bukkit.event.inventory.InventoryInteractEvent event) {
+        event.setCancelled(true);
+        event.setResult(Event.Result.DENY);
+    }
+
+    private static void sweepMenuItems(Player player) {
+        ItemStack[] contents = player.getInventory().getContents();
+        for (int i = 0; i < contents.length; i++) {
+            if (ECOSTerminalGUI.isMenuItem(contents[i])) contents[i] = null;
+        }
+        player.getInventory().setContents(contents);
+        ItemStack cur = player.getItemOnCursor();
+        if (ECOSTerminalGUI.isMenuItem(cur)) player.setItemOnCursor(null);
+    }
+
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = false)
     public void onInventoryClick(InventoryClickEvent event) {
         if (!(event.getWhoClicked() instanceof Player player)) return;
 
@@ -77,8 +106,18 @@ public class GUIListener implements Listener {
 
         String title = event.getView().getTitle();
 
-        if (ECOSTerminalGUI.isTitle(title)) {
+        if (isEcosMenu(event.getView())) {
+            deny(event);
             handleTerminal(event, player);
+            plugin.getNewbieGuideManager().mark(player.getUniqueId(),
+                    com.etherstories.escore.managers.NewbieGuideManager.Step.OPEN_TERMINAL);
+            return;
+        }
+        if (ECOSTerminalGUI.isMenuItem(event.getCurrentItem())
+                || ECOSTerminalGUI.isMenuItem(event.getCursor())) {
+            deny(event);
+            sweepMenuItems(player);
+            return;
         } else if (title.equals(t(plugin.getConfigManager().getEventGUITitle()))) {
             handleEventList(event, player);
         } else if (title.equals(t(plugin.getConfigManager().getAdminEventGUITitle()))) {
@@ -205,20 +244,52 @@ public class GUIListener implements Listener {
         } else if (title.equals(RecycleBinGUI.TITLE)) {
             handleRecycleBin(event, player);
         }
+    }
 
-        // 打开终端即完成引导第一步
-        if (ECOSTerminalGUI.isTitle(title)) {
-            plugin.getNewbieGuideManager().mark(player.getUniqueId(),
-                    com.etherstories.escore.managers.NewbieGuideManager.Step.OPEN_TERMINAL);
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = false)
+    public void onInventoryDrag(InventoryDragEvent event) {
+        if (!(event.getWhoClicked() instanceof Player player)) return;
+        if (isEcosMenu(event.getView())) {
+            deny(event);
+            return;
+        }
+        for (ItemStack it : event.getNewItems().values()) {
+            if (ECOSTerminalGUI.isMenuItem(it)) {
+                deny(event);
+                sweepMenuItems(player);
+                return;
+            }
+        }
+        if (ECOSTerminalGUI.isMenuItem(event.getOldCursor())
+                || ECOSTerminalGUI.isMenuItem(event.getCursor())) {
+            deny(event);
+            sweepMenuItems(player);
         }
     }
 
-    @EventHandler
-    public void onInventoryDrag(InventoryDragEvent event) {
-        if (!(event.getWhoClicked() instanceof Player)) return;
-        if (ECOSTerminalGUI.isTitle(event.getView().getTitle())) {
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = false)
+    public void onInventoryCreative(InventoryCreativeEvent event) {
+        if (isEcosMenu(event.getView())) deny(event);
+    }
+
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = false)
+    public void onDrop(PlayerDropItemEvent event) {
+        Player player = event.getPlayer();
+        if (isEcosMenu(player.getOpenInventory())
+                || ECOSTerminalGUI.isMenuItem(event.getItemDrop().getItemStack())) {
             event.setCancelled(true);
+            event.getItemDrop().remove();
+            sweepMenuItems(player);
         }
+    }
+
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = false)
+    public void onPickup(org.bukkit.event.entity.EntityPickupItemEvent event) {
+        if (!(event.getEntity() instanceof Player player)) return;
+        if (!ECOSTerminalGUI.isMenuItem(event.getItem().getItemStack())) return;
+        event.setCancelled(true);
+        event.getItem().remove();
+        sweepMenuItems(player);
     }
 
     // ── ECOS Terminal ─────────────────────────────────────────────────────────
@@ -2754,6 +2825,11 @@ public class GUIListener implements Listener {
         if (!(event.getPlayer() instanceof Player player)) return;
         if (confirming.contains(player.getUniqueId())) return;
 
+        if (isEcosMenu(event.getView())) {
+            sweepMenuItems(player);
+            Bukkit.getScheduler().runTask(plugin, () -> sweepMenuItems(player));
+        }
+
         // Kit 编辑关闭时自动保存物品，避免忘点保存
         if (plugin.getKitEditGUI().isEditing(player)
                 && event.getView().getTitle().startsWith(KitEditGUI.TITLE_PREFIX)) {
@@ -2834,6 +2910,8 @@ public class GUIListener implements Listener {
         plugin.getMailManager().consumePending(uuid);
         plugin.getActionBarTask().cleanup(uuid);
         plugin.getEcosCommand().cleanupParticles(uuid);
+        plugin.getEcosTerminalGUI().cleanup(event.getPlayer());
+        sweepMenuItems(event.getPlayer());
     }
 
     // ── Friend List ───────────────────────────────────────────────────────────

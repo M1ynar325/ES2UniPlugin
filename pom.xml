@@ -6,7 +6,7 @@
 
     <groupId>com.etherstories</groupId>
     <artifactId>ES2UniPlugin</artifactId>
-    <version>1.20.39</version>
+    <version>1.20.40</version>
     <packaging>jar</packaging>
 
     <name>ES2UniPlugin</name>
