@@ -3,6 +3,7 @@ package com.etherstories.escore.listeners;
 import com.etherstories.escore.ES2UniPlugin;
 import com.etherstories.escore.estate.EstateUnit;
 import com.etherstories.escore.utils.ColorUtil;
+import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
@@ -11,6 +12,7 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.inventory.EquipmentSlot;
 
 public class HotelListener implements Listener {
@@ -19,6 +21,17 @@ public class HotelListener implements Listener {
 
     public HotelListener(ES2UniPlugin plugin) {
         this.plugin = plugin;
+    }
+
+    @EventHandler
+    public void onJoin(PlayerJoinEvent event) {
+        Player p = event.getPlayer();
+        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            if (!p.isOnline()) return;
+            String label = plugin.getHotelManager().stayLabel(p.getUniqueId());
+            if (label == null) return;
+            p.sendMessage(ColorUtil.colorize("&8[酒店] &f你住在 &b" + label));
+        }, 40L);
     }
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)

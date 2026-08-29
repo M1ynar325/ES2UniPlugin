@@ -124,6 +124,14 @@ public class HotelManager {
         return null;
     }
 
+    public String stayLabel(UUID uuid) {
+        Room r = stayOf(uuid);
+        Hotel h = hotelOfRoom(r);
+        if (h == null || r == null) return null;
+        EstateUnit u = unitOf(r);
+        return h.name + " · " + (u == null ? "?" : u.address());
+    }
+
     public boolean staff(Player p, Hotel h) {
         if (h == null || p == null) return false;
         if (p.hasPermission("es2uni.admin")) return true;
@@ -225,6 +233,28 @@ public class HotelManager {
         hotel.ownerName = to.getName() != null ? to.getName() : hotel.ownerName;
         hotel.managers.clear();
         save();
+        return null;
+    }
+
+    /** 店主删除整家酒店：住客退房、房间解绑，房产本身还在。 */
+    public String delete(Player p, Hotel hotel) {
+        if (hotel == null) return "酒店不存在";
+        if (!owner(p, hotel)) return "只有店主能删除";
+        String hotelName = hotel.name;
+        List<UUID> guests = new ArrayList<>();
+        for (Room r : new ArrayList<>(hotel.rooms)) {
+            if (r.guest != null) {
+                guests.add(r.guest);
+                stripCards(r.guest, hotel.id, r.unitId);
+            }
+        }
+        hotels.remove(hotel);
+        save();
+        for (UUID g : guests) {
+            Player gp = Bukkit.getPlayer(g);
+            if (gp != null && gp.isOnline())
+                gp.sendMessage(ColorUtil.colorize("&8[酒店] &c" + hotelName + " &7已关闭，你已退房"));
+        }
         return null;
     }
 

@@ -49,8 +49,8 @@ public class NewbieGuideManager {
     }
 
     public void onJoin(Player player) {
-        firstJoinMs.putIfAbsent(player.getUniqueId(), System.currentTimeMillis());
-        save();
+        if (firstJoinMs.putIfAbsent(player.getUniqueId(), System.currentTimeMillis()) == null)
+            save();
     }
 
     public boolean shouldShow(Player player) {

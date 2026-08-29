@@ -153,7 +153,7 @@ public final class FieldRigSession {
         // 逐块恢复
         tickRecover(player, center, w);
 
-        if (activeCount() > 0) {
+        if (activeCount() > 0 && tick % 5 == 0) {
             assign(center, player);
         }
 

@@ -2,7 +2,6 @@ package com.etherstories.escore.gui;
 
 import com.etherstories.escore.ES2UniPlugin;
 import com.etherstories.escore.estate.EstateUnit;
-import com.etherstories.escore.utils.ColorUtil;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
@@ -17,8 +16,8 @@ import java.util.UUID;
 
 public class EstateMineGUI {
 
-    public static final String TITLE = ColorUtil.colorize("&e&l我的房产");
-    public static final String ADMIN_TITLE = ColorUtil.colorize("&c&l全部房产");
+    public static final String TITLE = EcosStyle.hub("我的房产");
+    public static final String ADMIN_TITLE = EcosStyle.hub("全部房产");
     public static final int SLOT_BACK = 52;
     public static final int SLOT_CLOSE = 53;
 
@@ -45,7 +44,7 @@ public class EstateMineGUI {
                 : plugin.getEstateManager().ownedBy(player.getUniqueId());
         listed.put(player.getUniqueId(), rooms);
         Inventory inv = Bukkit.createInventory(null, 54, admin ? ADMIN_TITLE : TITLE);
-        ItemStack bg = ECOSTerminalGUI.bg(Material.BLACK_STAINED_GLASS_PANE);
+        ItemStack bg = EcosStyle.chrome();
         for (int i = 0; i < 54; i++) inv.setItem(i, bg);
         for (int i = 0; i < Math.min(rooms.size(), 45); i++) {
             EstateUnit u = rooms.get(i);
@@ -64,7 +63,7 @@ public class EstateMineGUI {
         if (rooms.isEmpty()) {
             inv.setItem(22, ECOSTerminalGUI.item(Material.BARRIER,
                     admin ? "&7还没有登记" : "&7你还没有房产",
-                    List.of("&8终端出行页「登记房产」")));
+                    List.of("&8房产页点「登记房间」")));
         }
         inv.setItem(SLOT_BACK, ECOSTerminalGUI.item(Material.ARROW, "&7返回楼盘", null));
         inv.setItem(SLOT_CLOSE, ECOSTerminalGUI.item(Material.BARRIER, "&c关闭", null));

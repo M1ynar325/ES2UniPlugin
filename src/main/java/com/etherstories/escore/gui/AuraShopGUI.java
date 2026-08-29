@@ -3,7 +3,6 @@ package com.etherstories.escore.gui;
 import com.etherstories.escore.ES2UniPlugin;
 import com.etherstories.escore.auras.AuraType;
 import com.etherstories.escore.auras.ParticleBrightness;
-import com.etherstories.escore.utils.ColorUtil;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
@@ -20,7 +19,7 @@ import java.util.UUID;
  */
 public class AuraShopGUI {
 
-    public static final String TITLE = ColorUtil.colorize("&b✦ &f&l特效商店 &b✦");
+    public static final String TITLE = EcosStyle.hub("特效");
 
     public static final int[] AURA_SLOTS = {
             10, 11, 12, 13, 14, 15, 16,
@@ -41,7 +40,7 @@ public class AuraShopGUI {
     public void open(Player player) {
         Inventory inv = Bukkit.createInventory(null, 54, TITLE);
 
-        ItemStack bg = ECOSTerminalGUI.bg(Material.BLACK_STAINED_GLASS_PANE);
+        ItemStack bg = EcosStyle.chrome();
         for (int i = 0; i < 54; i++) inv.setItem(i, bg);
 
         UUID uuid = player.getUniqueId();

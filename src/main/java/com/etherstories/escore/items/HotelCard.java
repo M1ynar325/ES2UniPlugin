@@ -1,6 +1,7 @@
 package com.etherstories.escore.items;
 
 import com.etherstories.escore.ES2UniPlugin;
+import com.etherstories.escore.gui.EcosStyle;
 import com.etherstories.escore.utils.ColorUtil;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
@@ -32,11 +33,11 @@ public final class HotelCard {
         ItemStack stack = new ItemStack(Material.PAPER);
         ItemMeta meta = stack.getItemMeta();
         if (meta == null) return stack;
-        meta.setDisplayName(ColorUtil.colorize("&b房卡 &f" + address));
+        meta.setDisplayName(ColorUtil.colorize(EcosStyle.JIQING + "房卡 " + EcosStyle.SNOW + address));
         meta.setLore(List.of(
                 ColorUtil.colorize(" &7酒店: &f" + hotelName),
                 ColorUtil.colorize(" &7房间: &f" + address),
-                ColorUtil.colorize(" &8住客本人或背包里有此卡可开门")
+                ColorUtil.colorize(" &8持卡或住客本人可开门")
         ));
         meta.getPersistentDataContainer().set(hotelKey, PersistentDataType.STRING, hotelId);
         meta.getPersistentDataContainer().set(unitKey, PersistentDataType.STRING, unitId);

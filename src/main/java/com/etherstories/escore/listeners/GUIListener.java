@@ -22,9 +22,12 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
+import org.bukkit.event.inventory.InventoryOpenEvent;
 import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.event.player.PlayerEditBookEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
+import io.papermc.paper.event.player.AsyncChatEvent;
+import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.BookMeta;
@@ -45,20 +48,20 @@ public class GUIListener implements Listener {
     private final Map<UUID, UUID>  awaitingReport    = new HashMap<>(); // reporter → about
     private final Set<UUID>        awaitingShowcaseTitle = new HashSet<>();
     private final Set<UUID>        confirming        = new HashSet<>();
-    private final Set<UUID>        awaitingStatus    = new HashSet<>();
     private final Set<UUID>        awaitingKitCd     = new HashSet<>();
     private final Map<UUID, UUID>  awaitingWhisper   = new HashMap<>(); // sender → target
     private final Set<UUID>        awaitingTypeCreate = new HashSet<>();
     private final Map<UUID, String> awaitingTypeRename = new HashMap<>();
     private final Map<UUID, String> awaitingStationNameZh = new HashMap<>();
     private final Map<UUID, String> awaitingStationNameEn = new HashMap<>();
+    private final Map<UUID, Swallow> chatSwallow = new java.util.concurrent.ConcurrentHashMap<>();
+
+    private record Swallow(String text, long until) {}
 
     public GUIListener(ES2UniPlugin plugin) {
         this.plugin = plugin;
         this.noticeDraftKey = new NamespacedKey(plugin, "notice_draft");
     }
-
-    // ── Anvil 已废弃：Arclight 虚拟铁砧改名不同步，改用聊天输入 ───────────────
 
     // ── All inventory clicks ──────────────────────────────────────────────────
 
@@ -119,7 +122,7 @@ public class GUIListener implements Listener {
             handleEstateSale(event, player);
         } else if (title.equals(EstateToolsGUI.TITLE)) {
             handleEstateTools(event, player);
-        } else if (title.equals(HotelListGUI.TITLE)) {
+        } else if (HotelListGUI.isTitle(title)) {
             handleHotelList(event, player);
         } else if (title.equals(HotelDeskGUI.TITLE)) {
             handleHotelDesk(event, player);
@@ -129,6 +132,8 @@ public class GUIListener implements Listener {
             handleAdminRegion(event, player);
         } else if (title.equals(AuraShopGUI.TITLE)) {
             handleAuraShop(event, player);
+        } else if (title.equals(SkillShopGUI.TITLE) || title.equals(SkillShopGUI.ADMIN_TITLE)) {
+            handleSkillShop(event, player, title.equals(SkillShopGUI.ADMIN_TITLE));
         } else if (title.equals(AdminKitGUI.TITLE)) {
             handleAdminKit(event, player);
         } else if (title.startsWith(KitEditGUI.TITLE_PREFIX)) {
@@ -235,10 +240,23 @@ public class GUIListener implements Listener {
                             .replace("{authors}",    String.join(", ", plugin.getDescription().getAuthors()))
             ));
 
+            case "web-pair" -> {
+                player.closeInventory();
+                Bukkit.getScheduler().runTask(plugin, () ->
+                        Bukkit.dispatchCommand(player, "ecos web"));
+            }
             case "close" -> player.closeInventory();
             case "aura" -> {
                 player.closeInventory();
                 Bukkit.getScheduler().runTask(plugin, () -> plugin.getAuraShopGUI().open(player));
+            }
+            case "skillshop" -> {
+                player.closeInventory();
+                Bukkit.getScheduler().runTask(plugin, () -> plugin.getSkillShopGUI().open(player));
+            }
+            case "adm-skillshop" -> {
+                player.closeInventory();
+                Bukkit.getScheduler().runTask(plugin, () -> plugin.getSkillShopGUI().openAdmin(player));
             }
             case "friends" -> {
                 player.closeInventory();
@@ -268,10 +286,7 @@ public class GUIListener implements Listener {
             }
             case "status" -> {
                 player.closeInventory();
-                awaitingStatus.add(player.getUniqueId());
-                String cur = plugin.getStatusManager().getStatus(player.getUniqueId());
-                player.sendMessage(ColorUtil.colorize("&8[ECOS] &7在聊天框输入签名内容，或输入 &fcancel &7取消"
-                        + (cur != null ? "&8（当前: &7" + cur + "&8）" : "")));
+                plugin.getAnvilInputGUI().openForStatus(player);
             }
             case "death" -> {
                 player.closeInventory();
@@ -324,6 +339,17 @@ public class GUIListener implements Listener {
             case "hotel" -> {
                 player.closeInventory();
                 Bukkit.getScheduler().runTask(plugin, () -> plugin.getHotelListGUI().open(player));
+            }
+            case "hotel-checkout" -> {
+                if (event.isRightClick()) {
+                    player.closeInventory();
+                    Bukkit.getScheduler().runTask(plugin, () -> plugin.getHotelListGUI().open(player));
+                    return;
+                }
+                var stay = plugin.getHotelManager().stayOf(player.getUniqueId());
+                String err = plugin.getHotelManager().checkout(player, stay);
+                player.sendMessage(ColorUtil.colorize(err == null ? "&8[酒店] &7已退房" : "&8[酒店] &c" + err));
+                Bukkit.getScheduler().runTask(plugin, () -> plugin.getEcosTerminalGUI().open(player));
             }
             case "adm-grant" -> {
                 if (!player.hasPermission("es2uni.admin")) return;
@@ -659,29 +685,9 @@ public class GUIListener implements Listener {
         event.setCancelled(true);
         int slot = event.getRawSlot();
         if (slot == EstateSaleGUI.SLOT_CLOSE) { player.closeInventory(); return; }
-        if (slot == EstateSaleGUI.SLOT_BUILDINGS) {
+        if (slot == EstateSaleGUI.SLOT_BACK) {
             player.closeInventory();
             Bukkit.getScheduler().runTask(plugin, () -> plugin.getEstateBuildingsGUI().open(player));
-            return;
-        }
-        if (slot == EstateSaleGUI.SLOT_MINE) {
-            player.closeInventory();
-            Bukkit.getScheduler().runTask(plugin, () -> plugin.getEstateMineGUI().openMine(player));
-            return;
-        }
-        if (slot == EstateSaleGUI.SLOT_TOOLS) {
-            player.closeInventory();
-            Bukkit.getScheduler().runTask(plugin, () -> plugin.getEstateToolsGUI().open(player));
-            return;
-        }
-        if (slot == EstateSaleGUI.SLOT_HELP) {
-            player.closeInventory();
-            Bukkit.dispatchCommand(player, "ecos estate help");
-            return;
-        }
-        if (slot == EstateSaleGUI.SLOT_HERE) {
-            player.closeInventory();
-            Bukkit.dispatchCommand(player, "ecos estate here");
             return;
         }
         var u = plugin.getEstateSaleGUI().unitAt(player, slot);
@@ -705,18 +711,7 @@ public class GUIListener implements Listener {
     private void handleEstateTools(InventoryClickEvent event, Player player) {
         event.setCancelled(true);
         int slot = event.getRawSlot();
-        if (slot == EstateToolsGUI.SLOT_CLOSE) { player.closeInventory(); return; }
-        if (slot == EstateToolsGUI.SLOT_SALE) {
-            player.closeInventory();
-            Bukkit.getScheduler().runTask(plugin, () -> plugin.getEstateSaleGUI().open(player));
-            return;
-        }
-        if (slot == EstateToolsGUI.SLOT_MINE) {
-            player.closeInventory();
-            Bukkit.getScheduler().runTask(plugin, () -> plugin.getEstateMineGUI().openMine(player));
-            return;
-        }
-        if (slot == EstateToolsGUI.SLOT_BUILDINGS) {
+        if (slot == EstateToolsGUI.SLOT_BACK) {
             player.closeInventory();
             Bukkit.getScheduler().runTask(plugin, () -> plugin.getEstateBuildingsGUI().open(player));
             return;
@@ -726,19 +721,25 @@ public class GUIListener implements Listener {
             Bukkit.dispatchCommand(player, "ecos estate help");
             return;
         }
-        if (slot == EstateToolsGUI.SLOT_POS1) {
-            Bukkit.dispatchCommand(player, "ecos estate pos1");
-            Bukkit.getScheduler().runTask(plugin, () -> plugin.getEstateToolsGUI().open(player));
+        if (slot == EstateToolsGUI.SLOT_WAND) {
+            player.closeInventory();
+            com.etherstories.escore.items.EstateWand.give(player);
+            player.sendMessage(ColorUtil.colorize("&8[房产] &a选区棒: &f左键一角  右键对角（点到方块，含屋顶）"));
             return;
         }
-        if (slot == EstateToolsGUI.SLOT_POS2) {
-            Bukkit.dispatchCommand(player, "ecos estate pos2");
+        if (slot == EstateToolsGUI.SLOT_SEL) {
+            if (plugin.getEcosCommand() != null) plugin.getEcosCommand().refreshEstatePreview(player);
+            if (!plugin.getEstateManager().hasPos1(player.getUniqueId())) {
+                player.sendMessage(ColorUtil.colorize("&8[房产] &7先领选区棒，左键点房间一角"));
+            } else if (!plugin.getEstateManager().hasSelection(player.getUniqueId())) {
+                player.sendMessage(ColorUtil.colorize("&8[房产] &7再右键对角（含屋顶）"));
+            }
             Bukkit.getScheduler().runTask(plugin, () -> plugin.getEstateToolsGUI().open(player));
             return;
         }
         if (slot == EstateToolsGUI.SLOT_REGISTER) {
             if (!plugin.getEstateManager().hasSelection(player.getUniqueId())) {
-                player.sendMessage(ColorUtil.colorize("&8[房产] &c请先点1、点2圈出房间"));
+                player.sendMessage(ColorUtil.colorize("&8[房产] &c先用选区棒圈出房间"));
                 return;
             }
             player.closeInventory();
@@ -753,30 +754,6 @@ public class GUIListener implements Listener {
         if (slot == EstateToolsGUI.SLOT_SIGN) {
             player.closeInventory();
             Bukkit.dispatchCommand(player, "ecos estate sign");
-            return;
-        }
-        if (slot == EstateToolsGUI.SLOT_HERE) {
-            player.closeInventory();
-            Bukkit.dispatchCommand(player, "ecos estate here");
-            return;
-        }
-        if (slot == EstateToolsGUI.SLOT_SELL) {
-            player.closeInventory();
-            var here = plugin.getEstateManager().at(player.getLocation());
-            if (here == null) {
-                player.sendMessage(ColorUtil.colorize("&8[房产] &c先站进自己的房间"));
-                return;
-            }
-            if (here.price() <= 0) {
-                plugin.getAnvilInputGUI().openForEstatePrice(player, here);
-                return;
-            }
-            Bukkit.dispatchCommand(player, "ecos estate sell");
-            return;
-        }
-        if (slot == EstateToolsGUI.SLOT_UNSELL) {
-            player.closeInventory();
-            Bukkit.dispatchCommand(player, "ecos estate unsell");
         }
     }
 
@@ -786,18 +763,24 @@ public class GUIListener implements Listener {
         HotelListGUI gui = plugin.getHotelListGUI();
         if (slot == HotelListGUI.SLOT_CLOSE) { gui.cleanup(player); player.closeInventory(); return; }
         if (slot == HotelListGUI.SLOT_BACK) {
+            boolean mine = gui.isMineView(player);
             gui.cleanup(player);
             player.closeInventory();
-            Bukkit.getScheduler().runTask(plugin, () -> plugin.getEcosTerminalGUI().open(player));
+            Bukkit.getScheduler().runTask(plugin, () -> {
+                if (mine) plugin.getHotelListGUI().open(player);
+                else plugin.getEcosTerminalGUI().open(player);
+            });
             return;
         }
         if (slot == HotelListGUI.SLOT_MINE) {
+            if (gui.isMineView(player)) return;
             gui.cleanup(player);
             player.closeInventory();
             Bukkit.getScheduler().runTask(plugin, () -> plugin.getHotelListGUI().openMine(player));
             return;
         }
         if (slot == HotelListGUI.SLOT_CREATE) {
+            if (gui.isMineView(player)) return;
             player.closeInventory();
             plugin.getAnvilInputGUI().openForHotelCreate(player);
             return;
@@ -855,6 +838,19 @@ public class GUIListener implements Listener {
             plugin.getAnvilInputGUI().openForHotelTransfer(player, hotel.id);
             return;
         }
+        if (slot == HotelDeskGUI.SLOT_DELETE) {
+            if (!plugin.getHotelManager().owner(player, hotel)) return;
+            player.closeInventory();
+            plugin.getAnvilInputGUI().openForHotelDelete(player, hotel.id, hotel.name);
+            return;
+        }
+        if (slot == HotelDeskGUI.SLOT_GUEST_OUT) {
+            var stay = plugin.getHotelManager().stayOf(player.getUniqueId());
+            String err = plugin.getHotelManager().checkout(player, stay);
+            player.sendMessage(ColorUtil.colorize(err == null ? "&8[酒店] &7已退房" : "&8[酒店] &c" + err));
+            Bukkit.getScheduler().runTask(plugin, () -> plugin.getHotelListGUI().open(player));
+            return;
+        }
         var room = gui.roomAt(player, slot);
         if (room == null) return;
         if (event.isRightClick() && event.isShiftClick() && plugin.getHotelManager().staff(player, hotel)) {
@@ -881,7 +877,8 @@ public class GUIListener implements Listener {
             if (room.vacant()) {
                 String err = plugin.getHotelManager().checkin(player, room);
                 player.sendMessage(ColorUtil.colorize(err == null
-                        ? "&8[酒店] &a已入住，房卡已发放" : "&8[酒店] &c" + err));
+                        ? "&8[酒店] &a已入住，房卡已发放"
+                        : "&8[酒店] &c" + err));
             } else if (room.guest != null && room.guest.equals(player.getUniqueId())) {
                 String err = plugin.getHotelManager().checkout(player, room);
                 player.sendMessage(ColorUtil.colorize(err == null ? "&8[酒店] &7已退房" : "&8[酒店] &c" + err));
@@ -1772,7 +1769,6 @@ public class GUIListener implements Listener {
     private void handleMunicipalOffice(InventoryClickEvent event, Player player) {
         event.setCancelled(true);
         int slot = event.getRawSlot();
-        if (slot == MunicipalOfficeGUI.SLOT_CLOSE) { player.closeInventory(); return; }
         if (slot == MunicipalOfficeGUI.SLOT_BACK) {
             player.closeInventory();
             Bukkit.getScheduler().runTask(plugin, () -> plugin.getEcosTerminalGUI().open(player));
@@ -2124,6 +2120,10 @@ public class GUIListener implements Listener {
         int slot = event.getRawSlot();
         TransitTicketGUI gui = plugin.getTransitTicketGUI();
         if (slot == TransitTicketGUI.SLOT_BACK) {
+            if (gui.pickingCabin(player)) {
+                gui.openDest(player);
+                return;
+            }
             String tvm = plugin.getTransitTvmGUI().stationOf(player);
             if (gui.originOf(player) != null && (tvm == null || !tvm.equals(gui.originOf(player)))) {
                 gui.openOrigin(player);
@@ -2138,6 +2138,19 @@ public class GUIListener implements Listener {
             }
             return;
         }
+        if (gui.pickingCabin(player)) {
+            String cabin = gui.cabinAt(player, slot);
+            if (cabin == null) return;
+            String from = gui.originOf(player);
+            String to = gui.destOf(player);
+            player.closeInventory();
+            String err = plugin.getTransitManager().buyTicket(player, from, to, cabin);
+            if (err != null) player.sendMessage(ColorUtil.colorize("&8[交通] &c" + err));
+            else player.sendMessage(ColorUtil.colorize("&8[交通] &a已购买 "
+                    + plugin.getTransitManager().cabinName(cabin) + " 单程票"));
+            gui.cleanup(player);
+            return;
+        }
         String id = gui.stationAt(player, slot);
         if (id == null) return;
         if (gui.originOf(player) == null) {
@@ -2146,6 +2159,11 @@ public class GUIListener implements Listener {
             return;
         }
         String from = gui.originOf(player);
+        if (plugin.getTransitManager().allCabins().size() > 1) {
+            gui.setDest(player, id);
+            gui.openCabin(player);
+            return;
+        }
         player.closeInventory();
         String err = plugin.getTransitManager().buyTicket(player, from, id);
         if (err != null) player.sendMessage(ColorUtil.colorize("&8[交通] &c" + err));
@@ -2369,6 +2387,13 @@ public class GUIListener implements Listener {
             return;
         }
         gui.armDelete(player, false);
+        if (slot == TransitStationGUI.SLOT_SKIP) {
+            String err = tm.setSkipStop(sid, !tm.isSkipStop(sid));
+            player.sendMessage(ColorUtil.colorize(err != null ? "&8[交通] &c" + err
+                    : (tm.isSkipStop(sid) ? "&8[交通] &e已设为通过不停车" : "&8[交通] &a已恢复停车")));
+            Bukkit.getScheduler().runTask(plugin, () -> gui.open(player, sid));
+            return;
+        }
         if (slot == TransitStationGUI.SLOT_POS1) {
             tm.markBoxCorner(player, 1);
             player.sendMessage(ColorUtil.colorize("&8[交通] &a角点1已记在脚下。再去对角点开本页点角点2，然后点应用。"));
@@ -2481,7 +2506,7 @@ public class GUIListener implements Listener {
         if (slot == TransitAnnounceGUI.SLOT_STACK) {
             boolean on = tm.stackRepeats();
             tm.setStackRepeats(!on);
-            player.sendMessage(ColorUtil.colorize(!on ? "&8[交通] &a重复音已并成一拍" : "&8[交通] &7重复音分开播"));
+            player.sendMessage(ColorUtil.colorize(!on ? "&8[交通] &a和声加厚" : "&8[交通] &7单音旋律"));
             Bukkit.getScheduler().runTask(plugin, () -> plugin.getTransitAnnounceGUI().open(player));
             return;
         }
@@ -2734,7 +2759,14 @@ public class GUIListener implements Listener {
                 && event.getView().getTitle().startsWith(KitEditGUI.TITLE_PREFIX)) {
             plugin.getKitEditGUI().captureItems(player, event.getInventory());
         }
-        // 文本输入已改聊天，关 GUI 不再 cancel pending
+    }
+
+    @EventHandler
+    public void onInventoryOpen(InventoryOpenEvent event) {
+        if (!(event.getPlayer() instanceof Player player)) return;
+        if (!plugin.getAnvilInputGUI().isInInput(player)) return;
+        plugin.getAnvilInputGUI().cancel(player);
+        player.sendMessage(ColorUtil.colorize("&8[ECOS] &7已取消输入"));
     }
 
     // ── Player quit: clean all GUI caches to prevent memory leaks ─────────────
@@ -2749,7 +2781,6 @@ public class GUIListener implements Listener {
         awaitingFriendName.remove(uuid);
         awaitingReport.remove(uuid);
         awaitingShowcaseTitle.remove(uuid);
-        awaitingStatus.remove(uuid);
         plugin.getCheckInCalendarGUI().cleanup(event.getPlayer());
         plugin.getShowcaseGUI().cleanup(event.getPlayer());
         plugin.getJobBoardGUI().cleanup(event.getPlayer());
@@ -2764,6 +2795,7 @@ public class GUIListener implements Listener {
         awaitingStationNameZh.remove(uuid);
         awaitingStationNameEn.remove(uuid);
         confirming.remove(uuid);
+        chatSwallow.remove(uuid);
         // GUI caches
         plugin.getAnvilInputGUI().cancel(event.getPlayer());
         plugin.getFriendListGUI().cleanup(event.getPlayer());
@@ -2872,14 +2904,25 @@ public class GUIListener implements Listener {
     // ── Chat intercept ────────────────────────────────────────────────────────
 
     @EventHandler(priority = org.bukkit.event.EventPriority.LOWEST)
+    public void onPaperChat(AsyncChatEvent event) {
+        Player player = event.getPlayer();
+        String plain = PlainTextComponentSerializer.plainText().serialize(event.message()).trim();
+        if (isReplay(player.getUniqueId(), plain) || isAwaitingChat(player)) {
+            event.setCancelled(true);
+            event.viewers().clear();
+        }
+    }
+
+    @EventHandler(priority = org.bukkit.event.EventPriority.LOWEST)
     public void onPlayerChat(AsyncPlayerChatEvent event) {
         Player player = event.getPlayer();
         UUID uuid = player.getUniqueId();
+        String incoming = event.getMessage() == null ? "" : event.getMessage().trim();
+        if (swallowReplay(event, incoming)) return;
 
         // 通用文本输入（原铁砧）：聊天确认
         if (plugin.getAnvilInputGUI().isInInput(player)) {
-            event.setCancelled(true);
-            String msg = event.getMessage().trim();
+            String msg = muteChat(event);
             Bukkit.getScheduler().runTask(plugin, () -> {
                 if (msg.equalsIgnoreCase("cancel") || msg.equals("取消")) {
                     plugin.getAnvilInputGUI().cancel(player);
@@ -2893,8 +2936,7 @@ public class GUIListener implements Listener {
         }
 
         if (awaitingTypeCreate.remove(uuid)) {
-            event.setCancelled(true);
-            String msg = event.getMessage().trim();
+            String msg = muteChat(event);
             Bukkit.getScheduler().runTask(plugin, () -> {
                 if (msg.equalsIgnoreCase("cancel") || msg.equals("取消")) {
                     player.sendMessage(ColorUtil.colorize("&8[交通] &7已取消"));
@@ -2918,8 +2960,7 @@ public class GUIListener implements Listener {
 
         String renameId = awaitingTypeRename.remove(uuid);
         if (renameId != null) {
-            event.setCancelled(true);
-            String msg = event.getMessage().trim();
+            String msg = muteChat(event);
             Bukkit.getScheduler().runTask(plugin, () -> {
                 if (msg.equalsIgnoreCase("cancel") || msg.equals("取消")) {
                     player.sendMessage(ColorUtil.colorize("&8[交通] &7已取消"));
@@ -2935,8 +2976,7 @@ public class GUIListener implements Listener {
 
         String stZh = awaitingStationNameZh.remove(uuid);
         if (stZh != null) {
-            event.setCancelled(true);
-            String msg = event.getMessage().trim();
+            String msg = muteChat(event);
             Bukkit.getScheduler().runTask(plugin, () -> {
                 if (msg.equalsIgnoreCase("cancel") || msg.equals("取消")) {
                     player.sendMessage(ColorUtil.colorize("&8[交通] &7已取消"));
@@ -2952,8 +2992,7 @@ public class GUIListener implements Listener {
 
         String stEn = awaitingStationNameEn.remove(uuid);
         if (stEn != null) {
-            event.setCancelled(true);
-            String msg = event.getMessage().trim();
+            String msg = muteChat(event);
             Bukkit.getScheduler().runTask(plugin, () -> {
                 if (msg.equalsIgnoreCase("cancel") || msg.equals("取消")) {
                     player.sendMessage(ColorUtil.colorize("&8[交通] &7已取消"));
@@ -2969,8 +3008,7 @@ public class GUIListener implements Listener {
 
         // 立即广播一条
         if (awaitingBroadcast.remove(uuid)) {
-            event.setCancelled(true);
-            String msg = event.getMessage();
+            String msg = muteChat(event);
             if (msg.equalsIgnoreCase("cancel") || msg.equals("取消")) {
                 Bukkit.getScheduler().runTask(plugin, () ->
                         player.sendMessage(ColorUtil.colorize("&8[ECOS] &7广播已取消")));
@@ -2986,8 +3024,7 @@ public class GUIListener implements Listener {
 
         // 定时广播：添加
         if (awaitingBcAdd.remove(uuid)) {
-            event.setCancelled(true);
-            String msg = event.getMessage();
+            String msg = muteChat(event);
             if (msg.equalsIgnoreCase("cancel") || msg.equals("取消")) {
                 Bukkit.getScheduler().runTask(plugin, () -> {
                     player.sendMessage(ColorUtil.colorize("&8[ECOS] &7已取消"));
@@ -3009,8 +3046,7 @@ public class GUIListener implements Listener {
 
         // 展示点标题
         if (awaitingShowcaseTitle.remove(uuid)) {
-            event.setCancelled(true);
-            String msg = event.getMessage().trim();
+            String msg = muteChat(event);
             if (msg.equalsIgnoreCase("cancel") || msg.equals("取消")) {
                 Bukkit.getScheduler().runTask(plugin, () -> {
                     player.sendMessage(ColorUtil.colorize("&8[ECOS] &7已取消"));
@@ -3030,9 +3066,8 @@ public class GUIListener implements Listener {
 
         // 悄悄话 / 举报
         if (awaitingReport.containsKey(uuid)) {
-            event.setCancelled(true);
             UUID about = awaitingReport.remove(uuid);
-            String msg = event.getMessage().trim();
+            String msg = muteChat(event);
             if (msg.equalsIgnoreCase("cancel") || msg.equals("取消")) {
                 Bukkit.getScheduler().runTask(plugin, () ->
                         player.sendMessage(ColorUtil.colorize("&8[ECOS] &7已取消")));
@@ -3052,8 +3087,7 @@ public class GUIListener implements Listener {
 
         // 添加好友：聊天输入名字
         if (awaitingFriendName.remove(uuid)) {
-            event.setCancelled(true);
-            String msg = event.getMessage().trim();
+            String msg = muteChat(event);
             if (msg.equalsIgnoreCase("cancel") || msg.equals("取消")) {
                 Bukkit.getScheduler().runTask(plugin, () -> {
                     player.sendMessage(ColorUtil.colorize("&8[ECOS] &7已取消"));
@@ -3068,8 +3102,7 @@ public class GUIListener implements Listener {
         // 定时广播：编辑
         Integer editIdx = awaitingBcEdit.remove(uuid);
         if (editIdx != null) {
-            event.setCancelled(true);
-            String msg = event.getMessage();
+            String msg = muteChat(event);
             if (msg.equalsIgnoreCase("cancel") || msg.equals("取消")) {
                 Bukkit.getScheduler().runTask(plugin, () -> {
                     player.sendMessage(ColorUtil.colorize("&8[ECOS] &7已取消"));
@@ -3091,31 +3124,9 @@ public class GUIListener implements Listener {
             return;
         }
 
-        // Status / 个人签名
-        if (awaitingStatus.remove(uuid)) {
-            event.setCancelled(true);
-            String msg = event.getMessage().trim();
-            if (msg.equalsIgnoreCase("cancel")) {
-                Bukkit.getScheduler().runTask(plugin, () ->
-                        player.sendMessage(ColorUtil.colorize("&8[ECOS] &7已取消")));
-                return;
-            }
-            int max = plugin.getStatusManager().maxLength();
-            if (msg.length() > max) msg = msg.substring(0, max);
-            final String finalMsg = msg;
-            Bukkit.getScheduler().runTask(plugin, () -> {
-                plugin.getStatusManager().setStatus(player.getUniqueId(), finalMsg.isEmpty() ? null : finalMsg);
-                player.sendMessage(ColorUtil.colorize(finalMsg.isEmpty()
-                        ? "&8[ECOS] &7签名已清除"
-                        : "&8[ECOS] &7签名已更新: &f" + finalMsg));
-            });
-            return;
-        }
-
         // Kit 冷却秒数
         if (awaitingKitCd.remove(uuid)) {
-            event.setCancelled(true);
-            String msg = event.getMessage().trim();
+            String msg = muteChat(event);
             if (msg.equalsIgnoreCase("cancel")) {
                 Bukkit.getScheduler().runTask(plugin, () ->
                         player.sendMessage(ColorUtil.colorize("&8[ECOS] &7已取消")));
@@ -3152,8 +3163,7 @@ public class GUIListener implements Listener {
         // Whisper
         UUID targetUuid = awaitingWhisper.remove(uuid);
         if (targetUuid != null) {
-            event.setCancelled(true);
-            String msg = event.getMessage();
+            String msg = muteChat(event);
             if (msg.equalsIgnoreCase("cancel")) {
                 Bukkit.getScheduler().runTask(plugin, () ->
                         player.sendMessage(ColorUtil.colorize("&8[ECOS] &7私信已取消")));
@@ -3172,6 +3182,53 @@ public class GUIListener implements Listener {
                 if (cmd != null) cmd.recordWhisper(uuid, targetUuid);
             });
         }
+    }
+
+    private boolean isAwaitingChat(Player player) {
+        UUID uuid = player.getUniqueId();
+        return plugin.getAnvilInputGUI().isInInput(player)
+                || awaitingBroadcast.contains(uuid)
+                || awaitingBcAdd.contains(uuid)
+                || awaitingBcEdit.containsKey(uuid)
+                || awaitingFriendName.contains(uuid)
+                || awaitingReport.containsKey(uuid)
+                || awaitingShowcaseTitle.contains(uuid)
+                || awaitingKitCd.contains(uuid)
+                || awaitingWhisper.containsKey(uuid)
+                || awaitingTypeCreate.contains(uuid)
+                || awaitingTypeRename.containsKey(uuid)
+                || awaitingStationNameZh.containsKey(uuid)
+                || awaitingStationNameEn.containsKey(uuid);
+    }
+
+    private boolean isReplay(UUID uuid, String text) {
+        Swallow s = chatSwallow.get(uuid);
+        if (s == null) return false;
+        if (System.currentTimeMillis() > s.until()) {
+            chatSwallow.remove(uuid);
+            return false;
+        }
+        return text.equals(s.text());
+    }
+
+    private boolean swallowReplay(AsyncPlayerChatEvent event, String incoming) {
+        UUID uuid = event.getPlayer().getUniqueId();
+        if (!isReplay(uuid, incoming)) return false;
+        event.setCancelled(true);
+        event.setMessage("");
+        event.getRecipients().clear();
+        chatSwallow.remove(uuid);
+        return true;
+    }
+
+    private String muteChat(AsyncPlayerChatEvent event) {
+        String msg = event.getMessage() == null ? "" : event.getMessage().trim();
+        event.setCancelled(true);
+        event.setMessage("");
+        event.getRecipients().clear();
+        chatSwallow.put(event.getPlayer().getUniqueId(),
+                new Swallow(msg, System.currentTimeMillis() + 2500));
+        return msg;
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
@@ -3631,6 +3688,48 @@ public class GUIListener implements Listener {
             player.sendMessage(ColorUtil.colorize("&8[ECOS] &7已是好友或请求已发送"));
         }
         Bukkit.getScheduler().runTask(plugin, () -> plugin.getFriendListGUI().open(player));
+    }
+
+    private void handleSkillShop(InventoryClickEvent event, Player player, boolean admin) {
+        event.setCancelled(true);
+        int slot = event.getRawSlot();
+        if (slot == SkillShopGUI.SLOT_CLOSE) {
+            player.closeInventory();
+            return;
+        }
+        if (slot == SkillShopGUI.SLOT_INFO) return;
+        var skill = plugin.getSkillShopGUI().skillAt(slot, admin);
+        if (skill == null) return;
+
+        if (admin) {
+            if (!player.hasPermission("es2uni.admin")) return;
+            if (event.isRightClick()) {
+                player.closeInventory();
+                plugin.getAnvilInputGUI().openForSkillShopPrice(player, skill);
+                return;
+            }
+            boolean next = !plugin.getSkillShopManager().isForSale(skill);
+            plugin.getSkillShopManager().setEnabled(skill, next);
+            plugin.getAuditLogManager().log(player, "SKILL_SHOP_TOGGLE",
+                    skill.configKey + "=" + next);
+            player.sendMessage(ColorUtil.colorize("&8[技能商店] &7" + skill.displayName()
+                    + (next ? " &a已上架" : " &8已下架")));
+            Bukkit.getScheduler().runTask(plugin, () -> plugin.getSkillShopGUI().openAdmin(player));
+            return;
+        }
+
+        String err = plugin.getSkillShopManager().buy(player, skill);
+        if (err != null) {
+            player.sendMessage(ColorUtil.colorize("&8[技能商店] &c" + err));
+            return;
+        }
+        plugin.getAuditLogManager().log(player, "SKILL_SHOP_BUY", skill.configKey);
+        String price = plugin.getVaultHook().isEnabled()
+                ? plugin.getVaultHook().format(plugin.getSkillShopManager().price(skill))
+                : String.format("%.0f", plugin.getSkillShopManager().price(skill));
+        player.sendMessage(ColorUtil.colorize("&8[技能商店] &a已购买 &f" + skill.displayName()
+                + " &8（" + price + "）"));
+        Bukkit.getScheduler().runTask(plugin, () -> plugin.getSkillShopGUI().open(player));
     }
 
     private void handleAuraShop(InventoryClickEvent event, Player player) {

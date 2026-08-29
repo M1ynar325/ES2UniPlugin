@@ -4,11 +4,11 @@ import com.etherstories.escore.ES2UniPlugin;
 import com.etherstories.escore.estate.EstateUnit;
 import com.etherstories.escore.hotel.HotelRoomType;
 import com.etherstories.escore.managers.HotelManager;
-import com.etherstories.escore.utils.ColorUtil;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
+import org.bukkit.inventory.ItemStack;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -18,10 +18,12 @@ import java.util.UUID;
 
 public class HotelDeskGUI {
 
-    public static final String TITLE = ColorUtil.colorize("&9&l酒店房间");
+    public static final String TITLE = EcosStyle.hub("房间");
     public static final int SLOT_BIND = 45;
     public static final int SLOT_MGR = 46;
     public static final int SLOT_TRANSFER = 47;
+    public static final int SLOT_DELETE = 48;
+    public static final int SLOT_GUEST_OUT = 49;
     public static final int SLOT_BACK = 52;
     public static final int SLOT_CLOSE = 53;
 
@@ -53,13 +55,18 @@ public class HotelDeskGUI {
             lore.add(r.vacant() ? " &a空房" : " &7住客 &f" + r.guestName);
             lore.add("");
             if (r.vacant()) lore.add("&a左键: 入住");
-            else if (r.guest != null && r.guest.equals(player.getUniqueId())) lore.add("&c左键: 退房");
+            else if (r.guest != null && r.guest.equals(player.getUniqueId())) lore.add("&c&l左键: 退房");
+            else if (staff) lore.add("&c左键: 驱逐住客");
             if (staff) {
                 lore.add("&e右键: 开关锁");
                 lore.add("&e潜行右键: 改价");
                 lore.add("&e潜行左键: 换房型");
             }
-            inv.setItem(i, ECOSTerminalGUI.item(r.type.icon, "&f" + addr, lore));
+            boolean mine = r.guest != null && r.guest.equals(player.getUniqueId());
+            ItemStack roomItem = ECOSTerminalGUI.item(mine ? Material.RED_BED : r.type.icon,
+                    (mine ? "&c" : "&f") + addr, lore);
+            if (mine) roomItem = ECOSTerminalGUI.glint(roomItem);
+            inv.setItem(i, roomItem);
         }
         if (rooms.isEmpty()) {
             inv.setItem(22, ECOSTerminalGUI.item(Material.BARRIER, "&7还没绑房间",
@@ -69,14 +76,25 @@ public class HotelDeskGUI {
             inv.setItem(SLOT_BIND, ECOSTerminalGUI.item(Material.OAK_DOOR, "&a绑当前房",
                     List.of("&8站在住宅/公寓/客房里点", "&8商铺不能绑", "", "&a▸ 绑进这家酒店")));
             inv.setItem(SLOT_MGR, ECOSTerminalGUI.item(Material.NAME_TAG, "&e管理者",
-                    List.of("&8聊天: add 玩家 / remove 玩家", "", "&e▸ 输入")));
+                    List.of("&8add 玩家 / remove 玩家", "", "&e▸ 输入")));
             if (plugin.getHotelManager().owner(player, hotel)) {
                 inv.setItem(SLOT_TRANSFER, ECOSTerminalGUI.item(Material.GOLD_INGOT, "&6转让酒店",
-                        List.of("&8聊天输入新店主游戏名", "", "&6▸ 转让")));
+                        List.of("&8输入新店主名", "", "&6▸ 转让")));
+                inv.setItem(SLOT_DELETE, ECOSTerminalGUI.item(Material.TNT, "&c删除酒店",
+                        List.of("&8输入酒店全名确认",
+                                "&c住客会退房，房间解绑",
+                                "&8房产还在",
+                                "", "&c▸ 删除")));
             }
         }
         inv.setItem(SLOT_BACK, ECOSTerminalGUI.item(Material.ARROW, "&7返回酒店列表", null));
         inv.setItem(SLOT_CLOSE, ECOSTerminalGUI.item(Material.BARRIER, "&c关闭", null));
+        var stay = plugin.getHotelManager().stayOf(player.getUniqueId());
+        if (stay != null && hotel.rooms.contains(stay)) {
+            String label = plugin.getHotelManager().stayLabel(player.getUniqueId());
+            inv.setItem(SLOT_GUEST_OUT, ECOSTerminalGUI.glint(ECOSTerminalGUI.item(Material.RED_BED, "&c&l退房",
+                    List.of(" &f" + (label == null ? "" : label), "", "&c▸ 退掉这间"))));
+        }
         player.openInventory(inv);
     }
 

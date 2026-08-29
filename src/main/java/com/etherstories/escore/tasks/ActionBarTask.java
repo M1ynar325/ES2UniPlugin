@@ -23,6 +23,7 @@ public class ActionBarTask extends BukkitRunnable {
 
     private final ES2UniPlugin plugin;
     private final Map<UUID, RegionManager.RegionResult> previous = new HashMap<>();
+    private int beat;
 
     public ActionBarTask(ES2UniPlugin plugin) {
         this.plugin = plugin;
@@ -37,8 +38,10 @@ public class ActionBarTask extends BukkitRunnable {
     public void run() {
         RegionManager rm = plugin.getRegionManager();
         ActionBarManager ab = plugin.getActionBarManager();
+        boolean scan = (beat++ & 1) == 0;
 
         for (Player player : Bukkit.getOnlinePlayers()) {
+            if (!scan) continue;
             Location loc = player.getLocation();
             if (loc.getWorld() == null) continue;
 

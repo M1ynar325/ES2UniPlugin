@@ -49,6 +49,7 @@ public class TransitRidersGUI {
             long min = Math.max(0, (now - j.tapInMs()) / 60000L);
             List<String> lore = new ArrayList<>();
             lore.add(" &7进站: &f" + tm.stationName(j.originId()));
+            lore.add(" &7席别: &e" + tm.cabinName(j.cabin()));
             lore.add(" &7已过 &f" + min + " &7分钟 · " + j.method());
             lore.add(off.isOnline() ? " &a在线" : " &8离线");
             lore.add("");

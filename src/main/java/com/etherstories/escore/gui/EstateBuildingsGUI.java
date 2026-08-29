@@ -3,7 +3,6 @@ package com.etherstories.escore.gui;
 import com.etherstories.escore.ES2UniPlugin;
 import com.etherstories.escore.estate.BuildingCategory;
 import com.etherstories.escore.estate.EstateUnit;
-import com.etherstories.escore.utils.ColorUtil;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
@@ -19,7 +18,7 @@ import java.util.UUID;
 /** 房产：按建筑分类浏览。 */
 public class EstateBuildingsGUI {
 
-    public static final String TITLE = ColorUtil.colorize("&2&l房产");
+    public static final String TITLE = EcosStyle.hub("房产");
     public static final int SLOT_SALE = 45;
     public static final int SLOT_ALL = 46;
     public static final int SLOT_RES = 47;
@@ -46,7 +45,7 @@ public class EstateBuildingsGUI {
         if (cat == null) filter.remove(player.getUniqueId());
         else filter.put(player.getUniqueId(), cat);
         Inventory inv = Bukkit.createInventory(null, 54, TITLE);
-        ItemStack bg = ECOSTerminalGUI.bg(Material.BLACK_STAINED_GLASS_PANE);
+        ItemStack bg = EcosStyle.chrome();
         for (int i = 0; i < 54; i++) inv.setItem(i, bg);
 
         List<String> names = plugin.getEstateManager().buildings(cat);
@@ -66,9 +65,8 @@ public class EstateBuildingsGUI {
         }
         if (names.isEmpty()) {
             inv.setItem(22, ECOSTerminalGUI.item(Material.BARRIER, "&7这一类还没有楼",
-                    List.of("&8终端出行页「登记房产」",
-                            "&8自建住宅收注册费",
-                            "&8管理预制走管理页")));
+                    List.of("&8点下方「登记房间」",
+                            "&8自建住宅收注册费")));
         }
 
         int onSale = plugin.getEstateManager().listedForSale().size();
@@ -83,8 +81,8 @@ public class EstateBuildingsGUI {
         inv.setItem(SLOT_MINE, ECOSTerminalGUI.item(Material.OAK_DOOR, "&e我的房产",
                 List.of(" &7" + plugin.getEstateManager().ownedBy(player.getUniqueId()).size() + " 间",
                         "", "&e▸ 点击打开")));
-        inv.setItem(SLOT_TOOLS, ECOSTerminalGUI.item(Material.OAK_SIGN, "&a登记 / 门口",
-                List.of("&8点1 · 点2 · 登记 · 牌子", "", "&a▸ 打开")));
+        inv.setItem(SLOT_TOOLS, ECOSTerminalGUI.item(Material.OAK_SIGN, "&a登记房间",
+                List.of("&8①选区棒  ②对角  ③写门牌", "", "&a▸ 打开")));
         inv.setItem(SLOT_BACK, ECOSTerminalGUI.item(Material.ARROW, "&7返回终端", null));
         inv.setItem(SLOT_CLOSE, ECOSTerminalGUI.item(Material.BARRIER, "&c关闭", null));
         player.openInventory(inv);

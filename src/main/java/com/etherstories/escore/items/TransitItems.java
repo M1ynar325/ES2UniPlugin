@@ -28,6 +28,7 @@ public final class TransitItems {
     private static NamespacedKey fromKey;
     private static NamespacedKey toKey;
     private static NamespacedKey expKey;
+    private static NamespacedKey cabinKey;
 
     private TransitItems() {}
 
@@ -39,17 +40,29 @@ public final class TransitItems {
         fromKey = new NamespacedKey(plugin, "transit_from");
         toKey = new NamespacedKey(plugin, "transit_to");
         expKey = new NamespacedKey(plugin, "transit_exp");
+        cabinKey = new NamespacedKey(plugin, "transit_cabin");
     }
 
     public static ItemStack gate(String stationId, String mode) {
+        return gate(stationId, mode, "std");
+    }
+
+    public static ItemStack gate(String stationId, String mode, String cabin) {
+        if (cabin == null || cabin.isBlank()) cabin = "std";
         ItemStack item = new ItemStack(Material.OAK_SIGN);
         ItemMeta meta = item.getItemMeta();
         if (meta == null) return item;
-        meta.setDisplayName(ColorUtil.colorize("&b检票闸机 &8[" + mode.toUpperCase() + "]"));
+        String cabinName = cabin;
+        ES2UniPlugin plugin = ES2UniPlugin.getInstance();
+        if (plugin != null && plugin.getTransitManager() != null) {
+            cabinName = plugin.getTransitManager().cabinName(cabin);
+        }
+        meta.setDisplayName(ColorUtil.colorize("&b检票闸机 &8[" + mode.toUpperCase() + " · " + cabinName + "]"));
         meta.setLore(List.of(
                 ColorUtil.colorize("&8进站 / 出站检票口"),
                 ColorUtil.colorize("&7车站: &f" + stationId),
                 ColorUtil.colorize("&7模式: &f" + mode.toUpperCase()),
+                ColorUtil.colorize("&7席别: &f" + cabinName),
                 ColorUtil.colorize(""),
                 ColorUtil.colorize("&7放置后写成牌子，右键刷卡")
         ));
@@ -57,11 +70,11 @@ public final class TransitItems {
         pdc.set(kindKey, PersistentDataType.STRING, KIND_GATE);
         pdc.set(stationKey, PersistentDataType.STRING, stationId);
         pdc.set(modeKey, PersistentDataType.STRING, mode.toUpperCase());
-        ES2UniPlugin plugin = ES2UniPlugin.getInstance();
+        pdc.set(cabinKey, PersistentDataType.STRING, cabin);
         if (plugin != null && plugin.getTransitManager() != null
                 && meta instanceof org.bukkit.inventory.meta.BlockStateMeta bsm
                 && bsm.getBlockState() instanceof org.bukkit.block.Sign sign) {
-            plugin.getTransitManager().applyGateSign(sign, stationId, mode);
+            plugin.getTransitManager().applyGateSign(sign, stationId, mode, cabin);
             bsm.setBlockState(sign);
             meta = bsm;
         }
@@ -132,20 +145,29 @@ public final class TransitItems {
     }
 
     public static ItemStack ticket(String fromId, String toId, String fromName, String toName, long expireMs) {
+        return ticket(fromId, toId, fromName, toName, expireMs, "std", "普通");
+    }
+
+    public static ItemStack ticket(String fromId, String toId, String fromName, String toName,
+                                   long expireMs, String cabin, String cabinName) {
+        if (cabin == null || cabin.isBlank()) cabin = "std";
+        if (cabinName == null || cabinName.isBlank()) cabinName = cabin;
         ItemStack item = new ItemStack(Material.PAPER);
         ItemMeta meta = item.getItemMeta();
         if (meta == null) return item;
-        meta.setDisplayName(ColorUtil.colorize("&f单程票 &8" + fromName + " → " + toName));
+        meta.setDisplayName(ColorUtil.colorize("&f单程票 &8" + fromName + " → " + toName + " · " + cabinName));
         meta.setLore(List.of(
                 ColorUtil.colorize("&7起点: &f" + fromName),
                 ColorUtil.colorize("&7终点: &f" + toName),
-                ColorUtil.colorize("&8进站须为本票起点，出站须为终点")
+                ColorUtil.colorize("&7席别: &f" + cabinName),
+                ColorUtil.colorize("&8进站须为本票起点，出站须为终点，席别须相符")
         ));
         PersistentDataContainer pdc = meta.getPersistentDataContainer();
         pdc.set(kindKey, PersistentDataType.STRING, KIND_TICKET);
         pdc.set(fromKey, PersistentDataType.STRING, fromId);
         pdc.set(toKey, PersistentDataType.STRING, toId);
         pdc.set(expKey, PersistentDataType.LONG, expireMs);
+        pdc.set(cabinKey, PersistentDataType.STRING, cabin);
         item.setItemMeta(meta);
         return item;
     }
@@ -166,6 +188,11 @@ public final class TransitItems {
     public static String cardId(ItemStack item) { return str(item, cardKey); }
     public static String ticketFrom(ItemStack item) { return str(item, fromKey); }
     public static String ticketTo(ItemStack item) { return str(item, toKey); }
+    public static String cabin(ItemStack item) {
+        String v = str(item, cabinKey);
+        return v == null || v.isBlank() ? "std" : v;
+    }
+    public static String ticketCabin(ItemStack item) { return cabin(item); }
 
     public static long ticketExp(ItemStack item) {
         if (item == null || !item.hasItemMeta()) return 0;

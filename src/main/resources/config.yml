@@ -8,7 +8,19 @@
 # ============================================================
 
 # 配置文件版本，请勿修改此项（插件会自动迁移；不会覆盖你改过的数值）
-config-version: 34
+config-version: 39
+
+# ── ECOS 网页终端（验证码配对；离线可看公屏/点歌）──────────────
+web:
+  enabled: true
+  bind: 0.0.0.0
+  port: 8766
+  # 给玩家看的地址，例如 https://ecos.example.com/
+  public-url: ""
+  # BlueMap 网页；空则用访问主机:8100
+  map-url: ""
+  pair-seconds: 120
+  session-days: 7
 
 # ── 配置自维护（升级时自动补键 / 同步说明文档）────────────────
 config:
@@ -71,6 +83,18 @@ tax-report:
 # 开启后写入 plugins/ES2UniPlugin/audit/audit-日期.log
 audit:
   enabled: false
+
+# ── 异常登录日志（换 IP / 被拒 / 网页新 IP / 握手未进服）────────
+# 写入 plugins/ES2UniPlugin/login-log.yml 与 logs/login-日期.log
+login-log:
+  enabled: true
+  keep: 80
+  # 握手后这么多 tick 仍未进服 → 记一条「扫到未进」（bot 试探）
+  probe-ticks: 300
+
+# ── 经济显示单位（覆盖 Vault/Essentials 的 $ / ES$）────────────
+economy:
+  unit: EP
 
 # ── 负债上限：扣款后余额不得低于 reserve（可为负）────────────
 # reserve: -500 → 可欠到 -500，再低不能消费
@@ -211,9 +235,9 @@ commands:
   # false = 使用下方自定义 help（需自行维护）
   auto-update-help: true
   help: |
-    &b&l[ECOS] &rEtharia Central Operating System
+    &#8FB9C6[ECOS] &rEtharia Central Operating System
      &7── 普通玩家 ──
-     &7/ecos menu                      &f— 打开 ECOS 终端
+     &7/ecos                          &f— 打开终端（help 看指令）
      &7/ecos kit [名称|list]            &f— 领取套件（优先 Essentials）
      &7/ecos friends [list|add|...]     &f— 好友（可纯指令）
      &7/ecos mail [list|send|...]       &f— 邮箱
@@ -231,6 +255,7 @@ commands:
      &7/ecos hotel                     &f— 酒店入住 / 房卡 / 管理
      &7/ecos territory help            &f— 领地说明
      &7/ecos aura|particle [shop|...]  &f— 粒子特效（同 aura）
+     &7/ecos skillshop                 &f— 技能商店
      &7/ecos music [search|queue|…]    &f— 点歌（AllMusic）
      &7/ecos music history|fav         &f— 最近播放 / 收藏
      &7/ecos guide                     &f— 新手引导
@@ -253,9 +278,10 @@ commands:
      &7/ecos region <pos1|pos2|...>    &f— 地区管理
      &7/ecos weapon <give|save|bind|...> &f— 武器技能 / 手持存档
      &7/ecos skill grant <玩家> gleam_arc &f— 学会霁弧（潜行+F；也可 weapon bind）
+     &7/ecos skillshop <on|off|price>  &f— 技能上架 / 改价
      &7/ecos aura give <玩家> <id>      &f— 赠予光环
   version-display: |
-    &b&l[ECOS] &fES2UniPlugin &7v{version}
+    &#8FB9C6[ECOS] &fES2UniPlugin &7v{version}
      &7服务器 &f{mc_version}
      &7作者: &f{authors}
   reload-success: "&a[ES2] 配置已重载。"
@@ -271,12 +297,12 @@ event-gui:
   player-title: "&b&l✦ ES2 活动列表"
   # 管理员活动管理界面标题
   admin-title:  "&c&l⚙ 活动管理 [管理员]"
-  # 铁砧输入框默认占位符文字
+  # 创建活动时聊天输入的占位提示
   anvil-placeholder: "输入活动名称"
 
 # ── ECOS Terminal ──────────────────────────────────────────────
 terminal:
-  title:             "&0[ &b&lECOS &8TERMINAL &0]"
+  title:             "&8[ &#8FB9C6&lECOS &#8A96A3· &#F4F7FA概览 &8]"
   home-title:        "&d&l家园列表"
   tpa-title:         "&6&l选择传送目标 &8(TPA)"
   tpahere-title:     "&6&l选择召唤目标 &8(TPA Here)"
@@ -396,9 +422,15 @@ weapons:
       charge-ticks: 0
       radius: 30.0
       height: 24.0               # 圆柱高（施法者上下各一半）
-      duration-ticks: 160        # 8 秒
+      duration-ticks: 600        # 30 秒
       settle-ticks: 40           # 结束后粒子沉降 2 秒
       particle-count: 520        # 圆柱内匀铺，漫天但不浓
+
+    pale_line:               # Pale Line「霁线」直线远程
+      cooldown-seconds: 1
+      charge-ticks: 0
+      range: 20.0
+      damage: 6.0
 
 # ── 领地 ───────────────────────────────────────────────────────────────────
 territory:
@@ -448,7 +480,7 @@ transit:
     depart-enabled: true
     depart-preset: jrgo           # jrgo / doors / whistle / shinkansen / crgo / crhgo
     depart-dwell-ticks: 240       # 起点站停留约 12 秒再离开才发车铃
-    stack-repeats: true           # 连续同音并成一拍（关门 等登等登等登 → 一下）
+    stack-repeats: true           # 每拍叠低八度加厚；关则单音
   # 闸机附近扫描这些方块名（Create 车站等）；找不到也不影响刷卡
   create-blocks:
     - TRACK_STATION

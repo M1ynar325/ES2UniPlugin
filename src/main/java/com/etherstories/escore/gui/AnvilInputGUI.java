@@ -19,7 +19,8 @@ public class AnvilInputGUI {
         MUSIC_SEARCH, MUSIC_ADD_ID,
         JOB_TITLE, JOB_REWARD, JOB_SLOTS, JOB_DESC, JOB_EDIT_TITLE,
         ESTATE_REGISTER, ESTATE_PRICE,
-        HOTEL_CREATE, HOTEL_PRICE, HOTEL_TRANSFER, HOTEL_MGR, GRANT_TICKET
+        HOTEL_CREATE, HOTEL_PRICE, HOTEL_TRANSFER, HOTEL_MGR, HOTEL_DELETE, GRANT_TICKET,
+        SKILL_SHOP_PRICE
     }
 
     public record InputState(Context context, String currentInput, UUID metadata, String placeholder) {}
@@ -40,6 +41,7 @@ public class AnvilInputGUI {
     private final Map<UUID, String> hotelPriceUnit = new HashMap<>();
     private final Map<UUID, String> hotelContext = new HashMap<>();
     private final Map<UUID, String> grantKind = new HashMap<>();
+    private final Map<UUID, String> skillShopKey = new HashMap<>();
 
     public AnvilInputGUI(ES2UniPlugin plugin) {
         this.plugin = plugin;
@@ -55,9 +57,9 @@ public class AnvilInputGUI {
     /** Set status/bio. */
     public void openForStatus(Player player) {
         String current = plugin.getStatusManager().getStatus(player.getUniqueId());
-        open(player, Context.SET_STATUS, current != null ? current : "输入签名",
+        open(player, Context.SET_STATUS, current != null ? current : "",
                 null, "个人签名",
-                "输入签名内容（最多 " + plugin.getStatusManager().maxLength() + " 字），留空可清签名请输入 -");
+                "输入签名（最多 " + plugin.getStatusManager().maxLength() + " 字），打 - 清除");
     }
 
     /** Add waypoint: stores current location in metadata slot. */
@@ -100,7 +102,7 @@ public class AnvilInputGUI {
     public void openForEstateRegister(Player player) {
         open(player, Context.ESTATE_REGISTER, "星港商场 1 101 shop", null,
                 "登记房产",
-                "输入: 楼名 层 号 用途 [分类]  楼名可空格  住宅收注册费，shop/workshop 免费");
+                "输入: 楼名 层 号 用途   例 星港一号 3 301 house");
     }
 
     public void openForEstatePrice(Player player, com.etherstories.escore.estate.EstateUnit unit) {
@@ -128,6 +130,19 @@ public class AnvilInputGUI {
     public void openForHotelMgr(Player player, String hotelId) {
         hotelContext.put(player.getUniqueId(), hotelId);
         open(player, Context.HOTEL_MGR, "add 玩家", null, "酒店管理者", "输入: add 玩家  或  remove 玩家");
+    }
+
+    public void openForHotelDelete(Player player, String hotelId, String hotelName) {
+        hotelContext.put(player.getUniqueId(), hotelId);
+        open(player, Context.HOTEL_DELETE, "输入全名确认", null, "删除酒店",
+                "输入「" + (hotelName == null ? "" : hotelName) + "」确认。住客会退房，房间解绑，房产还在。");
+    }
+
+    public void openForSkillShopPrice(Player player, com.etherstories.escore.weapons.SkillType skill) {
+        skillShopKey.put(player.getUniqueId(), skill.configKey);
+        String hint = String.format("%.0f", plugin.getSkillShopManager().price(skill));
+        open(player, Context.SKILL_SHOP_PRICE, hint, null,
+                "技能定价", "输入 " + skill.displayName() + " 的出售价格");
     }
 
     public void openForGrant(Player player, String kind) {
@@ -205,7 +220,9 @@ public class AnvilInputGUI {
             case HOTEL_PRICE      -> confirmHotelPrice(player, state);
             case HOTEL_TRANSFER   -> confirmHotelTransfer(player, state);
             case HOTEL_MGR        -> confirmHotelMgr(player, state);
+            case HOTEL_DELETE     -> confirmHotelDelete(player, state);
             case GRANT_TICKET     -> confirmGrant(player, state);
+            case SKILL_SHOP_PRICE -> confirmSkillShopPrice(player, state);
         }
     }
 
@@ -216,6 +233,7 @@ public class AnvilInputGUI {
         hotelPriceUnit.remove(player.getUniqueId());
         hotelContext.remove(player.getUniqueId());
         grantKind.remove(player.getUniqueId());
+        skillShopKey.remove(player.getUniqueId());
     }
 
     /** True if text is empty or still the placeholder. */
@@ -261,7 +279,7 @@ public class AnvilInputGUI {
 
     private void confirmStatus(Player player, InputState state) {
         String text = sanitize(state.currentInput());
-        if (text.equals(sanitize(state.placeholder())) || text.equals("输入签名") || text.equals("-")) text = "";
+        if (text.equals("-") || text.equals("签名") || text.equals("输入签名")) text = "";
         plugin.getStatusManager().setStatus(player.getUniqueId(), text.isEmpty() ? null : text);
         player.sendMessage(ColorUtil.colorize(text.isEmpty()
                 ? "&8[ECOS] &7签名已清除"
@@ -289,13 +307,13 @@ public class AnvilInputGUI {
 
     private void confirmEventName(Player player, InputState state) {
         if (isBlankOrPlaceholder(state)) {
-            player.sendMessage(ColorUtil.colorize("&c[ES2] 活动名称不能为空。"));
+            player.sendMessage(ColorUtil.colorize("&8[ECOS] &c活动名称不能为空。"));
             Bukkit.getScheduler().runTask(plugin, () -> plugin.getAdminEventGUI().open(player));
             return;
         }
         String name = sanitize(state.currentInput());
         plugin.getEventManager().createEvent(player, name, "", 0);
-        player.sendMessage(ColorUtil.colorize("&a[ES2] 活动 &f" + name + " &a已创建！"));
+        player.sendMessage(ColorUtil.colorize("&8[ECOS] &a活动 &f" + name + " &a已创建"));
         Bukkit.getScheduler().runTask(plugin, () -> plugin.getAdminEventGUI().open(player));
     }
 
@@ -469,7 +487,7 @@ public class AnvilInputGUI {
 
         org.bukkit.OfflinePlayer target = Bukkit.getOfflinePlayer(targetUuid);
         if (!target.hasPlayedBefore() && !target.isOnline()) {
-            player.sendMessage(ColorUtil.colorize("&c[ES2] 找不到收款玩家。"));
+            player.sendMessage(ColorUtil.colorize("&8[ECOS] &c找不到收款玩家。"));
             Bukkit.getScheduler().runTask(plugin, () -> plugin.getEcosTerminalGUI().open(player));
             return;
         }
@@ -478,7 +496,7 @@ public class AnvilInputGUI {
         try {
             amount = Double.parseDouble(sanitize(state.currentInput()));
         } catch (NumberFormatException e) {
-            player.sendMessage(ColorUtil.colorize("&c[ES2] 请输入有效数字。"));
+            player.sendMessage(ColorUtil.colorize("&8[ECOS] &c请输入有效数字。"));
             Bukkit.getScheduler().runTask(plugin, () -> openForPayAmount(player, target));
             return;
         }
@@ -492,7 +510,7 @@ public class AnvilInputGUI {
         try {
             amount = Double.parseDouble(sanitize(state.currentInput()));
         } catch (NumberFormatException e) {
-            player.sendMessage(ColorUtil.colorize("&c[ES2] 请输入有效数字。"));
+            player.sendMessage(ColorUtil.colorize("&8[ECOS] &c请输入有效数字。"));
             Bukkit.getScheduler().runTask(plugin, () -> openForPayAllAmount(player));
             return;
         }
@@ -639,6 +657,29 @@ public class AnvilInputGUI {
         Bukkit.getScheduler().runTask(plugin, () -> plugin.getHotelDeskGUI().open(player, hotel));
     }
 
+    private void confirmHotelDelete(Player player, InputState state) {
+        String hid = hotelContext.remove(player.getUniqueId());
+        var hotel = plugin.getHotelManager().byId(hid);
+        if (isBlankOrPlaceholder(state) || hotel == null) {
+            player.sendMessage(ColorUtil.colorize("&8[酒店] &7已取消"));
+            if (hotel != null) Bukkit.getScheduler().runTask(plugin, () -> plugin.getHotelDeskGUI().open(player, hotel));
+            else Bukkit.getScheduler().runTask(plugin, () -> plugin.getHotelListGUI().open(player));
+            return;
+        }
+        String typed = sanitize(state.currentInput());
+        if (!typed.equalsIgnoreCase(hotel.name) && !typed.equalsIgnoreCase(hotel.id)) {
+            player.sendMessage(ColorUtil.colorize("&8[酒店] &c名称不对，要输入 &f" + hotel.name));
+            Bukkit.getScheduler().runTask(plugin, () -> plugin.getHotelDeskGUI().open(player, hotel));
+            return;
+        }
+        String name = hotel.name;
+        String err = plugin.getHotelManager().delete(player, hotel);
+        player.sendMessage(ColorUtil.colorize(err == null
+                ? "&8[酒店] &c已删除 &f" + name + " &7房间已解绑"
+                : "&8[酒店] &c" + err));
+        Bukkit.getScheduler().runTask(plugin, () -> plugin.getHotelListGUI().open(player));
+    }
+
     private void confirmGrant(Player player, InputState state) {
         String kind = grantKind.remove(player.getUniqueId());
         if (isBlankOrPlaceholder(state)) {
@@ -681,6 +722,36 @@ public class AnvilInputGUI {
         Bukkit.getScheduler().runTask(plugin, () -> plugin.getAdminGrantGUI().open(player));
     }
 
+    private void confirmSkillShopPrice(Player player, InputState state) {
+        String key = skillShopKey.remove(player.getUniqueId());
+        var skill = com.etherstories.escore.weapons.SkillType.fromKey(key);
+        if (isBlankOrPlaceholder(state) || skill == null) {
+            player.sendMessage(ColorUtil.colorize("&8[技能商店] &7已取消"));
+            Bukkit.getScheduler().runTask(plugin, () -> plugin.getSkillShopGUI().openAdmin(player));
+            return;
+        }
+        double price;
+        try {
+            price = Double.parseDouble(sanitize(state.currentInput()));
+        } catch (NumberFormatException e) {
+            player.sendMessage(ColorUtil.colorize("&8[技能商店] &c金额必须是数字"));
+            Bukkit.getScheduler().runTask(plugin, () -> plugin.getSkillShopGUI().openAdmin(player));
+            return;
+        }
+        if (price < 0) {
+            player.sendMessage(ColorUtil.colorize("&8[技能商店] &c价格不能为负"));
+            Bukkit.getScheduler().runTask(plugin, () -> plugin.getSkillShopGUI().openAdmin(player));
+            return;
+        }
+        plugin.getSkillShopManager().setPrice(skill, price);
+        plugin.getAuditLogManager().log(player, "SKILL_SHOP_PRICE",
+                skill.configKey + "=" + price);
+        player.sendMessage(ColorUtil.colorize("&8[技能商店] &7" + skill.displayName()
+                + " &7定价 &f" + (plugin.getVaultHook().isEnabled()
+                ? plugin.getVaultHook().format(price) : String.format("%.0f", price))));
+        Bukkit.getScheduler().runTask(plugin, () -> plugin.getSkillShopGUI().openAdmin(player));
+    }
+
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     private void open(Player player, Context ctx, String placeholder, UUID meta,
@@ -688,10 +759,11 @@ public class AnvilInputGUI {
         player.closeInventory();
         pending.put(player.getUniqueId(), new InputState(ctx, "", meta, placeholder));
 
-        player.sendMessage(ColorUtil.colorize("&8──────── &f" + title + " &8────────"));
-        player.sendMessage(ColorUtil.colorize("&7" + loreHint));
-        player.sendMessage(ColorUtil.colorize("&7默认/示例: &f" + placeholder));
-        player.sendMessage(ColorUtil.colorize("&a▸ 直接在聊天栏输入内容并回车确认"));
-        player.sendMessage(ColorUtil.colorize("&8▸ 输入 &fcancel &8或 &f取消 &8退出"));
+        player.sendMessage(ColorUtil.colorize("&8[ECOS] &f" + title + " &8· &7" + loreHint));
+        boolean sample = placeholder != null && !placeholder.isEmpty() && !placeholder.contains("输入");
+        if (sample)
+            player.sendMessage(ColorUtil.colorize("&8示例 &f" + placeholder + "  &8·  &fcancel &8取消"));
+        else
+            player.sendMessage(ColorUtil.colorize("&8聊天输入，&fcancel &8取消"));
     }
 }

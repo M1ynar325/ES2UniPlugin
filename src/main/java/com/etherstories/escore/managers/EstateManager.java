@@ -64,19 +64,33 @@ public class EstateManager {
     }
 
     public void setPos1(Player p) {
-        Location loc = p.getLocation();
+        setPos1(p, p.getLocation());
+    }
+
+    public void setPos1(Player p, Location loc) {
         pos1.put(p.getUniqueId(), new int[]{loc.getBlockX(), loc.getBlockY(), loc.getBlockZ()});
         pos1World.put(p.getUniqueId(), loc.getWorld().getName());
         pos2.remove(p.getUniqueId());
     }
 
     public String setPos2(Player p) {
+        return setPos2(p, p.getLocation());
+    }
+
+    public String setPos2(Player p, Location loc) {
         String w = pos1World.get(p.getUniqueId());
-        if (w == null) return "请先 /ecos estate pos1";
-        if (!w.equals(p.getWorld().getName())) return "点和 pos1 不在同一个世界";
-        Location loc = p.getLocation();
+        if (w == null) return "先用选区棒左键点房间一角";
+        if (!w.equals(loc.getWorld().getName())) return "两点不在同一个世界";
         pos2.put(p.getUniqueId(), new int[]{loc.getBlockX(), loc.getBlockY(), loc.getBlockZ()});
         return null;
+    }
+
+    public int[] pos1Of(UUID uuid) {
+        return pos1.get(uuid);
+    }
+
+    public int[] pos2Of(UUID uuid) {
+        return pos2.get(uuid);
     }
 
     public Selection selectionOf(UUID uuid) {
@@ -107,7 +121,7 @@ public class EstateManager {
     public String register(Player p, String building, int floor, String room,
                            UnitKind kind, BuildingCategory category, boolean admin, double price) {
         Selection sel = selectionOf(p.getUniqueId());
-        if (sel == null) return "请先 /ecos estate pos1 和 pos2 圈出房间";
+        if (sel == null) return "请先用选区棒左键一角、右键对角圈出房间";
         String bName = building.trim();
         if (bName.isEmpty() || bName.length() > 32) return "楼名 1–32 字（可含空格）";
         String roomId = room.trim();

@@ -1,0 +1,292 @@
+<!doctype html><html lang=zh-CN><head>
+<meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1">
+<meta name=theme-color content="#1B1C1F">
+<title>ECOS</title>
+<style>
+:root{--bg:#2A2C31;--slot:#37393F;--in:#1C1D21;--edge:#0D0E10;--hi:#454850;
+  --snow:#F4F7FA;--mist:#8A96A3;--jq:#8FB9C6;--cb:#4A7EB8;--cobalt:#0A2A8C;--light:#5A5D66}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%;background:#0A0B0D;color:var(--snow);
+  font:14px/1.4 "PingFang SC","SF Pro Text",system-ui,sans-serif}
+a{color:var(--jq);text-decoration:none}
+.wrap{max-width:560px;margin:0 auto;min-height:100vh;position:relative;
+  background:
+    linear-gradient(180deg,#35383F 0,#2A2C31 28%),
+    var(--bg);
+  border:3px solid var(--edge);
+  box-shadow:inset 0 2px 0 var(--light),inset 0 -3px 0 #111,0 0 0 1px #000}
+.wrap:before{content:"";position:absolute;inset:0;pointer-events:none;opacity:.07;
+  background:repeating-linear-gradient(0deg,transparent 0 2px,rgba(0,0,0,.5) 3px)}
+.hd{display:flex;align-items:center;justify-content:space-between;padding:12px 14px 10px;
+  background:#141518;border-bottom:3px solid var(--edge);position:relative;z-index:1}
+.hd:before{content:"";position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--cobalt)}
+.hd b{font:15px/1.2 ui-monospace,Menlo,monospace;font-weight:700;color:var(--jq);letter-spacing:.04em}
+.hd span{color:var(--mist);font-size:13px}
+.hd a,.hd i{font:12px/1 ui-monospace,Menlo,monospace;font-style:normal;color:var(--mist)}
+.tabs{display:grid;grid-template-columns:repeat(6,1fr);gap:3px;padding:8px;background:#18191D;position:relative;z-index:1}
+.tabs button{appearance:none;border:2px solid var(--edge);background:var(--in);color:var(--mist);
+  padding:10px 2px;font:12px/1.2 inherit;cursor:pointer;
+  box-shadow:inset 1px 1px 0 #2A2B30,inset -1px -1px 0 #0A0B0C}
+.tabs button.on{border-color:#1a3a8a;color:var(--snow);background:#2A3A5C;
+  box-shadow:inset 0 0 0 1px var(--cb)}
+.note{padding:8px 12px;color:var(--mist);font:12px/1.4 ui-monospace,Menlo,monospace;
+  border-bottom:2px solid var(--edge);background:#1A1B1F;position:relative;z-index:1}
+.pages{padding:8px;position:relative;z-index:1}
+.slots{display:grid;grid-template-columns:repeat(3,1fr);gap:4px}
+.slot{appearance:none;border:2px solid var(--edge);background:var(--slot);color:var(--snow);
+  text-align:left;padding:10px 8px;cursor:pointer;font:inherit;min-height:78px;
+  display:grid;grid-template-columns:26px 1fr;gap:8px;align-items:center;
+  box-shadow:inset 2px 2px 0 #4A4C54,inset -2px -2px 0 #1A1B1E}
+.slot:hover{background:var(--hi)}
+.slot b{display:block;font-size:13px;font-weight:600}
+.slot small{display:block;margin-top:3px;color:var(--mist);font-size:11px;line-height:1.35}
+.slot.span{grid-column:1/-1;min-height:58px}
+.gem{width:22px;height:22px;background:var(--cb);
+  box-shadow:inset 2px 2px 0 rgba(255,255,255,.28),inset -2px -2px 0 rgba(0,0,0,.4)}
+.slot:nth-child(3n+2) .gem{background:var(--jq)}
+.slot:nth-child(3n) .gem{background:#6B7A8D}
+.slot:nth-child(4) .gem{background:var(--cobalt)}
+.media{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;
+  border:2px solid var(--edge);background:var(--slot);padding:12px 10px;margin-bottom:8px;
+  box-shadow:inset 2px 2px 0 #4A4C54,inset -2px -2px 0 #1A1B1E}
+.media strong{display:block}
+.media small{color:var(--mist)}
+.media-acts{display:flex;flex-direction:column;gap:4px}
+.media-acts button{appearance:none;border:2px solid var(--edge);background:#141518;color:var(--snow);
+  padding:6px 10px;font:12px inherit;cursor:pointer;white-space:nowrap}
+.hidden{display:none!important}
+.sheet{position:absolute;inset:0;background:var(--bg);z-index:2;display:flex;flex-direction:column}
+.sh{display:flex;gap:10px;align-items:baseline;padding:12px 14px;background:#141518;border-bottom:3px solid var(--edge)}
+.sh button{appearance:none;border:0;background:transparent;color:var(--cb);font:inherit;cursor:pointer;padding:0}
+.sb{flex:1;overflow:auto;padding:10px 12px 20px}
+.list{border:2px solid var(--edge);box-shadow:inset 1px 1px 0 #111}
+.row{padding:10px 10px;border-bottom:1px solid var(--edge);background:var(--slot)}
+.row:last-child{border:0}
+.row small{display:block;margin-top:3px;color:var(--mist);font-size:12px}
+.field{width:100%;padding:8px;background:var(--in);border:2px solid var(--edge);color:var(--snow);font:inherit;margin:8px 0}
+.act{width:100%;padding:10px;border:2px solid var(--edge);background:var(--cb);color:#fff;font:inherit;cursor:pointer;margin-top:8px}
+.act.ghost{background:var(--slot);color:var(--snow)}
+#toast{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);background:#141518;border:2px solid var(--cb);color:var(--snow);padding:6px 10px;display:none;z-index:9}
+@media(min-width:720px){.wrap{margin:20px auto;min-height:calc(100vh - 40px)}}
+</style></head><body>
+<div class=wrap>
+  <div class=hd>
+    <div><b id=ttl>[ ECOS · 概览 ]</b></div>
+    <div><i id=clk></i> · <a href=/>网页终端</a></div>
+  </div>
+  <nav class=tabs id=dock></nav>
+  <div class=note>游戏里 <b style="color:var(--jq);font-weight:600">/ecos</b> 开箱子终端 · 此页是样例</div>
+  <div class=note id=note>在线 7 · 夜航星 · 绿野南馆 3F-12</div>
+  <div class=pages>
+    <section id=p-home></section>
+    <section id=p-social class=hidden></section>
+    <section id=p-travel class=hidden></section>
+    <section id=p-city class=hidden></section>
+    <section id=p-play class=hidden></section>
+    <section id=p-admin class=hidden></section>
+  </div>
+  <div id=sheet class="sheet hidden">
+    <div class=sh><button type=button id=back>返回</button><b id=st></b></div>
+    <div class=sb id=sb></div>
+  </div>
+</div>
+<div id=toast></div>
+<script>
+const $=s=>document.querySelector(s);
+const S={
+  name:'node0', ping:28, online:true, bal:'12,480 EP',
+  checked:true, streak:14, mail:2, status:'在绿野修路', afk:false, listen:true,
+  pair:'204800', hotel:'绿野南馆 3F-12', newbie:72,
+  friends:[{n:'Lumen',s:'在线 · 主城'},{n:'Kite',s:'在线 · 绿野'},{n:'Moth',s:'离线 3h'}],
+  reqs:[{n:'Ash'}],
+  inbox:[{t:'市政',b:'南门道路委托已通过，报酬 800 已入账'},{t:'Lumen',b:'鞘翅借你，晚上还'},{t:'系统',b:'连签 14 天奖励已发'}],
+  players:[{n:'Lumen',w:'world',x:-12,y:64,z:88},{n:'Kite',w:'world_greenfield',x:128,y:72,z:-40},{n:'Ivy',w:'world',x:4,y:71,z:16}],
+  notices:['周五晚 20:00 绿野集市','主城西塔施工，绕行南门','BlueMap 主世界仍在渲染'],
+  board:[{n:'node0',h:'186h'},{n:'Lumen',h:'142h'},{n:'Kite',h:'91h'}],
+  homes:['绿野窝','主城仓'],
+  points:[{n:'南门灯塔',p:'world  210 71 -18'},{n:'矿道口',p:'world  -88 32 40'}],
+  death:'world  12 41 -6 · 昨天 22:14',
+  lands:['绿野南段 64×64','主城仓后院'],
+  hot:['主城广场','绿野南门','交易所'],
+  rooms:[{n:'绿野南馆 3F-12',s:'入住中'},{n:'主城 loft A2',s:'自住'}],
+  sale:[{n:'车站旁铺面',p:'48,000'}],
+  jobs:[{n:'修南门台阶',p:'800 · 2 人'},{n:'清主城掉落',p:'投票中'}],
+  kits:['新手包','今日补给'],
+  lucky:1, trade:'今日成交 204,800', shows:['车站模型','南塔剖面'],
+  now:{name:'夜航星',author:'HOYO-MiX',caller:'node0'},
+  queue:['Take Me Hand · Lumen','City Lights · Kite'],
+  auras:[{n:'霁弧',on:true},{n:'静幕',on:false}],
+  events:['绿野集市 · 周五 20:00','钓鱼赛 · 周日'],
+  skills:[{n:'回声散射',p:'2,048'},{n:'霁弧',p:'已拥有'}],
+  tax:{pay:true,shop:true}
+};
+const TABS=[['home','概览'],['social','社交'],['travel','出行'],['city','城市'],['play','娱乐'],['admin','管理']];
+function esc(s){return String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+function toast(m){const el=$('#toast');el.textContent=m;el.style.display='block';clearTimeout(el._t);el._t=setTimeout(()=>el.style.display='none',1800)}
+function cell(a,title,sub,span){return `<button class="slot${span?' span':''}" data-a="${a}"><i class=gem></i><span><b>${title}</b><small>${sub}</small></span></button>`}
+function dock(){$('#dock').innerHTML=TABS.map(([id,n],i)=>`<button type=button data-p=${id} class="${i===0?'on':''}">${n}</button>`).join('')}
+function show(p){
+  TABS.forEach(([id,n])=>{
+    $('#p-'+id).classList.toggle('hidden',id!==p);
+    if(id===p) $('#ttl').textContent='[ ECOS · '+n+' ]';
+  });
+  $('#dock').querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.p===p));
+  close();
+}
+function open(title, html){$('#st').textContent=title;$('#sb').innerHTML=html;$('#sheet').classList.remove('hidden')}
+function close(){$('#sheet').classList.add('hidden')}
+function rows(arr, fn){return `<div class=list>${arr.map(fn).join('')}</div>`}
+function home(){
+  $('#p-home').innerHTML=`<div class=slots>
+    ${cell('checkin',S.checked?'签到 已签':'签到','连 '+S.streak+' 天')}
+    ${cell('mail','邮箱',S.mail+' 未读')}
+    ${cell('pay','转账',S.bal)}
+    ${cell('web','网页',S.pair)}
+    ${cell('hotel',S.hotel?'退房':'酒店',S.hotel||'没有入住')}
+    ${cell('afk',S.afk?'AFK 开着':'AFK',S.afk?'点一下回来':S.ping+'ms')}
+    ${cell('newbie','新手引导',S.newbie+'% 还没做完',true)}
+  </div>`;
+  $('#note').textContent=`${S.name} · ${S.online?'在线':'离线'} · ${S.status} · ${S.now.author} / ${S.now.name}`;
+}
+function social(){$('#p-social').innerHTML=`<div class=slots>
+  ${cell('friends','好友',S.friends.length+' 人 · 申请 '+S.reqs.length)}
+  ${cell('mail','邮箱',S.mail+' / '+S.inbox.length)}
+  ${cell('online','在线','其他 '+S.players.length+' 人')}
+  ${cell('notices','公告',S.notices.length+' 条')}
+  ${cell('board','时长榜','本周')}
+  ${cell('status','签名',S.status)}
+</div>`}
+function travel(){$('#p-travel').innerHTML=`<div class=slots>
+  ${cell('homes','家',S.homes.length+' 个')}
+  ${cell('tpa','传送','TPA')}
+  ${cell('here','召唤','TPAHere')}
+  ${cell('wp','坐标',S.points.length+' / 12')}
+  ${cell('death','死亡点',S.death)}
+  ${cell('land','领地',S.lands.length+' 块')}
+  ${cell('hot','热门地点',S.hot.join(' · '),true)}
+</div>`}
+function city(){$('#p-city').innerHTML=`<div class=slots>
+  ${cell('estate','房产','我的 '+S.rooms.length+' · 待售 '+S.sale.length)}
+  ${cell('hotel','酒店',S.hotel||'没有入住')}
+  ${cell('muni','市政','招工 '+S.jobs.length)}
+  ${cell('kit','Kit','新手包 / 礼包')}
+  ${cell('lucky','幸运方块','额外 '+S.lucky)}
+  ${cell('trade','交易榜',S.trade)}
+  ${cell('show','展示',S.shows.length+' 处',true)}
+</div>`}
+function play(){$('#p-play').innerHTML=`
+  <div class=media>
+    <div><strong>${esc(S.now.author)} / ${esc(S.now.name)}</strong><small>${esc(S.now.caller)}</small></div>
+    <div class=media-acts>
+      <button type=button data-a=music>点歌</button>
+      <button type=button data-a=listen>${S.listen?'静音':'已静音'}</button>
+    </div>
+  </div>
+  <div class=slots>
+  ${cell('aura','特效',S.auras.filter(a=>a.on).map(a=>a.n).join(' · ')||'未装备')}
+  ${cell('link','互通','ESLink')}
+  ${cell('events','活动',S.events.length+' 个')}
+  ${cell('skill','技能店',S.skills.length+' 在售')}
+</div>`}
+function admin(){$('#p-admin').innerHTML=`<div class=slots>
+  ${cell('adev','活动管理','发布 / 结束')}
+  ${cell('abc','定时广播','5 分钟')}
+  ${cell('reload','重载','/ecos reload')}
+  ${cell('aland','领地管理','全服')}
+  ${cell('adist','地区管理','城区')}
+  ${cell('akit','Kit 管理','礼包')}
+  ${cell('atax','税收','转账 '+(S.tax.pay?'开':'关'))}
+  ${cell('aest','全部房产','登记单位')}
+  ${cell('agrant','发放','补签 / 幸运')}
+  ${cell('askill','技能上架','改价',true)}
+</div>`}
+
+const ACT={
+  checkin:()=>open('签到', `<p>${S.checked?'今天已经签过。连签 '+S.streak+' 天。':'点下面签到。'}</p>
+    ${rows([...'一二三四五六日'],(d,i)=>`<div class=row>${d}<small>${i<4?'已签':'—'}</small></div>`)}
+    <button class=act data-do=doCheck>签到</button>`),
+  mail:()=>open('邮箱', rows(S.inbox,m=>`<div class=row>${esc(m.t)}<small>${esc(m.b)}</small></div>`)),
+  pay:()=>open('转账', `<p>余额 ${esc(S.bal)}</p>`+rows(S.players,p=>`<div class=row data-do=paid data-n="${esc(p.n)}">${esc(p.n)}<small>点选转账</small></div>`)),
+  web:()=>open('网页', `<p style="font:26px ui-monospace,Menlo,monospace;color:var(--jq)">${S.pair}</p><button class=act data-do=newCode>再生成</button>`),
+  hotel:()=>open('酒店', S.hotel
+    ? `<p>${esc(S.hotel)}</p><button class=act data-do=checkout>退房</button><button class="act ghost" data-do=rooms>看房间</button>`
+    : rows([{n:'绿野南馆',s:'空房 6'},{n:'主城驿站',s:'空房 2'}],r=>`<div class=row data-do=stay data-n="${esc(r.n)}">${esc(r.n)}<small>${esc(r.s)}</small></div>`)),
+  afk:()=>{S.afk=!S.afk;toast(S.afk?'标记离开':'回来了');paint()},
+  newbie:()=>open('新手引导', rows(['领新手包','设一个家','看一次邮箱','去绿野一趟'],(x,i)=>`<div class=row>${esc(x)}<small>${i<3?'完成':'未做'}</small></div>`)),
+  friends:()=>open('好友', rows(S.reqs,r=>`<div class=row>${esc(r.n)}<small>申请</small></div>`)+rows(S.friends,f=>`<div class=row>${esc(f.n)}<small>${esc(f.s)}</small></div>`)),
+  online:()=>open('在线', rows(S.players,p=>`<div class=row data-do=tpa data-n="${esc(p.n)}">${esc(p.n)}<small>${esc(p.w)} ${p.x} ${p.y} ${p.z}</small></div>`)),
+  notices:()=>open('公告', rows(S.notices,n=>`<div class=row>${esc(n)}</div>`)),
+  board:()=>open('时长榜', rows(S.board,b=>`<div class=row>${esc(b.n)}<small>${esc(b.h)}</small></div>`)),
+  status:()=>open('签名', `<input class=field id=stIn value="${esc(S.status)}"><button class=act data-do=setSt>保存</button>`),
+  homes:()=>open('家', rows(S.homes,h=>`<div class=row data-do=go data-n="${esc(h)}">${esc(h)}</div>`)+`<button class="act ghost" data-do=setHome>在此设家</button>`),
+  tpa:()=>open('传送', rows(S.players,p=>`<div class=row data-do=tpa data-n="${esc(p.n)}">${esc(p.n)}</div>`)),
+  here:()=>open('召唤', rows(S.players,p=>`<div class=row data-do=here data-n="${esc(p.n)}">${esc(p.n)}</div>`)),
+  wp:()=>open('坐标', rows(S.points,p=>`<div class=row data-do=go data-n="${esc(p.n)}">${esc(p.n)}<small>${esc(p.p)}</small></div>`)),
+  death:()=>open('死亡点', `<p>${esc(S.death)}</p>`),
+  land:()=>open('领地', rows(S.lands,n=>`<div class=row>${esc(n)}</div>`)),
+  hot:()=>open('热门地点', rows(S.hot,n=>`<div class=row data-do=go data-n="${esc(n)}">${esc(n)}</div>`)),
+  estate:()=>open('房产', rows(S.rooms,r=>`<div class=row>${esc(r.n)}<small>${esc(r.s)}</small></div>`)+rows(S.sale,r=>`<div class=row>${esc(r.n)}<small>${esc(r.p)}</small></div>`)),
+  muni:()=>open('市政', rows(S.jobs,j=>`<div class=row>${esc(j.n)}<small>${esc(j.p)}</small></div>`)),
+  kit:()=>open('Kit', rows(S.kits,k=>`<div class=row data-do=kit data-n="${esc(k)}">${esc(k)}</div>`)),
+  lucky:()=>open('幸运方块', `<p>额外 ${S.lucky}</p><button class=act data-do=draw>开启</button>`),
+  trade:()=>open('交易榜', `<p>${esc(S.trade)}</p>`),
+  show:()=>open('展示', rows(S.shows,n=>`<div class=row>${esc(n)}</div>`)),
+  music:()=>open('点歌', `<p>${esc(S.now.author)} / ${esc(S.now.name)}</p><input class=field id=q placeholder=歌名><button class=act data-do=search>搜索</button><div id=hits></div>`+rows(S.queue,s=>`<div class=row>${esc(s)}</div>`)),
+  listen:()=>{S.listen=!S.listen;paint()},
+  aura:()=>open('特效', rows(S.auras,a=>`<div class=row data-do=aura data-n="${esc(a.n)}">${esc(a.n)}<small>${a.on?'装备中':''}</small></div>`)),
+  link:()=>open('互通', `<p>ESLink 市场 / 箱子 / 红石。</p>`),
+  events:()=>open('活动', rows(S.events,e=>`<div class=row>${esc(e)}</div>`)),
+  skill:()=>open('技能店', rows(S.skills,s=>`<div class=row data-do=buy data-n="${esc(s.n)}">${esc(s.n)}<small>${esc(s.p)}</small></div>`)),
+  adev:()=>open('活动管理', rows(S.events,e=>`<div class=row>${esc(e)}</div>`)),
+  abc:()=>open('定时广播', `<input class=field value="周五晚绿野集市"><button class=act data-do=bc>写入</button>`),
+  reload:()=>toast('已重载'),
+  aland:()=>open('领地管理', rows(S.lands,n=>`<div class=row>${esc(n)}</div>`)),
+  adist:()=>open('地区', rows(['主城','绿野','港区'],n=>`<div class=row>${esc(n)}</div>`)),
+  akit:()=>open('Kit 管理', rows(S.kits,k=>`<div class=row>${esc(k)}</div>`)),
+  atax:()=>open('税收', `<p>转账 ${S.tax.pay?'开':'关'} · 箱子店 ${S.tax.shop?'开':'关'}</p><button class=act data-do=tax>切换转账税</button>`),
+  aest:()=>open('全部房产', rows(S.rooms.concat(S.sale),r=>`<div class=row>${esc(r.n)}<small>${esc(r.s||r.p)}</small></div>`)),
+  agrant:()=>open('发放', `<input class=field placeholder="玩家 数量"><button class=act data-do=grant>发放</button>`),
+  askill:()=>open('技能上架', rows(S.skills,s=>`<div class=row>${esc(s.n)}<small>${esc(s.p)}</small></div>`))
+};
+function paint(){home();social();travel();city();play();admin()}
+function act(a, el){
+  const n=el&&el.dataset.n;
+  if(a==='doCheck'){S.checked=true;S.streak++;toast('已签');paint();close();return}
+  if(a==='paid'){toast('已转给 '+n);return}
+  if(a==='newCode'){S.pair=String(Math.floor(100000+Math.random()*900000));ACT.web();return}
+  if(a==='checkout'){S.hotel='';toast('已退房');paint();close();return}
+  if(a==='rooms'){S.hotel='';ACT.hotel();return}
+  if(a==='stay'){S.hotel=n;toast('已入住');paint();close();return}
+  if(a==='setSt'){S.status=$('#stIn').value.trim()||S.status;toast('已改');paint();close();return}
+  if(a==='tpa'){toast('TPA → '+n);return}
+  if(a==='here'){toast('召唤 '+n);return}
+  if(a==='go'){toast('传送 '+n);return}
+  if(a==='setHome'){toast('已设家');return}
+  if(a==='kit'){toast('领取 '+n);return}
+  if(a==='draw'){if(S.lucky<=0){toast('明天再来');return}S.lucky--;toast('开出铁矿×16');paint();ACT.lucky();return}
+  if(a==='search'){
+    const q=($('#q').value||'').trim();
+    const all=[{n:'夜航星',a:'HOYO-MiX'},{n:'晴天',a:'周杰伦'},{n:'稻香',a:'周杰伦'}];
+    const hit=all.filter(s=>!q||s.n.includes(q)||s.a.includes(q));
+    $('#hits').innerHTML=rows(hit,s=>`<div class=row data-do=add data-n="${esc(s.n)}">${esc(s.n)}<small>${esc(s.a)}</small></div>`);
+    return;
+  }
+  if(a==='add'){S.queue.push(n+' · node0');toast('已点 '+n);ACT.music();return}
+  if(a==='aura'){S.auras.forEach(x=>x.on=x.n===n);toast('装备 '+n);paint();ACT.aura();return}
+  if(a==='buy'){toast(n);return}
+  if(a==='bc'){toast('已写入');return}
+  if(a==='tax'){S.tax.pay=!S.tax.pay;toast('转账税 '+(S.tax.pay?'开':'关'));paint();ACT.atax();return}
+  if(a==='grant'){toast('已发放');return}
+}
+paint();dock();
+$('#dock').onclick=e=>{const b=e.target.closest('[data-p]');if(b)show(b.dataset.p)};
+document.body.onclick=e=>{
+  const tile=e.target.closest('[data-a]');
+  if(tile && !tile.closest('#sheet')){const fn=ACT[tile.dataset.a];if(fn)fn();return}
+  const doer=e.target.closest('[data-do]');
+  if(doer) act(doer.dataset.do, doer);
+};
+$('#back').onclick=close;
+setInterval(()=>{$('#clk').textContent=new Date().toLocaleTimeString('zh-CN',{hour12:false})},1000);
+$('#clk').textContent=new Date().toLocaleTimeString('zh-CN',{hour12:false});
+</script></body></html>

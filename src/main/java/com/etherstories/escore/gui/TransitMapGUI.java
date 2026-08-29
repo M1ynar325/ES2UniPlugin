@@ -86,6 +86,7 @@ public class TransitMapGUI {
             List<String> lore = new ArrayList<>();
             lore.add(" &7ID: &f" + s.id());
             lore.add(" &7" + tm.lineNamesOf(s));
+            if (tm.isSkipStop(s.id())) lore.add(" &e通过不停车");
             List<String> nb = tm.neighborLabels(s.id(), line.id());
             lore.add(nb.isEmpty() ? " &8本线未连接邻站" : " &7连接: &f" + String.join("&7 → &f", nb));
             if (fromSt != null && !fromSt.id().equals(s.id())) {

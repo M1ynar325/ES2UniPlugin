@@ -14,7 +14,8 @@ public enum SkillType {
     ECHO_SCATTER      ("Echo Scatter",         "回声散射",  "echo_scatter"),
     ECHO_BARRAGE      ("Echo Seek",            "回声寻踪",  "echo_barrage"),
     GLEAM_ARC         ("Gleam Arc",            "霁弧",      "gleam_arc"),
-    STILL_VEIL        ("Still Veil",           "静幕",      "still_veil");
+    STILL_VEIL        ("Still Veil",           "静幕",      "still_veil"),
+    PALE_LINE         ("Pale Line",            "霁线",      "pale_line");
 
     public final String englishName;
     public final String chineseName;

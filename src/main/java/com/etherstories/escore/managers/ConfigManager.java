@@ -21,7 +21,7 @@ import java.util.Set;
 public class ConfigManager {
 
     /** 与 config.yml 中 config-version 保持一致，每次新增配置项时 +1 */
-    private static final int CURRENT_VERSION = 34;
+    private static final int CURRENT_VERSION = 39;
 
     private final ES2UniPlugin plugin;
     private YamlConfiguration jarDefaults;
@@ -145,6 +145,14 @@ public class ConfigManager {
                 needSave = true;
             }
             plugin.getLogger().info("配置迁移 v33: 静幕圆柱匀铺粒子 / 冻结敌对生物");
+        }
+
+        if (fileVersion < 35) {
+            if (cfg.getInt("weapons.skills.still_veil.duration-ticks", 160) == 160) {
+                cfg.set("weapons.skills.still_veil.duration-ticks", 600);
+                needSave = true;
+            }
+            plugin.getLogger().info("配置迁移 v35: 静幕时停 30 秒");
         }
 
         boolean autoFill = cfg.getBoolean("config.auto-fill-missing", true);
@@ -406,7 +414,7 @@ public class ConfigManager {
     }
 
     public String getVersionDisplayTemplate() {
-        return plugin.getConfig().getString("commands.version-display", "&b[ECOS] &fv{version}");
+        return plugin.getConfig().getString("commands.version-display", "&#8FB9C6[ECOS] &fv{version}");
     }
 
     public String getReloadMessage() {
@@ -438,7 +446,7 @@ public class ConfigManager {
     // ── Terminal ─────────────────────────────────────────────────────────────
 
     public String getTerminalTitle() {
-        return plugin.getConfig().getString("terminal.title", "&0[ &bECOS &0]");
+        return plugin.getConfig().getString("terminal.title", "&8[ &#8FB9C6&lECOS &#8A96A3· &#F4F7FA概览 &8]");
     }
 
     public String getHomeGUITitle() {

@@ -2,7 +2,6 @@ package com.etherstories.escore.gui;
 
 import com.etherstories.escore.ES2UniPlugin;
 import com.etherstories.escore.estate.EstateUnit;
-import com.etherstories.escore.utils.ColorUtil;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
@@ -17,7 +16,7 @@ import java.util.UUID;
 
 public class EstateRoomsGUI {
 
-    public static final String TITLE_PREFIX = ColorUtil.colorize("&2&l房产 · ");
+    public static final String TITLE_PREFIX = EcosStyle.hub("房产 · ");
     public static final int SLOT_BACK = 52;
     public static final int SLOT_CLOSE = 53;
 
@@ -36,7 +35,7 @@ public class EstateRoomsGUI {
     public void open(Player player, String buildingName) {
         building.put(player.getUniqueId(), buildingName);
         Inventory inv = Bukkit.createInventory(null, 54, TITLE_PREFIX + buildingName);
-        ItemStack bg = ECOSTerminalGUI.bg(Material.BLACK_STAINED_GLASS_PANE);
+        ItemStack bg = EcosStyle.chrome();
         for (int i = 0; i < 54; i++) inv.setItem(i, bg);
 
         List<EstateUnit> rooms = plugin.getEstateManager().inBuilding(buildingName);

@@ -17,6 +17,10 @@ import com.etherstories.escore.managers.*;
 import com.etherstories.escore.managers.AuraManager;
 import com.etherstories.escore.tasks.*;
 import com.etherstories.escore.utils.ColorUtil;
+import com.etherstories.escore.web.ChatFeed;
+import com.etherstories.escore.web.EcosWebChatListener;
+import com.etherstories.escore.web.EcosWebServer;
+import com.etherstories.escore.web.WebSessions;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public class ES2UniPlugin extends JavaPlugin {
@@ -48,6 +52,7 @@ public class ES2UniPlugin extends JavaPlugin {
     private ActionBarManager actionBarManager;
     private TradeStatsManager tradeStatsManager;
     private AuditLogManager  auditLogManager;
+    private LoginLogManager  loginLogManager;
     private ReportManager    reportManager;
     private ShowcaseManager  showcaseManager;
     private LuckyBlockManager luckyBlockManager;
@@ -59,6 +64,7 @@ public class ES2UniPlugin extends JavaPlugin {
     private TransitManager   transitManager;
     private EstateManager    estateManager;
     private HotelManager     hotelManager;
+    private SkillShopManager skillShopManager;
 
     // Hooks
     private EssentialsHook essentialsHook;
@@ -134,6 +140,7 @@ public class ES2UniPlugin extends JavaPlugin {
     private HotelListGUI       hotelListGUI;
     private HotelDeskGUI       hotelDeskGUI;
     private AdminGrantGUI      adminGrantGUI;
+    private SkillShopGUI       skillShopGUI;
 
     // Tasks
     private TabTask        tabTask;
@@ -141,6 +148,10 @@ public class ES2UniPlugin extends JavaPlugin {
     private TPSMonitorTask tpsMonitorTask;
     private AFKCheckTask   afkCheckTask;
     private ActionBarTask  actionBarTask;
+    private WebSessions    webSessions;
+    private ChatFeed       chatFeed;
+    private EcosWebServer  ecosWebServer;
+    private boolean        webChatBound;
 
     @Override
     public void onEnable() {
@@ -153,6 +164,7 @@ public class ES2UniPlugin extends JavaPlugin {
         com.etherstories.escore.items.TransitItems.init(this);
         com.etherstories.escore.items.PveItems.init(this);
         com.etherstories.escore.items.HotelCard.init(this);
+        com.etherstories.escore.items.EstateWand.init(this);
         saveDefaultConfig();
 
         configManager    = new ConfigManager(this);
@@ -179,6 +191,8 @@ public class ES2UniPlugin extends JavaPlugin {
         actionBarManager = new ActionBarManager();
         tradeStatsManager = new TradeStatsManager(this);
         auditLogManager  = new AuditLogManager(this);
+        loginLogManager  = new LoginLogManager(this);
+        chatFeed         = new ChatFeed(160);
         reportManager    = new ReportManager(this);
         showcaseManager  = new ShowcaseManager(this);
         luckyBlockManager = new LuckyBlockManager(this);
@@ -190,6 +204,7 @@ public class ES2UniPlugin extends JavaPlugin {
         transitManager   = new TransitManager(this);
         estateManager    = new EstateManager(this);
         hotelManager     = new HotelManager(this);
+        skillShopManager = new SkillShopManager(this);
 
         essentialsHook = new EssentialsHook(); essentialsHook.hook();
         vaultHook      = new VaultHook();      vaultHook.hook();
@@ -260,6 +275,7 @@ public class ES2UniPlugin extends JavaPlugin {
         hotelListGUI       = new HotelListGUI(this);
         hotelDeskGUI       = new HotelDeskGUI(this);
         adminGrantGUI      = new AdminGrantGUI(this);
+        skillShopGUI       = new SkillShopGUI(this);
 
         getServer().getPluginManager().registerEvents(new PlayerListener(this), this);
         getServer().getPluginManager().registerEvents(new AFKListener(this), this);
@@ -276,6 +292,8 @@ public class ES2UniPlugin extends JavaPlugin {
                 new com.etherstories.escore.listeners.PayCommandTaxListener(this), this);
         getServer().getPluginManager().registerEvents(
                 new com.etherstories.escore.listeners.HotelListener(this), this);
+        getServer().getPluginManager().registerEvents(
+                new com.etherstories.escore.listeners.EstateListener(this), this);
         new com.etherstories.escore.listeners.QuickShopTaxListener(this).tryRegister();
 
         ES2UniCommand cmd = new ES2UniCommand(this);
@@ -284,6 +302,7 @@ public class ES2UniPlugin extends JavaPlugin {
         getCommand("es2").setTabCompleter(cmd);
 
         startTasks();
+        startWeb();
 
         String ver = getDescription().getVersion();
         getServer().getConsoleSender().sendMessage(ColorUtil.colorize(
@@ -311,7 +330,9 @@ public class ES2UniPlugin extends JavaPlugin {
         if (transitManager != null) transitManager.save();
         if (estateManager != null) estateManager.save();
         if (hotelManager != null) hotelManager.save();
+        if (skillShopManager != null) skillShopManager.save();
         stopTasks();
+        stopWeb();
         getLogger().info("ES2UniPlugin disabled.");
     }
 
@@ -326,9 +347,12 @@ public class ES2UniPlugin extends JavaPlugin {
             hotelManager.load();
             hotelManager.sweepOrphans();
         }
+        if (skillShopManager != null) skillShopManager.load();
         stopTasks();
         startTasks();
         if (tradeStatsManager != null) tradeStatsManager.startScheduler();
+        stopWeb();
+        startWeb();
     }
 
     private void startTasks() {
@@ -346,6 +370,30 @@ public class ES2UniPlugin extends JavaPlugin {
         if (musicHistoryManager != null) musicHistoryManager.start();
     }
 
+    private void startWeb() {
+        if (chatFeed == null) chatFeed = new ChatFeed(160);
+        if (!webChatBound) {
+            getServer().getPluginManager().registerEvents(new EcosWebChatListener(chatFeed), this);
+            webChatBound = true;
+        }
+        webSessions = new WebSessions(
+                getConfig().getInt("web.pair-seconds", 120),
+                getConfig().getInt("web.session-days", 7));
+        ecosWebServer = new EcosWebServer(this, webSessions, chatFeed);
+        try {
+            ecosWebServer.start();
+        } catch (Exception e) {
+            getLogger().warning("ECOS Web 启动失败: " + e.getMessage());
+        }
+    }
+
+    private void stopWeb() {
+        if (ecosWebServer != null) {
+            ecosWebServer.stop();
+            ecosWebServer = null;
+        }
+    }
+
     private void stopTasks() {
         if (tabTask        != null && !tabTask.isCancelled())        tabTask.cancel();
         if (broadcastTask  != null && !broadcastTask.isCancelled())  broadcastTask.cancel();
@@ -356,6 +404,8 @@ public class ES2UniPlugin extends JavaPlugin {
     }
 
     public static ES2UniPlugin getInstance() { return instance; }
+    public WebSessions getWebSessions() { return webSessions; }
+    public EcosWebServer getEcosWebServer() { return ecosWebServer; }
 
     public ES2UniCommand    getEcosCommand()      { return ecosCommand; }
     public ConfigManager    getConfigManager()    { return configManager; }
@@ -422,6 +472,8 @@ public class ES2UniPlugin extends JavaPlugin {
     public TradeBoardGUI    getTradeBoardGUI()    { return tradeBoardGUI; }
     public TradeStatsManager getTradeStatsManager() { return tradeStatsManager; }
     public AuditLogManager  getAuditLogManager()  { return auditLogManager; }
+    public LoginLogManager  getLoginLogManager()  { return loginLogManager; }
+    public ChatFeed         getChatFeed()         { return chatFeed; }
     public ReportManager    getReportManager()    { return reportManager; }
     public ShowcaseManager  getShowcaseManager()  { return showcaseManager; }
     public LuckyBlockManager getLuckyBlockManager() { return luckyBlockManager; }
@@ -464,4 +516,6 @@ public class ES2UniPlugin extends JavaPlugin {
     public HotelListGUI getHotelListGUI() { return hotelListGUI; }
     public HotelDeskGUI getHotelDeskGUI() { return hotelDeskGUI; }
     public AdminGrantGUI getAdminGrantGUI() { return adminGrantGUI; }
+    public SkillShopManager getSkillShopManager() { return skillShopManager; }
+    public SkillShopGUI getSkillShopGUI() { return skillShopGUI; }
 }

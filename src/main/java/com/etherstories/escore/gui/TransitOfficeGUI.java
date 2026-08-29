@@ -50,7 +50,8 @@ public class TransitOfficeGUI {
         status.add(hint == null ? " &8当前无行程" : " &b" + hint);
         if (j != null) {
             TransitManager.Station s = tm.getStation(j.originId());
-            status.add(" &7进站: &f" + (s == null ? j.originId() : s.displayName()));
+            status.add(" &7进站: &f" + (s == null ? j.originId() : s.displayName())
+                    + " &8· &e" + tm.cabinName(j.cabin()));
         }
         status.add("");
         status.add("&b▸ 轨道交通 · 扣插件余额");

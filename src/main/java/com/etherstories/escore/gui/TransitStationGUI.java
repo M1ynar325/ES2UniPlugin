@@ -30,6 +30,7 @@ public class TransitStationGUI {
     public static final int SLOT_NAME_ZH = 15;
     public static final int SLOT_NAME_EN = 23;
     public static final int SLOT_TP = 16;
+    public static final int SLOT_SKIP = 17;
     public static final int SLOT_GATE_MODE = 19;
     public static final int SLOT_GATE = 20;
     public static final int SLOT_BIND_TVM = 21;
@@ -74,6 +75,7 @@ public class TransitStationGUI {
                         " &7范围 &f" + tm.boxLabel(s),
                         " &7中心 &f" + pos,
                         " &7线路: &f" + tm.lineNamesOf(s),
+                        tm.isSkipStop(stationId) ? " &e通过不停车" : " &7本站停车",
                         nb.isEmpty() ? " &8无连接" : " &7邻站: &f" + String.join("&7, &f", nb),
                         "",
                         "&7立体站台：站在两个对角点框 XZ")));
@@ -107,6 +109,14 @@ public class TransitStationGUI {
                         " &7输入 cancel 取消",
                         "",
                         "&f▸ 改名")));
+        boolean skip = tm.isSkipStop(stationId);
+        inv.setItem(SLOT_SKIP, ECOSTerminalGUI.item(
+                skip ? Material.POWERED_RAIL : Material.RAIL,
+                skip ? "&e通过不停车" : "&7本站停车",
+                List.of(" &7列车经过本站不播到站铃",
+                        " &7手动设置，系统不会自动判断",
+                        "",
+                        skip ? "&e▸ 恢复停车" : "&e▸ 设为通过不停车")));
         inv.setItem(SLOT_NAME_EN, ECOSTerminalGUI.item(Material.NAME_TAG, "&fSet English name",
                 List.of(" &7now: &f" + (s.nameEn() == null || s.nameEn().isBlank() ? "&8(none)" : s.nameEn()),
                         " &7ActionBar 会与中文轮流显示",

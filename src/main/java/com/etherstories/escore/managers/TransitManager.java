@@ -49,7 +49,10 @@ public class TransitManager {
 
     public record Edge(String from, String to, String lineId, double fare, boolean bidirectional) {}
 
-    public record Gate(String world, int x, int y, int z, String stationId, String mode) {
+    public record Gate(String world, int x, int y, int z, String stationId, String mode, String cabin) {
+        public Gate {
+            if (cabin == null || cabin.isBlank()) cabin = Cabin.STD;
+        }
         public String key() { return locKey(world, x, y, z); }
         public boolean allowsIn() { return "IN".equals(mode) || "BOTH".equals(mode); }
         public boolean allowsOut() { return "OUT".equals(mode) || "BOTH".equals(mode); }
@@ -63,7 +66,11 @@ public class TransitManager {
         public String key() { return locKey(world, x, y, z); }
     }
 
-    public record ExitPass(String stationId, long untilMs) {}
+    public record ExitPass(String stationId, long untilMs, String cabin) {
+        public ExitPass {
+            if (cabin == null || cabin.isBlank()) cabin = Cabin.STD;
+        }
+    }
 
     public record AdjustQuote(boolean payable, double amount, String kind, String title, String detail) {
         public static AdjustQuote none(String title, String detail) {
@@ -71,7 +78,11 @@ public class TransitManager {
         }
     }
 
-    public record Journey(String originId, long tapInMs, String method, String ticketDest) {}
+    public record Journey(String originId, long tapInMs, String method, String ticketDest, String cabin) {
+        public Journey {
+            if (cabin == null || cabin.isBlank()) cabin = Cabin.STD;
+        }
+    }
 
     public record Ride(String fromId, String toId, double fare, long at, String note) {}
 
@@ -85,6 +96,14 @@ public class TransitManager {
     public record Account(boolean tapPay, UUID cardId) {}
 
     public record LineType(String id, String displayName, String color) {}
+
+    /** 席别：同一车站可挂多种闸机（普通 / 商务 / 自定义名），进出必须对上。 */
+    public record Cabin(String id, String displayName, double fareMul) {
+        public static final String STD = "std";
+        public Cabin {
+            if (fareMul < 0) fareMul = 0;
+        }
+    }
 
     public record Claim(String id, UUID player, String playerName, String originId, String originName,
                         long tapInMs, long createdAt, String status) {}
@@ -104,6 +123,7 @@ public class TransitManager {
 
     private final Map<String, Line> lines = new LinkedHashMap<>();
     private final Map<String, Station> stations = new LinkedHashMap<>();
+    private final Set<String> skipStops = new LinkedHashSet<>();
     private final List<Edge> edges = new ArrayList<>();
     private final Map<String, Gate> gates = new HashMap<>();
     private final Map<String, Tvm> tvms = new HashMap<>();
@@ -116,6 +136,7 @@ public class TransitManager {
 
     private final Map<UUID, Long> tapCool = new HashMap<>();
     private final Map<String, LineType> types = new LinkedHashMap<>();
+    private final Map<String, Cabin> cabins = new LinkedHashMap<>();
     private final List<Claim> claims = new ArrayList<>();
     private final Map<UUID, Location> boxPos1 = new HashMap<>();
     private final Map<UUID, Location> boxPos2 = new HashMap<>();
@@ -140,10 +161,13 @@ public class TransitManager {
         this.dataFile = new File(plugin.getDataFolder(), "transit.yml");
         load();
         ensureDefaultTypes();
+        ensureDefaultCabins();
     }
 
     public Collection<LineType> allTypes() { return Collections.unmodifiableCollection(types.values()); }
     public LineType getType(String id) { return types.get(id); }
+    public Collection<Cabin> allCabins() { return Collections.unmodifiableCollection(cabins.values()); }
+    public Cabin getCabin(String id) { return resolveCabin(id); }
     public List<Claim> pendingClaims() {
         List<Claim> out = new ArrayList<>();
         for (Claim c : claims) if ("PENDING".equals(c.status())) out.add(c);
@@ -195,6 +219,17 @@ public class TransitManager {
         return list == null ? List.of() : Collections.unmodifiableList(list);
     }
 
+    public boolean isSkipStop(String id) { return skipStops.contains(id); }
+
+    public String setSkipStop(String id, Boolean on) {
+        if (!stations.containsKey(id)) return "车站不存在";
+        boolean next = on != null ? on : !skipStops.contains(id);
+        if (next) skipStops.add(id);
+        else skipStops.remove(id);
+        save();
+        return null;
+    }
+
     public String stationName(String id) {
         Station s = stations.get(id);
         return s == null ? id : s.displayName();
@@ -218,7 +253,7 @@ public class TransitManager {
             double fare = e.fare() >= 0 ? e.fare() : (getLine(e.lineId()) == null
                     ? plugin.getConfig().getDouble("transit.default-hop-fare", 2.0)
                     : getLine(e.lineId()).hopFare());
-            out.add(stationName(other) + " &8(" + fare + ")");
+            out.add(stationName(other) + (isSkipStop(other) ? " &e通过" : "") + " &8(" + fare + ")");
         }
         return out;
     }
@@ -555,6 +590,7 @@ public class TransitManager {
     public String deleteStation(String id) {
         if (!stations.containsKey(id)) return "车站不存在";
         stations.remove(id);
+        skipStops.remove(id);
         edges.removeIf(e -> e.from().equals(id) || e.to().equals(id));
         gates.values().removeIf(g -> g.stationId().equals(id));
         tvms.values().removeIf(t -> t.stationId().equals(id));
@@ -590,22 +626,36 @@ public class TransitManager {
     }
 
     public void registerGate(Block block, String stationId, String mode) {
+        registerGate(block, stationId, mode, Cabin.STD);
+    }
+
+    public void registerGate(Block block, String stationId, String mode, String cabin) {
         String m = mode.toUpperCase(Locale.ROOT);
         if (!m.equals("IN") && !m.equals("OUT") && !m.equals("BOTH")) m = "BOTH";
         final String modeSaved = m;
-        Gate g = new Gate(block.getWorld().getName(), block.getX(), block.getY(), block.getZ(), stationId, modeSaved);
+        final String cabinSaved = resolveCabin(cabin).id();
+        Gate g = new Gate(block.getWorld().getName(), block.getX(), block.getY(), block.getZ(),
+                stationId, modeSaved, cabinSaved);
         gates.put(g.key(), g);
         save();
-        plugin.getServer().getScheduler().runTask(plugin, () -> writeGateSign(block, stationId, modeSaved));
+        plugin.getServer().getScheduler().runTask(plugin, () -> writeGateSign(block, stationId, modeSaved, cabinSaved));
     }
 
     public void writeGateSign(Block block, String stationId, String mode) {
+        writeGateSign(block, stationId, mode, Cabin.STD);
+    }
+
+    public void writeGateSign(Block block, String stationId, String mode, String cabin) {
         if (!(block.getState() instanceof Sign sign)) return;
-        applyGateSign(sign, stationId, mode);
+        applyGateSign(sign, stationId, mode, cabin);
         sign.update(true, false);
     }
 
     public void applyGateSign(Sign sign, String stationId, String mode) {
+        applyGateSign(sign, stationId, mode, Cabin.STD);
+    }
+
+    public void applyGateSign(Sign sign, String stationId, String mode, String cabin) {
         Station s = getStation(stationId);
         String name = fitSign(s == null ? stationId : s.displayName());
         String modeLabel = switch (mode.toUpperCase(Locale.ROOT)) {
@@ -613,10 +663,11 @@ public class TransitManager {
             case "OUT" -> "出站";
             default -> "进出";
         };
+        String modeLine = fitSign(modeLabel + " · " + cabinName(cabin));
         String[] lines = {
                 ColorUtil.colorize("&b检票口"),
                 ColorUtil.colorize("&f" + name),
-                ColorUtil.colorize("&e" + modeLabel),
+                ColorUtil.colorize("&e" + modeLine),
                 ColorUtil.colorize("&7请刷卡")
         };
         for (Side side : Side.values()) {
@@ -633,7 +684,7 @@ public class TransitManager {
             if (!g.stationId().equals(stationId)) continue;
             World w = Bukkit.getWorld(g.world());
             if (w == null) continue;
-            writeGateSign(w.getBlockAt(g.x(), g.y(), g.z()), g.stationId(), g.mode());
+            writeGateSign(w.getBlockAt(g.x(), g.y(), g.z()), g.stationId(), g.mode(), g.cabin());
         }
     }
 
@@ -803,23 +854,28 @@ public class TransitManager {
         boolean wantIn = gate.allowsIn();
         boolean wantOut = gate.allowsOut();
 
+        String cabin = gate.cabin();
         if (gate.mode().equals("BOTH")) {
-            if (cur == null && peekPass(player, here.id()) != null)
-                return tapOut(player, here, method, hand);
-            if (cur == null) return tapIn(player, here, method, hand);
-            return tapOut(player, here, method, hand);
+            if (cur == null && peekPass(player, here.id(), cabin) != null)
+                return tapOut(player, here, method, hand, cabin);
+            if (cur == null) return tapIn(player, here, method, hand, cabin);
+            return tapOut(player, here, method, hand, cabin);
         }
-        if (wantIn && !wantOut) return tapIn(player, here, method, hand);
-        if (wantOut && !wantIn) return tapOut(player, here, method, hand);
+        if (wantIn && !wantOut) return tapIn(player, here, method, hand, cabin);
+        if (wantOut && !wantIn) return tapOut(player, here, method, hand, cabin);
         return TapResult.fail("闸机模式无效，请通知管理员");
     }
 
-    private TapResult tapIn(Player player, Station here, String method, ItemStack hand) {
+    private TapResult tapIn(Player player, Station here, String method, ItemStack hand, String cabin) {
         Journey cur = journeys.get(player.getUniqueId());
         long now = System.currentTimeMillis();
         long grace = plugin.getConfig().getLong("transit.cancel-grace-seconds", 900) * 1000L;
 
         if (cur != null) {
+            if (!sameCabin(cur.cabin(), cabin)) {
+                return TapResult.fail("请走 " + cabinName(cur.cabin()) + " 检票口"
+                        + "\n&7当前行程席别与此闸机不符");
+            }
             boolean same = cur.originId().equals(here.id());
             long age = now - cur.tapInMs();
             if (same && age <= grace) {
@@ -838,32 +894,47 @@ public class TransitManager {
             if (from == null || !from.equals(here.id())) {
                 return TapResult.fail("本票起点并非本站，请前往票面标明的起点进站。");
             }
-            journeys.put(player.getUniqueId(), new Journey(here.id(), now, method, TransitItems.ticketTo(hand)));
+            if (!sameCabin(TransitItems.ticketCabin(hand), cabin)) {
+                return TapResult.fail("本票席别为 " + cabinName(TransitItems.ticketCabin(hand))
+                        + "\n&7请走对应席别检票口进站");
+            }
+            journeys.put(player.getUniqueId(),
+                    new Journey(here.id(), now, method, TransitItems.ticketTo(hand), cabin));
         } else {
-            journeys.put(player.getUniqueId(), new Journey(here.id(), now, method, null));
+            journeys.put(player.getUniqueId(), new Journey(here.id(), now, method, null, cabin));
         }
         RideFx fx = new RideFx(here.id());
         if (here.contains(player.getLocation())) fx.originInsideSince = now;
         rideFx.put(player.getUniqueId(), fx);
         save();
         String destHint = "TICKET".equals(method)
-                ? "&8请于票面终点检票口出站"
-                : "&8请于目的地检票口出站结算 · 换乘通道请勿刷卡";
+                ? "&8请于票面终点的 " + cabinName(cabin) + " 检票口出站"
+                : "&8请于目的地 " + cabinName(cabin) + " 检票口出站结算 · 换乘通道请勿刷卡";
         return TapResult.ok("&b进站成功\n"
-                + "&f" + tapStationLabel(here) + " &8· &7" + lineNamesOf(here) + "\n"
+                + "&f" + tapStationLabel(here) + " &8· &e" + cabinName(cabin) + " &8· &7" + lineNamesOf(here) + "\n"
                 + "&7十五分钟内本站再刷可撤销，不产生费用\n"
                 + destHint);
     }
 
-    private TapResult tapOut(Player player, Station here, String method, ItemStack hand) {
+    private TapResult tapOut(Player player, Station here, String method, ItemStack hand, String cabin) {
         Journey cur = journeys.get(player.getUniqueId());
         if (cur == null) {
-            if (consumePass(player, here.id()) != null) {
+            ExitPass any = peekPass(player, here.id());
+            if (any != null && !sameCabin(any.cabin(), cabin)) {
+                return TapResult.fail("请走 " + cabinName(any.cabin()) + " 检票口出站");
+            }
+            if (consumePass(player, here.id(), cabin) != null) {
                 addRide(player.getUniqueId(), here.id(), here.id(), 0, "adjust-out");
                 save();
-                return TapResult.ok("&b出站成功\n&f" + tapStationLabel(here) + "\n&7补票凭证已核销");
+                return TapResult.ok("&b出站成功\n&f" + tapStationLabel(here)
+                        + " &8· &e" + cabinName(cabin) + "\n&7补票凭证已核销");
             }
             return TapResult.fail("未查询到进站记录\n&7请前往本站补票处或售票机办理补票后再出站");
+        }
+
+        if (!sameCabin(cur.cabin(), cabin)) {
+            return TapResult.fail("请走 " + cabinName(cur.cabin()) + " 检票口出站"
+                    + "\n&7进站席别与此闸机不符");
         }
 
         long now = System.currentTimeMillis();
@@ -882,21 +953,22 @@ public class TransitManager {
                 return TapResult.fail("本票终点为 " + (dest == null ? "?" : dest.displayName())
                         + "\n&7请前往该站出站，或至补票处 / 售票机办理补票");
             }
-            if (!consumeMatchingTicket(player, cur.originId(), here.id())) {
-                return TapResult.fail("请持对应单程票办理出站");
+            if (!consumeMatchingTicket(player, cur.originId(), here.id(), cabin)) {
+                return TapResult.fail("请持对应席别单程票办理出站");
             }
             journeys.remove(player.getUniqueId());
             rideFx.remove(player.getUniqueId());
             addRide(player.getUniqueId(), cur.originId(), here.id(), 0, "ticket");
             save();
-            return TapResult.ok("&b出站成功\n&f" + tapStationLabel(here) + "\n&7单程票已核销");
+            return TapResult.ok("&b出站成功\n&f" + tapStationLabel(here)
+                    + " &8· &e" + cabinName(cabin) + "\n&7单程票已核销");
         }
 
         PathResult path = shortest(cur.originId(), here.id());
         if (!path.reachable()) {
             return TapResult.fail("本站与进站无票价路径\n&7请前往补票处或售票机办理补票后再出站");
         }
-        double fare = path.fare();
+        double fare = applyCabin(path.fare(), cabin);
         String note = "normal";
         if (fare < 0) fare = 0;
 
@@ -911,25 +983,32 @@ public class TransitManager {
         Station origin = stations.get(cur.originId());
         String on = origin == null ? cur.originId() : origin.displayName();
         return TapResult.ok("&b出站成功\n"
-                + "&f" + on + " &8→ &f" + tapStationLabel(here) + "\n"
+                + "&f" + on + " &8→ &f" + tapStationLabel(here) + " &8· &e" + cabinName(cabin) + "\n"
                 + (fare <= 0 ? "&7本次免费" : "&e" + fmt(fare)) + "\n"
                 + "&8欢迎再次乘车");
     }
 
     public String buyTicket(Player player, String fromId, String toId) {
+        return buyTicket(player, fromId, toId, Cabin.STD);
+    }
+
+    public String buyTicket(Player player, String fromId, String toId, String cabinId) {
         Station from = stations.get(fromId);
         Station to = stations.get(toId);
         if (from == null || to == null) return "车站不存在";
         if (fromId.equals(toId)) return "起点终点不能相同";
+        Cabin cabin = resolveCabin(cabinId);
         PathResult path = shortest(fromId, toId);
         if (!path.reachable()) return "两站之间没有线路连接";
         double fare = path.fare();
         if (fare <= 0) fare = plugin.getConfig().getDouble("transit.default-hop-fare", 2.0);
+        fare = applyCabin(fare, cabin.id());
         String err = charge(player, fare);
         if (err != null) return err;
         long exp = System.currentTimeMillis()
                 + plugin.getConfig().getLong("transit.ticket-expire-seconds", 7200) * 1000L;
-        ItemStack ticket = TransitItems.ticket(fromId, toId, from.displayName(), to.displayName(), exp);
+        ItemStack ticket = TransitItems.ticket(fromId, toId, from.displayName(), to.displayName(),
+                exp, cabin.id(), cabin.displayName());
         var left = player.getInventory().addItem(ticket);
         if (!left.isEmpty()) left.values().forEach(i -> player.getWorld().dropItemNaturally(player.getLocation(), i));
         return null;
@@ -941,37 +1020,40 @@ public class TransitManager {
         expireStale(player.getUniqueId(), true);
         long now = System.currentTimeMillis();
         if (peekPass(player, stationId) != null) {
-            return AdjustQuote.none("已有本站出站凭证", "请前往出站检票口刷卡离开");
+            return AdjustQuote.none("已有本站出站凭证", "请前往对应席别出站检票口刷卡离开");
         }
         Journey cur = journeys.get(player.getUniqueId());
         long grace = plugin.getConfig().getLong("transit.cancel-grace-seconds", 900) * 1000L;
         if (cur != null && cur.originId().equals(stationId) && now - cur.tapInMs() <= grace) {
-            return AdjustQuote.none("可撤销行程", "请在本站检票口再刷一次即可免费取消，不必补票");
+            return AdjustQuote.none("可撤销行程", "请在本站同席别检票口再刷一次即可免费取消，不必补票");
         }
         if (cur == null) {
             return new AdjustQuote(true, round2(maxFareOf(stationId)), "ghost",
-                    "未查询到进站记录", "按本站全程票补缴后，可在时限内从本站出站检票口离开");
+                    "未查询到进站记录", "按本站全程票补缴后，可在时限内从本站普通检票口离开");
         }
+        String cabinHint = "，请走 " + cabinName(cur.cabin()) + " 检票口离开";
         if ("TICKET".equals(cur.method())) {
             if (cur.ticketDest() != null && cur.ticketDest().equals(stationId)) {
-                return AdjustQuote.none("单程票终点为本站", "请持票在出站检票口刷卡核销");
+                return AdjustQuote.none("单程票终点为本站", "请持票在 " + cabinName(cur.cabin()) + " 出站检票口刷卡核销");
             }
             PathResult path = shortest(cur.originId(), stationId);
             double fare = path.reachable() ? path.fare() : maxFareOf(cur.originId());
+            fare = applyCabin(Math.max(0, fare), cur.cabin());
             Station dest = cur.ticketDest() == null ? null : stations.get(cur.ticketDest());
             String destName = dest == null ? "?" : dest.displayName();
-            return new AdjustQuote(true, round2(Math.max(0, fare)), "ticket-reroute",
+            return new AdjustQuote(true, fare, "ticket-reroute",
                     "单程票终点不符（票面 " + destName + "）",
-                    "补缴后核销本票，请从本站出站检票口离开");
+                    "补缴后核销本票" + cabinHint);
         }
         PathResult path = shortest(cur.originId(), stationId);
         if (!path.reachable()) {
-            return new AdjustQuote(true, round2(maxFareOf(cur.originId())), "unlinked",
-                    "进站站与本站无票价路径", "按进站站全程票补缴后，请从本站出站检票口离开");
+            return new AdjustQuote(true, applyCabin(maxFareOf(cur.originId()), cur.cabin()), "unlinked",
+                    "进站站与本站无票价路径", "按进站站全程票补缴后" + cabinHint);
         }
-        return new AdjustQuote(true, round2(Math.max(0, path.fare())), "settle",
-                "结算当前行程（" + stationName(cur.originId()) + " → " + here.displayName() + "）",
-                "按最短路缴费后，请从本站出站检票口离开");
+        return new AdjustQuote(true, applyCabin(Math.max(0, path.fare()), cur.cabin()), "settle",
+                "结算当前行程（" + stationName(cur.originId()) + " → " + here.displayName()
+                        + " · " + cabinName(cur.cabin()) + "）",
+                "按最短路缴费后" + cabinHint);
     }
 
     public String applyAdjust(Player player, String stationId) {
@@ -986,12 +1068,12 @@ public class TransitManager {
         String fromId = cur == null ? stationId : cur.originId();
         if ("ticket-reroute".equals(q.kind()) && cur != null) {
             boolean eaten = cur.ticketDest() != null
-                    && consumeMatchingTicket(player, cur.originId(), cur.ticketDest());
+                    && consumeMatchingTicket(player, cur.originId(), cur.ticketDest(), cur.cabin());
             if (!eaten) consumeAnyTicketFrom(player, cur.originId());
         }
         journeys.remove(player.getUniqueId());
         rideFx.remove(player.getUniqueId());
-        grantExitPass(player, stationId);
+        grantExitPass(player, stationId, cur == null ? Cabin.STD : cur.cabin());
         addRide(player.getUniqueId(), fromId, stationId, q.amount(), "adjust-" + q.kind());
         save();
         if ("ghost".equals(q.kind())) {
@@ -1009,9 +1091,10 @@ public class TransitManager {
         return Math.max(60, plugin.getConfig().getInt("transit.adjust-pass-seconds", 600));
     }
 
-    private void grantExitPass(Player player, String stationId) {
+    private void grantExitPass(Player player, String stationId, String cabin) {
         exitPasses.put(player.getUniqueId(),
-                new ExitPass(stationId, System.currentTimeMillis() + adjustPassSeconds() * 1000L));
+                new ExitPass(stationId, System.currentTimeMillis() + adjustPassSeconds() * 1000L,
+                        resolveCabin(cabin).id()));
     }
 
     private ExitPass peekPass(Player player, String stationId) {
@@ -1025,8 +1108,14 @@ public class TransitManager {
         return p;
     }
 
-    private ExitPass consumePass(Player player, String stationId) {
+    private ExitPass peekPass(Player player, String stationId, String cabin) {
         ExitPass p = peekPass(player, stationId);
+        if (p == null || !sameCabin(p.cabin(), cabin)) return null;
+        return p;
+    }
+
+    private ExitPass consumePass(Player player, String stationId, String cabin) {
+        ExitPass p = peekPass(player, stationId, cabin);
         if (p == null) return null;
         exitPasses.remove(player.getUniqueId());
         save();
@@ -1120,7 +1209,8 @@ public class TransitManager {
         if (j == null) return null;
         Station s = stations.get(j.originId());
         String name = s == null ? j.originId() : s.displayName();
-        return "在乘: " + name + " → ?";
+        String cabin = cabinName(j.cabin());
+        return "在乘: " + name + " → ? · " + cabin;
     }
 
     // ── internals ─────────────────────────────────────────────────────────────
@@ -1184,14 +1274,14 @@ public class TransitManager {
         return n == null ? uuid.toString().substring(0, 8) : n;
     }
 
-    private boolean consumeMatchingTicket(Player player, String from, String to) {
+    private boolean consumeMatchingTicket(Player player, String from, String to, String cabin) {
         ItemStack hand = player.getInventory().getItemInMainHand();
-        if (isMatchingTicket(hand, from, to)) {
+        if (isMatchingTicket(hand, from, to, cabin)) {
             consumeOne(player, hand);
             return true;
         }
         ItemStack off = player.getInventory().getItemInOffHand();
-        if (isMatchingTicket(off, from, to)) {
+        if (isMatchingTicket(off, from, to, cabin)) {
             if (off.getAmount() <= 1) player.getInventory().setItemInOffHand(null);
             else off.setAmount(off.getAmount() - 1);
             return true;
@@ -1199,7 +1289,7 @@ public class TransitManager {
         ItemStack[] contents = player.getInventory().getContents();
         for (int i = 0; i < contents.length; i++) {
             ItemStack it = contents[i];
-            if (!isMatchingTicket(it, from, to)) continue;
+            if (!isMatchingTicket(it, from, to, cabin)) continue;
             if (it.getAmount() <= 1) player.getInventory().setItem(i, null);
             else it.setAmount(it.getAmount() - 1);
             return true;
@@ -1220,9 +1310,10 @@ public class TransitManager {
         return false;
     }
 
-    private static boolean isMatchingTicket(ItemStack item, String from, String to) {
+    private boolean isMatchingTicket(ItemStack item, String from, String to, String cabin) {
         if (!TransitItems.isTicket(item)) return false;
-        return from.equals(TransitItems.ticketFrom(item)) && to.equals(TransitItems.ticketTo(item));
+        return from.equals(TransitItems.ticketFrom(item)) && to.equals(TransitItems.ticketTo(item))
+                && sameCabin(TransitItems.ticketCabin(item), cabin);
     }
 
     private void consumeOne(Player player, ItemStack hand) {
@@ -1330,6 +1421,94 @@ public class TransitManager {
         return null;
     }
 
+    public String createCabin(String id, String name, double fareMul) {
+        id = sanitize(id);
+        if (id.isEmpty()) return "席别 ID 无效";
+        if (cabins.containsKey(id)) return "席别已存在";
+        if (name == null || name.isBlank()) name = id;
+        if (name.length() > 8) name = name.substring(0, 8);
+        if (fareMul < 0) fareMul = 0;
+        cabins.put(id, new Cabin(id, name, fareMul));
+        save();
+        return null;
+    }
+
+    public String renameCabin(String id, String name) {
+        Cabin c = cabins.get(sanitize(id));
+        if (c == null) return "席别不存在";
+        if (name == null || name.isBlank()) return "名称不能为空";
+        if (name.length() > 8) name = name.substring(0, 8);
+        cabins.put(c.id(), new Cabin(c.id(), name, c.fareMul()));
+        refreshCabinSigns(c.id());
+        save();
+        return null;
+    }
+
+    public String setCabinMul(String id, double fareMul) {
+        Cabin c = cabins.get(sanitize(id));
+        if (c == null) return "席别不存在";
+        if (fareMul < 0) return "倍率不能为负";
+        cabins.put(c.id(), new Cabin(c.id(), c.displayName(), fareMul));
+        save();
+        return null;
+    }
+
+    public String deleteCabin(String id) {
+        id = sanitize(id);
+        if (Cabin.STD.equals(id)) return "不能删除默认席别「普通」";
+        Cabin c = cabins.get(id);
+        if (c == null) return "席别不存在";
+        for (Gate g : gates.values()) {
+            if (sameCabin(g.cabin(), id)) return "仍有闸机使用此席别，先改闸或拆掉";
+        }
+        for (Journey j : journeys.values()) {
+            if (sameCabin(j.cabin(), id)) return "仍有在乘行程使用此席别";
+        }
+        cabins.remove(id);
+        save();
+        return null;
+    }
+
+    public String cabinName(String id) {
+        return resolveCabin(id).displayName();
+    }
+
+    public double quoteTicketFare(String from, String to, String cabin) {
+        PathResult path = shortest(from, to);
+        if (!path.reachable()) return -1;
+        double fare = path.fare();
+        if (fare <= 0) fare = plugin.getConfig().getDouble("transit.default-hop-fare", 2.0);
+        return applyCabin(fare, cabin);
+    }
+
+    public Cabin resolveCabin(String id) {
+        ensureDefaultCabins();
+        if (id == null || id.isBlank()) return cabins.get(Cabin.STD);
+        Cabin c = cabins.get(sanitize(id));
+        return c != null ? c : cabins.get(Cabin.STD);
+    }
+
+    private boolean sameCabin(String a, String b) {
+        return resolveCabin(a).id().equals(resolveCabin(b).id());
+    }
+
+    private double applyCabin(double base, String cabin) {
+        return round2(Math.max(0, base) * resolveCabin(cabin).fareMul());
+    }
+
+    private void ensureDefaultCabins() {
+        if (!cabins.containsKey(Cabin.STD)) cabins.put(Cabin.STD, new Cabin(Cabin.STD, "普通", 1.0));
+    }
+
+    private void refreshCabinSigns(String cabinId) {
+        for (Gate g : gates.values()) {
+            if (!sameCabin(g.cabin(), cabinId)) continue;
+            World w = Bukkit.getWorld(g.world());
+            if (w == null) continue;
+            writeGateSign(w.getBlockAt(g.x(), g.y(), g.z()), g.stationId(), g.mode(), g.cabin());
+        }
+    }
+
     public void tickArrive(Player player, Location loc) {
         Journey j = getJourney(player.getUniqueId());
         if (j == null) {
@@ -1391,14 +1570,22 @@ public class TransitManager {
     }
 
     public void announceArrive(Player player, Station s) {
-        String tmpl = plugin.getConfig().getString("transit.announce.message",
-                "&b{station} &f到了，请注意下车");
         String zh = s.displayName() == null || s.displayName().isBlank() ? s.id() : s.displayName().trim();
         if (!isAsciiName(zh) && !zh.endsWith("站")) zh = zh + "站";
         String en = s.nameEn() == null ? "" : s.nameEn().trim();
         String label = zh;
         if (!en.isBlank() && !en.equalsIgnoreCase(s.displayName()) && !en.equals(s.id()))
             label = zh + " / " + en;
+        if (isSkipStop(s.id())) {
+            String text = "&e" + label + " &f通过，不停车";
+            if (plugin.getActionBarManager() != null)
+                plugin.getActionBarManager().sendTemp(player, text, 80);
+            if (plugin.getConfig().getBoolean("transit.announce.chat", true))
+                player.sendMessage(ColorUtil.colorize("&8[交通] " + text));
+            return;
+        }
+        String tmpl = plugin.getConfig().getString("transit.announce.message",
+                "&b{station} &f到了，请注意下车");
         String text = tmpl.replace("{station}", label);
         if (plugin.getActionBarManager() != null)
             plugin.getActionBarManager().sendTemp(player, text, 120);
@@ -1554,8 +1741,9 @@ public class TransitManager {
         Journey j = getJourney(player.getUniqueId());
         if (j == null) return;
         player.sendMessage(ColorUtil.colorize(
-                "&8[交通] &e您有未完成行程（进站 " + stationName(j.originId()) + "）。\n"
-                        + "&8[交通] &7请于目的地出站闸机刷卡结算；如因车辆异常或连接中断未能完成行程，请至交通处办理行程异常申报。"));
+                "&8[交通] &e您有未完成行程（进站 " + stationName(j.originId())
+                        + " · " + cabinName(j.cabin()) + "）。\n"
+                        + "&8[交通] &7请于目的地对应席别出站闸机刷卡结算；如因车辆异常或连接中断未能完成行程，请至交通处办理行程异常申报。"));
     }
 
     public void cleanupPlayer(UUID uuid) {
@@ -1581,7 +1769,8 @@ public class TransitManager {
         lines.clear(); stations.clear(); edges.clear();
         gates.clear(); tvms.clear(); adjusts.clear(); accounts.clear();
         journeys.clear(); history.clear(); rideStats.clear();
-        types.clear(); claims.clear();
+        types.clear(); cabins.clear(); claims.clear();
+        skipStops.clear();
         rideFx.clear();
         exitPasses.clear();
         if (!dataFile.exists()) return;
@@ -1607,6 +1796,15 @@ public class TransitManager {
                         cfg.getString("types." + id + ".color", "&b")));
             }
         }
+        ConfigurationSection cbs = cfg.getConfigurationSection("cabins");
+        if (cbs != null) {
+            for (String id : cbs.getKeys(false)) {
+                cabins.put(id, new Cabin(id,
+                        cfg.getString("cabins." + id + ".name", id),
+                        cfg.getDouble("cabins." + id + ".mul", 1.0)));
+            }
+        }
+        ensureDefaultCabins();
         ConfigurationSection ss = cfg.getConfigurationSection("stations");
         if (ss != null) {
             for (String id : ss.getKeys(false)) {
@@ -1625,6 +1823,7 @@ public class TransitManager {
                         min.get(0), min.get(1), min.get(2),
                         max.get(0), max.get(1), max.get(2),
                         lids, hw, hx, hy, hz));
+                if (cfg.getBoolean(p + "skip", false)) skipStops.add(id);
             }
         }
         List<Map<?, ?>> el = cfg.getMapList("edges");
@@ -1644,7 +1843,8 @@ public class TransitManager {
                 try {
                     Gate g = new Gate(p[0], Integer.parseInt(p[1]), Integer.parseInt(p[2]), Integer.parseInt(p[3]),
                             cfg.getString("gates." + k + ".station"),
-                            cfg.getString("gates." + k + ".mode", "BOTH"));
+                            cfg.getString("gates." + k + ".mode", "BOTH"),
+                            cfg.getString("gates." + k + ".cabin", Cabin.STD));
                     gates.put(g.key(), g);
                 } catch (NumberFormatException ignored) {
                 }
@@ -1698,7 +1898,8 @@ public class TransitManager {
                             cfg.getString("journeys." + k + ".origin"),
                             cfg.getLong("journeys." + k + ".at"),
                             cfg.getString("journeys." + k + ".method", "CARD"),
-                            cfg.getString("journeys." + k + ".dest")));
+                            cfg.getString("journeys." + k + ".dest"),
+                            cfg.getString("journeys." + k + ".cabin", Cabin.STD)));
                 } catch (IllegalArgumentException ignored) {
                 }
             }
@@ -1712,7 +1913,8 @@ public class TransitManager {
                     long until = cfg.getLong("exit-passes." + k + ".until", 0);
                     String st = cfg.getString("exit-passes." + k + ".station");
                     if (st == null || until < now) continue;
-                    exitPasses.put(u, new ExitPass(st, until));
+                    exitPasses.put(u, new ExitPass(st, until,
+                            cfg.getString("exit-passes." + k + ".cabin", Cabin.STD)));
                 } catch (IllegalArgumentException ignored) {
                 }
             }
@@ -1793,6 +1995,10 @@ public class TransitManager {
             cfg.set("types." + t.id() + ".name", t.displayName());
             cfg.set("types." + t.id() + ".color", t.color());
         }
+        for (Cabin c : cabins.values()) {
+            cfg.set("cabins." + c.id() + ".name", c.displayName());
+            cfg.set("cabins." + c.id() + ".mul", c.fareMul());
+        }
         for (Station s : stations.values()) {
             String p = "stations." + s.id() + ".";
             cfg.set(p + "name", s.displayName());
@@ -1801,6 +2007,7 @@ public class TransitManager {
             cfg.set(p + "min", List.of(s.minX(), s.minY(), s.minZ()));
             cfg.set(p + "max", List.of(s.maxX(), s.maxY(), s.maxZ()));
             cfg.set(p + "lines", s.lineIds());
+            if (skipStops.contains(s.id())) cfg.set(p + "skip", true);
             if (s.hintWorld() != null) {
                 cfg.set(p + "create.world", s.hintWorld());
                 cfg.set(p + "create.x", s.hintX());
@@ -1822,6 +2029,7 @@ public class TransitManager {
         for (Gate g : gates.values()) {
             cfg.set("gates." + g.key() + ".station", g.stationId());
             cfg.set("gates." + g.key() + ".mode", g.mode());
+            cfg.set("gates." + g.key() + ".cabin", g.cabin());
         }
         for (Tvm t : tvms.values()) {
             cfg.set("tvms." + t.key() + ".station", t.stationId());
@@ -1840,11 +2048,13 @@ public class TransitManager {
             cfg.set("journeys." + e.getKey() + ".method", e.getValue().method());
             if (e.getValue().ticketDest() != null)
                 cfg.set("journeys." + e.getKey() + ".dest", e.getValue().ticketDest());
+            cfg.set("journeys." + e.getKey() + ".cabin", e.getValue().cabin());
         }
         pruneExpiredPasses();
         for (var e : exitPasses.entrySet()) {
             cfg.set("exit-passes." + e.getKey() + ".station", e.getValue().stationId());
             cfg.set("exit-passes." + e.getKey() + ".until", e.getValue().untilMs());
+            cfg.set("exit-passes." + e.getKey() + ".cabin", e.getValue().cabin());
         }
         for (var e : history.entrySet()) {
             List<Map<String, Object>> list = new ArrayList<>();

@@ -75,9 +75,9 @@ public class TransitAnnounceGUI {
                 List.of(" &7" + depart, "", "&a▸ 播放")));
         inv.setItem(SLOT_STACK, ECOSTerminalGUI.item(
                 stack ? Material.LIME_DYE : Material.GRAY_DYE,
-                stack ? "&a重复音并成一拍" : "&7重复音分开播",
-                List.of(" &7关门那种 等登等登等登",
-                        stack ? " &a连续同音同一拍（加厚）" : " &7一拍一个，听得出重复",
+                stack ? "&a和声加厚" : "&7单音旋律",
+                List.of(" &7音符盒「音符」",
+                        stack ? " &a每拍叠低八度" : " &7只有单音",
                         "",
                         "&a▸ 点击切换")));
 

@@ -30,14 +30,18 @@ public class PlayerListener implements Listener {
 
     @EventHandler
     public void onPlayerLogin(PlayerLoginEvent event) {
+        if (plugin.getLoginLogManager() != null) plugin.getLoginLogManager().onLogin(event);
+        if (event.getResult() != PlayerLoginEvent.Result.ALLOWED) return;
         Player player = event.getPlayer();
         String ip = event.getAddress().getHostAddress();
-        // Notify online admins of the login IP
         Bukkit.getScheduler().runTaskLater(plugin, () -> {
             for (Player admin : Bukkit.getOnlinePlayers()) {
                 if (admin.hasPermission("es2uni.admin"))
                     admin.sendMessage(ColorUtil.colorize(
                             "&8[ECOS] &7" + player.getName() + " 登录  &8IP: &f" + ip));
+            }
+            if (plugin.getChatFeed() != null) {
+                plugin.getChatFeed().add("系统", player.getName() + " 登录  IP " + ip, "admin");
             }
         }, 1L);
     }
@@ -45,6 +49,7 @@ public class PlayerListener implements Listener {
     @EventHandler
     public void onPlayerJoin(PlayerJoinEvent event) {
         Player player = event.getPlayer();
+        if (plugin.getLoginLogManager() != null) plugin.getLoginLogManager().onJoin(player);
         plugin.getPlaytimeManager().onJoin(player);
         plugin.getNewbieGuideManager().onJoin(player);
         // 立场装置：重进服恢复会话

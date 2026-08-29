@@ -208,6 +208,7 @@ public class WeaponManager {
             case ECHO_BARRAGE     -> new EchoBarrageSkill(plugin, player, this);
             case GLEAM_ARC        -> new GleamArcSkill(plugin, player, this);
             case STILL_VEIL       -> new StillVeilSkill(plugin, player, this);
+            case PALE_LINE        -> new PaleLineSkill(plugin, player, this);
         };
 
         if (skill instanceof GleamArcSkill g && !g.isLocked()) return;
@@ -299,7 +300,7 @@ public class WeaponManager {
             case LUMINAL_STRIKE  -> 0;   // 即时触发
             case ECHO_SCATTER    -> 0;
             case ECHO_BARRAGE    -> 0;
-            case GLEAM_ARC, STILL_VEIL -> 0;
+            case GLEAM_ARC, STILL_VEIL, PALE_LINE -> 0;
             default              -> 20;
         };
         return plugin.getConfig().getInt(
@@ -325,6 +326,7 @@ public class WeaponManager {
             case ECHO_BARRAGE     -> 0;
             case GLEAM_ARC        -> 3;
             case STILL_VEIL       -> 45;
+            case PALE_LINE        -> 1;
         };
     }
 

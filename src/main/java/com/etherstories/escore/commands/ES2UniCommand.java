@@ -31,6 +31,10 @@ import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabCompleter;
 import org.bukkit.entity.Player;
+import net.md_5.bungee.api.chat.ClickEvent;
+import net.md_5.bungee.api.chat.HoverEvent;
+import net.md_5.bungee.api.chat.TextComponent;
+import net.md_5.bungee.api.chat.hover.content.Text;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.BookMeta;
 import org.bukkit.scheduler.BukkitRunnable;
@@ -58,7 +62,11 @@ public class ES2UniCommand implements CommandExecutor, TabCompleter {
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
-        if (args.length == 0) { sendHelp(sender); return true; }
+        if (args.length == 0) {
+            if (sender instanceof Player p) plugin.getEcosTerminalGUI().open(p);
+            else sendHelp(sender);
+            return true;
+        }
 
         switch (args[0].toLowerCase()) {
 
@@ -142,7 +150,12 @@ public class ES2UniCommand implements CommandExecutor, TabCompleter {
                 handleEvent(p, args);
             }
 
-            case "menu" -> {
+            case "web" -> {
+                if (!(sender instanceof Player p)) { sender.sendMessage("仅玩家可执行"); return true; }
+                handleWeb(p, args);
+            }
+
+            case "menu", "gui" -> {
                 if (!(sender instanceof Player p)) { sender.sendMessage("仅玩家可执行"); return true; }
                 plugin.getEcosTerminalGUI().open(p);
             }
@@ -192,6 +205,8 @@ public class ES2UniCommand implements CommandExecutor, TabCompleter {
                 if (!sender.hasPermission("es2uni.admin")) { noPerms(sender); return true; }
                 handleSkill(sender, args);
             }
+
+            case "skillshop", "skill-shop" -> handleSkillShop(sender, args);
 
             case "admin" -> {
                 if (!sender.hasPermission("es2uni.admin")) { noPerms(sender); return true; }
@@ -1128,11 +1143,10 @@ public class ES2UniCommand implements CommandExecutor, TabCompleter {
             case "pos1" -> {
                 em.setPos1(p);
                 var loc = p.getLocation();
-                p.sendMessage(ColorUtil.colorize("&8[房产] &7点1: &f"
-                        + loc.getBlockX() + ", " + loc.getBlockY() + ", " + loc.getBlockZ()));
-                displayPos1.put(p.getUniqueId(), new int[]{loc.getBlockX(), loc.getBlockY(), loc.getBlockZ()});
-                displayPos2.remove(p.getUniqueId());
-                startSelectionParticles(p);
+                p.sendMessage(ColorUtil.colorize("&8[房产] &7点1（站立）: &f"
+                        + loc.getBlockX() + ", " + loc.getBlockY() + ", " + loc.getBlockZ()
+                        + "  &8建议用选区棒点方块"));
+                refreshEstatePreview(p);
             }
             case "pos2" -> {
                 String err = em.setPos2(p);
@@ -1141,10 +1155,9 @@ public class ES2UniCommand implements CommandExecutor, TabCompleter {
                     return;
                 }
                 var loc = p.getLocation();
-                p.sendMessage(ColorUtil.colorize("&8[房产] &7点2: &f"
+                p.sendMessage(ColorUtil.colorize("&8[房产] &7点2（站立）: &f"
                         + loc.getBlockX() + ", " + loc.getBlockY() + ", " + loc.getBlockZ()));
-                displayPos2.put(p.getUniqueId(), new int[]{loc.getBlockX(), loc.getBlockY(), loc.getBlockZ()});
-                startSelectionParticles(p);
+                refreshEstatePreview(p);
                 var sel = em.selectionOf(p.getUniqueId());
                 if (sel != null) {
                     EstateUnit probe = sel.asProbe();
@@ -1157,6 +1170,11 @@ public class ES2UniCommand implements CommandExecutor, TabCompleter {
                                 + "  &8管理预制免费"));
                     }
                 }
+            }
+            case "wand", "stick", "棒" -> {
+                com.etherstories.escore.items.EstateWand.give(p);
+                p.closeInventory();
+                p.sendMessage(ColorUtil.colorize("&8[房产] &a选区棒: &f左键一角  右键对角（点到方块，含屋顶）"));
             }
             case "register" -> {
                 EstateManager.ParsedRegister spec = EstateManager.parseRegister(
@@ -1310,7 +1328,7 @@ public class ES2UniCommand implements CommandExecutor, TabCompleter {
                 plugin.getEstateMineGUI().openAdmin(p);
             }
             default -> p.sendMessage(ColorUtil.colorize(
-                    "&c用法: /ecos estate <sale|gui|tools|pos1|pos2|register|door|sign|here|help>"));
+                    "&c用法: /ecos estate <wand|tools|register|sale|gui|door|sign|here|help>"));
         }
     }
 
@@ -1388,7 +1406,9 @@ public class ES2UniCommand implements CommandExecutor, TabCompleter {
                 EstateUnit u = resolveEstate(p, args, 2);
                 if (u == null) u = hm.at(p.getLocation());
                 String err = hm.checkin(p, hm.roomOf(u));
-                p.sendMessage(ColorUtil.colorize(err == null ? "&8[酒店] &a已入住，房卡已发放" : "&8[酒店] &c" + err));
+                p.sendMessage(ColorUtil.colorize(err == null
+                        ? "&8[酒店] &a已入住，房卡已发放"
+                        : "&8[酒店] &c" + err));
             }
             case "checkout" -> {
                 HotelManager.Room stay = hm.stayOf(p.getUniqueId());
@@ -1423,6 +1443,15 @@ public class ES2UniCommand implements CommandExecutor, TabCompleter {
                 String err = hm.transfer(p, resolveHotel(p, args.length >= 4 ? args[3] : null), resolvePlayed(args[2]));
                 p.sendMessage(ColorUtil.colorize(err == null ? "&8[酒店] &a已转让" : "&8[酒店] &c" + err));
             }
+            case "delete", "remove", "del" -> {
+                String name = args.length >= 3 ? String.join(" ", Arrays.copyOfRange(args, 2, args.length)) : null;
+                HotelManager.Hotel h = resolveHotel(p, name);
+                if (h == null) return;
+                String err = hm.delete(p, h);
+                p.sendMessage(ColorUtil.colorize(err == null
+                        ? "&8[酒店] &c已删除 &f" + h.name + " &7房间已解绑"
+                        : "&8[酒店] &c" + err));
+            }
             case "here", "info" -> hm.sendHere(p, hm.at(p.getLocation()));
             case "list" -> {
                 var list = hm.ownedOrManaged(p.getUniqueId());
@@ -1439,8 +1468,8 @@ public class ES2UniCommand implements CommandExecutor, TabCompleter {
                     "&8[酒店] &f/ecos hotel create <名>\n"
                             + " &7bind / unbind / type / price / lock / unlock\n"
                             + " &7checkin / checkout / card / manager add|remove\n"
-                            + " &7transfer / here / list / gui"));
-            default -> p.sendMessage(ColorUtil.colorize("&c用法: /ecos hotel <gui|create|bind|checkin|help>"));
+                            + " &7transfer / delete / here / list / gui"));
+            default -> p.sendMessage(ColorUtil.colorize("&c用法: /ecos hotel <gui|create|bind|checkin|delete|help>"));
         }
     }
 
@@ -1583,13 +1612,14 @@ public class ES2UniCommand implements CommandExecutor, TabCompleter {
                 "other 其他");
         meta.addPage(
                 "§0§l玩家登记\n\n" +
-                "§81. §0房间一角\n" +
-                "§8/ecos estate pos1\n\n" +
-                "§82. §0对角（含高度）\n" +
-                "§8/ecos estate pos2\n\n" +
+                "§81. §0领选区棒（木斧）\n" +
+                "§8终端 → 登记 → 选区棒\n\n" +
+                "§82. §0左键点房间一角\n" +
+                "§0右键点对角（含屋顶）\n" +
+                "§8会出粒子框\n\n" +
                 "§83. §0登记（住宅收注册费）\n" +
-                "§8/ecos estate register\n" +
-                "§8<楼名可空格> <层> <号> <用途>\n" +
+                "§8打开登记页写：\n" +
+                "§8楼名 层 号 用途\n" +
                 "§8商铺 shop 免费；住宅收费\n" +
                 "§8管理预制 /ecos estate set 免费\n\n" +
                 "§84. §0站门口\n" +
@@ -1769,6 +1799,17 @@ public class ES2UniCommand implements CommandExecutor, TabCompleter {
         if (old != null && !old.isCancelled()) old.cancel();
         displayPos1.remove(uuid);
         displayPos2.remove(uuid);
+    }
+
+    public void refreshEstatePreview(Player p) {
+        UUID uuid = p.getUniqueId();
+        int[] a = plugin.getEstateManager().pos1Of(uuid);
+        int[] b = plugin.getEstateManager().pos2Of(uuid);
+        if (a != null) displayPos1.put(uuid, a.clone());
+        else displayPos1.remove(uuid);
+        if (b != null) displayPos2.put(uuid, b.clone());
+        else displayPos2.remove(uuid);
+        startSelectionParticles(p);
     }
 
     /**
@@ -2048,6 +2089,91 @@ public class ES2UniCommand implements CommandExecutor, TabCompleter {
         }
     }
 
+    private void handleSkillShop(CommandSender sender, String[] args) {
+        if (args.length < 2 || args[1].equalsIgnoreCase("open") || args[1].equalsIgnoreCase("gui")) {
+            if (!(sender instanceof Player p)) {
+                sender.sendMessage("仅玩家可打开商店");
+                return;
+            }
+            plugin.getSkillShopGUI().open(p);
+            return;
+        }
+        if (args[1].equalsIgnoreCase("admin")) {
+            if (!sender.hasPermission("es2uni.admin")) { noPerms(sender); return; }
+            if (!(sender instanceof Player p)) { sender.sendMessage("仅玩家可执行"); return; }
+            plugin.getSkillShopGUI().openAdmin(p);
+            return;
+        }
+        if (!sender.hasPermission("es2uni.admin")) { noPerms(sender); return; }
+        switch (args[1].toLowerCase(Locale.ROOT)) {
+            case "on", "enable" -> {
+                if (args.length < 3) {
+                    sender.sendMessage(ColorUtil.colorize("&c用法: /ecos skillshop on <技能> [价格]"));
+                    return;
+                }
+                SkillType skill = SkillType.fromKey(args[2]);
+                if (skill == null) {
+                    sender.sendMessage(ColorUtil.colorize("&c未知技能: " + args[2]));
+                    return;
+                }
+                double price = args.length >= 4
+                        ? parsePrice(args[3], plugin.getSkillShopManager().price(skill))
+                        : plugin.getSkillShopManager().price(skill);
+                if (price < 0) {
+                    sender.sendMessage(ColorUtil.colorize("&c价格必须是数字"));
+                    return;
+                }
+                plugin.getSkillShopManager().set(skill, true, price);
+                sender.sendMessage(ColorUtil.colorize("&8[技能商店] &a已上架 &f" + skill.displayName()
+                        + " &7" + (plugin.getVaultHook().isEnabled()
+                        ? plugin.getVaultHook().format(price) : String.format("%.0f", price))));
+            }
+            case "off", "disable" -> {
+                if (args.length < 3) {
+                    sender.sendMessage(ColorUtil.colorize("&c用法: /ecos skillshop off <技能>"));
+                    return;
+                }
+                SkillType skill = SkillType.fromKey(args[2]);
+                if (skill == null) {
+                    sender.sendMessage(ColorUtil.colorize("&c未知技能: " + args[2]));
+                    return;
+                }
+                plugin.getSkillShopManager().setEnabled(skill, false);
+                sender.sendMessage(ColorUtil.colorize("&8[技能商店] &8已下架 &f" + skill.displayName()));
+            }
+            case "price" -> {
+                if (args.length < 4) {
+                    sender.sendMessage(ColorUtil.colorize("&c用法: /ecos skillshop price <技能> <价格>"));
+                    return;
+                }
+                SkillType skill = SkillType.fromKey(args[2]);
+                if (skill == null) {
+                    sender.sendMessage(ColorUtil.colorize("&c未知技能: " + args[2]));
+                    return;
+                }
+                double price = parsePrice(args[3], -1);
+                if (price < 0) {
+                    sender.sendMessage(ColorUtil.colorize("&c价格必须是数字"));
+                    return;
+                }
+                plugin.getSkillShopManager().setPrice(skill, price);
+                sender.sendMessage(ColorUtil.colorize("&8[技能商店] &7" + skill.displayName()
+                        + " &7定价 &f" + (plugin.getVaultHook().isEnabled()
+                        ? plugin.getVaultHook().format(price) : String.format("%.0f", price))));
+            }
+            default -> sender.sendMessage(ColorUtil.colorize(
+                    "&c用法: /ecos skillshop [admin|on|off|price]"));
+        }
+    }
+
+    private static double parsePrice(String raw, double fallback) {
+        try {
+            return Double.parseDouble(raw);
+        } catch (NumberFormatException e) {
+            return fallback;
+        }
+    }
+
     private void handleSkill(CommandSender sender, String[] args) {
         if (args.length < 2) {
             sender.sendMessage(ColorUtil.colorize("&c用法: /ecos skill <grant|revoke|list> [玩家] [gleam_arc]"));
@@ -2233,7 +2359,12 @@ public class ES2UniCommand implements CommandExecutor, TabCompleter {
             case "list" -> {
                 p.sendMessage(ColorUtil.colorize("&8[交通] &f线路 " + tm.allLines().size()
                         + " &8· 车站 " + tm.allStations().size()
-                        + " &8· 连接 " + tm.allEdges().size()));
+                        + " &8· 连接 " + tm.allEdges().size()
+                        + " &8· 席别 " + tm.allCabins().size()));
+                for (var c : tm.allCabins()) {
+                    p.sendMessage(ColorUtil.colorize(" &f席别 &e" + c.id() + " &8" + c.displayName()
+                            + " &7×" + c.fareMul()));
+                }
                 for (var l : tm.allLines()) {
                     p.sendMessage(ColorUtil.colorize(" &f线路 &e" + l.id() + " &8" + l.displayName()
                             + " &7" + l.type() + " hop=" + l.hopFare() + " max=" + l.maxFare()));
@@ -2246,6 +2377,7 @@ public class ES2UniCommand implements CommandExecutor, TabCompleter {
                 for (var s : tm.allStations()) {
                     var nb = tm.neighborLabels(s.id(), null);
                     p.sendMessage(ColorUtil.colorize(" &f站 &e" + s.id() + " &8" + s.displayName()
+                            + (tm.isSkipStop(s.id()) ? " &e通过" : "")
                             + (nb.isEmpty() ? " &8无连接" : " &7→ &f" + String.join("&7, &f", nb))));
                 }
             }
@@ -2262,17 +2394,23 @@ public class ES2UniCommand implements CommandExecutor, TabCompleter {
                             + " &7/ecos transit type create <id> [颜色] [显示名]\n"
                             + " &7/ecos transit type name <id> <显示名>\n"
                             + " &7/ecos transit type delete <id>\n"
+                            + " &7/ecos transit cabin create <id> <显示名> [倍率]\n"
+                            + " &7/ecos transit cabin name <id> <显示名>\n"
+                            + " &7/ecos transit cabin fare <id> <倍率>\n"
+                            + " &7/ecos transit cabin delete <id>\n"
+                            + " &7/ecos transit cabin list\n"
                             + " &7/ecos transit station create <id> [半径]\n"
                             + " &7/ecos transit station name <id> <中文名>\n"
                             + " &7/ecos transit station nameen <id> <English>\n"
                             + " &7/ecos transit station move <id> [半径]  &8脚下\n"
+                            + " &7/ecos transit station skip <站> [on|off]  &8通过不停车\n"
                             + " &7/ecos transit station line|unline <站> <线路>\n"
                             + " &7/ecos transit edge add <from> <to> <line> [fare]\n"
                             + " &7/ecos transit edge remove <from> <to> <line>\n"
-                            + " &7/ecos transit give gate <站> <in|out|both>\n"
+                            + " &7/ecos transit give gate <站> <in|out|both> [席别]\n"
                             + " &7/ecos transit give tvm <站>\n"
                             + " &7/ecos transit give adjust <站>\n"
-                            + " &7/ecos transit gate set <站> <in|out|both>  &8看向方块\n"
+                            + " &7/ecos transit gate set <站> <in|out|both> [席别]  &8看向方块\n"
                             + " &7/ecos transit tvm set <站>\n"
                             + " &7/ecos transit adjust set <站>\n" : "")));
             case "line" -> {
@@ -2337,9 +2475,57 @@ public class ES2UniCommand implements CommandExecutor, TabCompleter {
                     default -> p.sendMessage(ColorUtil.colorize("&7create / name / delete"));
                 }
             }
+            case "cabin", "class" -> {
+                if (!admin) { noPerms(p); return; }
+                if (args.length < 3) { p.sendMessage(ColorUtil.colorize("&7/ecos transit cabin create|name|fare|delete|list")); return; }
+                switch (args[2].toLowerCase(Locale.ROOT)) {
+                    case "create", "add" -> {
+                        if (args.length < 5) { p.sendMessage(ColorUtil.colorize("&7/ecos transit cabin create <id> <显示名> [倍率]")); return; }
+                        double mul = 1.0;
+                        int nameEnd = args.length;
+                        if (args.length >= 6) {
+                            try {
+                                mul = Double.parseDouble(args[args.length - 1]);
+                                nameEnd = args.length - 1;
+                            } catch (NumberFormatException ignored) {}
+                        }
+                        String name = String.join(" ", Arrays.copyOfRange(args, 4, nameEnd));
+                        String err = tm.createCabin(args[3], name, mul);
+                        p.sendMessage(ColorUtil.colorize(err == null
+                                ? "&8[交通] &a席别已创建 · 给闸机时写这个 id"
+                                : "&8[交通] &c" + err));
+                    }
+                    case "name" -> {
+                        if (args.length < 5) { p.sendMessage(ColorUtil.colorize("&7/ecos transit cabin name <id> <显示名>")); return; }
+                        String name = String.join(" ", Arrays.copyOfRange(args, 4, args.length));
+                        String err = tm.renameCabin(args[3], name);
+                        p.sendMessage(ColorUtil.colorize(err == null ? "&8[交通] &a已改名" : "&8[交通] &c" + err));
+                    }
+                    case "fare", "mul" -> {
+                        if (args.length < 5) { p.sendMessage(ColorUtil.colorize("&7/ecos transit cabin fare <id> <倍率>")); return; }
+                        try {
+                            String err = tm.setCabinMul(args[3], Double.parseDouble(args[4]));
+                            p.sendMessage(ColorUtil.colorize(err == null ? "&8[交通] &a倍率已更新" : "&8[交通] &c" + err));
+                        } catch (NumberFormatException e) {
+                            p.sendMessage(ColorUtil.colorize("&8[交通] &c数字无效"));
+                        }
+                    }
+                    case "delete" -> {
+                        if (args.length < 4) { p.sendMessage(ColorUtil.colorize("&7/ecos transit cabin delete <id>")); return; }
+                        String err = tm.deleteCabin(args[3]);
+                        p.sendMessage(ColorUtil.colorize(err == null ? "&8[交通] &7已删除席别" : "&8[交通] &c" + err));
+                    }
+                    case "list" -> {
+                        for (var c : tm.allCabins()) {
+                            p.sendMessage(ColorUtil.colorize(" &f" + c.id() + " &8" + c.displayName() + " &7×" + c.fareMul()));
+                        }
+                    }
+                    default -> p.sendMessage(ColorUtil.colorize("&7create / name / fare / delete / list"));
+                }
+            }
             case "station" -> {
                 if (!admin) { noPerms(p); return; }
-                if (args.length < 3) { p.sendMessage(ColorUtil.colorize("&7/ecos transit station create|name|nameen|move|line|unline|delete")); return; }
+                if (args.length < 3) { p.sendMessage(ColorUtil.colorize("&7/ecos transit station create|name|nameen|move|skip|line|unline|delete")); return; }
                 switch (args[2].toLowerCase(Locale.ROOT)) {
                     case "create" -> {
                         if (args.length < 4) { p.sendMessage(ColorUtil.colorize("&7/ecos transit station create <id> [半径]")); return; }
@@ -2378,13 +2564,25 @@ public class ES2UniCommand implements CommandExecutor, TabCompleter {
                         String err = tm.moveStation(args[3], p.getLocation(), r);
                         p.sendMessage(ColorUtil.colorize(err == null ? "&8[交通] &a判定区已移到脚下（半径 " + r + "）" : "&8[交通] &c" + err));
                     }
+                    case "skip", "pass" -> {
+                        if (args.length < 4) { p.sendMessage(ColorUtil.colorize("&7/ecos transit station skip <站> [on|off]")); return; }
+                        Boolean on = null;
+                        if (args.length >= 5) {
+                            String a = args[4].toLowerCase(Locale.ROOT);
+                            if (a.equals("on") || a.equals("true") || a.equals("1") || a.equals("yes")) on = true;
+                            else if (a.equals("off") || a.equals("false") || a.equals("0") || a.equals("no")) on = false;
+                        }
+                        String err = tm.setSkipStop(args[3], on);
+                        p.sendMessage(ColorUtil.colorize(err != null ? "&8[交通] &c" + err
+                                : (tm.isSkipStop(args[3]) ? "&8[交通] &e已设为通过不停车" : "&8[交通] &a已恢复停车")));
+                    }
                     case "hint" -> p.sendMessage(ColorUtil.colorize("&8[交通] &7Create 坐标标记已停用"));
                     case "delete" -> {
                         if (args.length < 4) return;
                         String err = tm.deleteStation(args[3]);
                         p.sendMessage(ColorUtil.colorize(err == null ? "&8[交通] &7已删除车站" : "&8[交通] &c" + err));
                     }
-                    default -> p.sendMessage(ColorUtil.colorize("&7create / name / move / line / unline / delete"));
+                    default -> p.sendMessage(ColorUtil.colorize("&7create / name / move / skip / line / unline / delete"));
                 }
             }
             case "edge" -> {
@@ -2407,10 +2605,11 @@ public class ES2UniCommand implements CommandExecutor, TabCompleter {
                 if (args.length < 3) { p.sendMessage(ColorUtil.colorize("&7/ecos transit give gate|tvm|adjust|card ...")); return; }
                 switch (args[2].toLowerCase(Locale.ROOT)) {
                     case "gate" -> {
-                        if (args.length < 5) { p.sendMessage(ColorUtil.colorize("&7/ecos transit give gate <站> <in|out|both>")); return; }
+                        if (args.length < 5) { p.sendMessage(ColorUtil.colorize("&7/ecos transit give gate <站> <in|out|both> [席别]")); return; }
                         if (tm.getStation(args[3]) == null) { p.sendMessage(ColorUtil.colorize("&8[交通] &c车站不存在")); return; }
-                        p.getInventory().addItem(com.etherstories.escore.items.TransitItems.gate(args[3], args[4]));
-                        p.sendMessage(ColorUtil.colorize("&8[交通] &a已给予闸机"));
+                        String cabin = args.length >= 6 ? args[5] : TransitManager.Cabin.STD;
+                        p.getInventory().addItem(com.etherstories.escore.items.TransitItems.gate(args[3], args[4], cabin));
+                        p.sendMessage(ColorUtil.colorize("&8[交通] &a已给予闸机 · &e" + tm.cabinName(cabin)));
                     }
                     case "tvm" -> {
                         if (args.length < 4) { p.sendMessage(ColorUtil.colorize("&7/ecos transit give tvm <站>")); return; }
@@ -2434,12 +2633,13 @@ public class ES2UniCommand implements CommandExecutor, TabCompleter {
             case "gate" -> {
                 if (!admin) { noPerms(p); return; }
                 if (args.length >= 3 && args[2].equalsIgnoreCase("set")) {
-                    if (args.length < 5) { p.sendMessage(ColorUtil.colorize("&7看向方块: /ecos transit gate set <站> <in|out|both>")); return; }
+                    if (args.length < 5) { p.sendMessage(ColorUtil.colorize("&7看向方块: /ecos transit gate set <站> <in|out|both> [席别]")); return; }
                     var target = p.getTargetBlockExact(6);
                     if (target == null) { p.sendMessage(ColorUtil.colorize("&8[交通] &c请看向一个方块")); return; }
                     if (tm.getStation(args[3]) == null) { p.sendMessage(ColorUtil.colorize("&8[交通] &c车站不存在")); return; }
-                    tm.registerGate(target, args[3], args[4]);
-                    p.sendMessage(ColorUtil.colorize("&8[交通] &a已把该方块登记为闸机"));
+                    String cabin = args.length >= 6 ? args[5] : TransitManager.Cabin.STD;
+                    tm.registerGate(target, args[3], args[4], cabin);
+                    p.sendMessage(ColorUtil.colorize("&8[交通] &a已把该方块登记为闸机 · &e" + tm.cabinName(cabin)));
                 }
             }
             case "tvm" -> {
@@ -2494,6 +2694,43 @@ public class ES2UniCommand implements CommandExecutor, TabCompleter {
                 + plugin.getVaultHook().format(cost) + " &a领取终端"));
     }
 
+    private void handleWeb(Player p, String[] args) {
+        if (plugin.getWebSessions() == null) {
+            p.sendMessage(ColorUtil.colorize("&8[ECOS] &7网页终端未启动"));
+            return;
+        }
+        if (args.length >= 2 && args[1].equalsIgnoreCase("revoke")) {
+            plugin.getWebSessions().revoke(p.getUniqueId());
+            p.sendMessage(ColorUtil.colorize("&8[ECOS] &7已断开网页会话"));
+            return;
+        }
+        String code = plugin.getWebSessions().issue(p);
+        String href = webPairUrl(code);
+        p.sendMessage(ColorUtil.colorize("&8[ECOS] &f连接码 &a" + code + " &7两分钟有效"));
+        if (!href.isBlank()) {
+            TextComponent link = new TextComponent(ColorUtil.colorize("&8[ECOS] &a▶ 点此打开网页终端"));
+            link.setClickEvent(new ClickEvent(ClickEvent.Action.OPEN_URL, href));
+            link.setHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT,
+                    new Text(ColorUtil.colorize("&7" + href + "\n&8点开后自动填码"))));
+            p.spigot().sendMessage(link);
+        } else {
+            p.sendMessage(ColorUtil.colorize("&8[ECOS] &7网页端口 &f"
+                    + plugin.getConfig().getInt("web.port", 8766)
+                    + "  &8（管理填 web.public-url 才会出可点链接）"));
+        }
+        p.sendMessage(ColorUtil.colorize("&8[ECOS] &7断开: &f/ecos web revoke"));
+    }
+
+    private String webPairUrl(String code) {
+        String url = plugin.getConfig().getString("web.public-url", "");
+        if (url == null || url.isBlank()) return "";
+        url = url.trim();
+        if (!url.contains("://")) url = "http://" + url;
+        int hash = url.indexOf('#');
+        if (hash >= 0) url = url.substring(0, hash);
+        return url + (url.contains("?") ? "&" : "?") + "code=" + code;
+    }
+
     private void noPerms(CommandSender s) {
         s.sendMessage(ColorUtil.colorize(plugin.getConfigManager().getNoPermMessage()));
     }
@@ -2506,13 +2743,13 @@ public class ES2UniCommand implements CommandExecutor, TabCompleter {
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         if (args.length == 1)
             return filterPrefix(args[0], List.of(
-                    "help", "menu", "tps", "version", "event", "afk",
+                    "help", "menu", "gui", "web", "tps", "version", "event", "afk",
                     "friends", "friend", "mail", "mailbox", "online",
                     "notice", "notices", "leaderboard", "lb", "top",
                     "checkin", "death", "deaths", "status", "r", "reply",
                     "wp", "waypoint", "estate", "hotel", "territory", "aura", "particle", "particles", "kit", "music",
                     "reload", "broadcast", "give", "claim", "tpsalert", "admin",
-                    "region", "weapon", "skill", "kitadmin", "kits",
+                    "region", "weapon", "skill", "skillshop", "kitadmin", "kits",
                     "audit", "tradereport", "taxreport", "reports", "report",
                     "showcase", "machine", "lucky", "guide", "newbie",
                     "municipal", "muni", "city", "transit", "rail", "metro", "pve"));
@@ -2521,6 +2758,7 @@ public class ES2UniCommand implements CommandExecutor, TabCompleter {
             return switch (args[0].toLowerCase()) {
                 case "weapon"                -> filterPrefix(args[1], List.of("give", "save", "delete", "list", "bind", "unbind", "info"));
                 case "skill"                 -> filterPrefix(args[1], List.of("grant", "revoke", "list"));
+                case "skillshop", "skill-shop" -> filterPrefix(args[1], List.of("admin", "on", "off", "price"));
                 case "aura", "particle", "particles" -> filterPrefix(args[1], List.of("shop", "equip", "unequip", "list", "give", "brightness"));
                 case "tradereport", "taxreport" -> filterPrefix(args[1], List.of("broadcast"));
                 case "friend", "friends"     -> filterPrefix(args[1], List.of(
@@ -2531,6 +2769,7 @@ public class ES2UniCommand implements CommandExecutor, TabCompleter {
                         "gui", "search", "add", "select", "queue", "list", "now", "history",
                         "fav", "favorites", "preset", "presets", "playlist",
                         "vote", "stop", "mute", "join", "cancel", "help"));
+                case "web"                   -> filterPrefix(args[1], List.of("pair", "revoke"));
                 case "online"                -> filterPrefix(args[1], List.of("list", "gui", "help"));
                 case "notice", "notices"     -> filterPrefix(args[1], List.of("list", "gui", "help"));
                 case "leaderboard", "lb", "top" -> filterPrefix(args[1], List.of("list", "gui", "help"));
@@ -2548,16 +2787,16 @@ public class ES2UniCommand implements CommandExecutor, TabCompleter {
                 case "region"            -> filterPrefix(args[1], List.of("pos1", "pos2", "create", "delete", "list"));
                 case "territory"         -> filterPrefix(args[1], List.of("pos1", "pos2", "claim", "delete", "list", "visible", "spawn", "help"));
                 case "estate"            -> filterPrefix(args[1], List.of(
-                        "gui", "sale", "buy", "tools", "help", "pos1", "pos2", "register", "set", "door", "sign",
+                        "gui", "sale", "buy", "tools", "help", "wand", "pos1", "pos2", "register", "set", "door", "sign",
                         "here", "visit", "delete", "list", "tp", "price", "sell", "unsell", "admin"));
                 case "hotel"             -> filterPrefix(args[1], List.of(
                         "gui", "create", "bind", "unbind", "type", "price", "lock", "unlock",
-                        "checkin", "checkout", "card", "manager", "transfer", "here", "list", "help"));
+                        "checkin", "checkout", "card", "manager", "transfer", "delete", "here", "list", "help"));
                 case "lucky"             -> filterPrefix(args[1], List.of("ticket"));
                 case "checkin"           -> filterPrefix(args[1], List.of("ticket", "gui"));
                 case "wp","waypoint"     -> filterPrefix(args[1], List.of("add", "remove", "tp", "list"));
                 case "transit", "rail", "metro" -> filterPrefix(args[1], List.of(
-                        "gui", "map", "history", "board", "rank", "list", "help", "line", "station", "edge", "give", "gate", "tvm", "adjust", "type"));
+                        "gui", "map", "history", "board", "rank", "list", "help", "line", "station", "edge", "give", "gate", "tvm", "adjust", "type", "cabin"));
                 case "municipal", "muni", "city" -> filterPrefix(args[1], List.of(
                         "jobs", "job", "cleanup", "recycle", "insurance", "transit", "pve", "help"));
                 case "broadcast"         -> List.of("<消息>");
@@ -2669,12 +2908,23 @@ public class ES2UniCommand implements CommandExecutor, TabCompleter {
                     }
                     yield null;
                 }
+                case "skillshop", "skill-shop" -> {
+                    if (!isAdmin) yield null;
+                    if (args[1].equalsIgnoreCase("on") || args[1].equalsIgnoreCase("off")
+                            || args[1].equalsIgnoreCase("price") || args[1].equalsIgnoreCase("enable")
+                            || args[1].equalsIgnoreCase("disable")) {
+                        yield filterPrefix(args[2], java.util.Arrays.stream(SkillType.values())
+                                .map(t -> t.configKey).toList());
+                    }
+                    yield null;
+                }
                 case "transit", "rail", "metro" -> {
                     if (!isAdmin) yield null;
                     yield switch (args[1].toLowerCase(Locale.ROOT)) {
                         case "line" -> filterPrefix(args[2], List.of("create", "name", "fare", "type", "delete"));
                         case "type" -> filterPrefix(args[2], List.of("create", "name", "delete"));
-                        case "station" -> filterPrefix(args[2], List.of("create", "name", "nameen", "move", "line", "unline", "delete"));
+                        case "cabin", "class" -> filterPrefix(args[2], List.of("create", "name", "fare", "delete", "list"));
+                        case "station" -> filterPrefix(args[2], List.of("create", "name", "nameen", "move", "skip", "line", "unline", "delete"));
                         case "edge" -> filterPrefix(args[2], List.of("add", "remove"));
                         case "give" -> filterPrefix(args[2], List.of("gate", "tvm", "adjust", "card"));
                         case "gate", "tvm", "adjust" -> filterPrefix(args[2], List.of("set"));
@@ -2762,6 +3012,8 @@ public class ES2UniCommand implements CommandExecutor, TabCompleter {
         for (TransitManager.Line l : tm.allLines()) lines.add(l.id());
         List<String> types = new ArrayList<>();
         for (TransitManager.LineType t : tm.allTypes()) types.add(t.id());
+        List<String> cabins = new ArrayList<>();
+        for (TransitManager.Cabin c : tm.allCabins()) cabins.add(c.id());
         String a1 = args[1].toLowerCase(Locale.ROOT);
         String a2 = args[2].toLowerCase(Locale.ROOT);
         if (args.length == 4) {
@@ -2774,8 +3026,12 @@ public class ES2UniCommand implements CommandExecutor, TabCompleter {
                     case "name", "delete" -> filterPrefix(args[3], types);
                     default -> null;
                 };
+                case "cabin", "class" -> switch (a2) {
+                    case "name", "fare", "delete" -> filterPrefix(args[3], cabins);
+                    default -> null;
+                };
                 case "station" -> switch (a2) {
-                    case "name", "nameen", "en", "move", "line", "unline", "delete" -> filterPrefix(args[3], stations);
+                    case "name", "nameen", "en", "move", "skip", "line", "unline", "delete" -> filterPrefix(args[3], stations);
                     default -> null;
                 };
                 case "edge" -> filterPrefix(args[3], stations);
@@ -2796,15 +3052,22 @@ public class ES2UniCommand implements CommandExecutor, TabCompleter {
                 case "type" -> "create".equals(a2)
                         ? filterPrefix(args[4], List.of("&b", "&3", "&9", "&a", "&2", "&e", "&6", "&c", "&d"))
                         : null;
-                case "station" -> ("line".equals(a2) || "unline".equals(a2))
-                        ? filterPrefix(args[4], lines) : null;
+                case "station" -> {
+                    if ("line".equals(a2) || "unline".equals(a2)) yield filterPrefix(args[4], lines);
+                    if ("skip".equals(a2)) yield filterPrefix(args[4], List.of("on", "off"));
+                    yield null;
+                }
                 case "edge" -> filterPrefix(args[4], stations);
                 case "give" -> "gate".equals(a2) ? filterPrefix(args[4], List.of("in", "out", "both")) : null;
                 case "gate" -> "set".equals(a2) ? filterPrefix(args[4], List.of("in", "out", "both")) : null;
                 default -> null;
             };
         }
-        if (args.length == 6 && "edge".equals(a1)) return filterPrefix(args[5], lines);
+        if (args.length == 6) {
+            if ("edge".equals(a1)) return filterPrefix(args[5], lines);
+            if ("give".equals(a1) && "gate".equals(a2)) return filterPrefix(args[5], cabins);
+            if ("gate".equals(a1) && "set".equals(a2)) return filterPrefix(args[5], cabins);
+        }
         return null;
     }
 

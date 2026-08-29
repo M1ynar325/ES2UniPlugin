@@ -23,8 +23,29 @@ public class VaultHook {
         return isEnabled() ? economy.getBalance(player) : 0;
     }
 
+    public double getBalance(org.bukkit.OfflinePlayer player) {
+        return isEnabled() && player != null ? economy.getBalance(player) : 0;
+    }
+
     public String format(double amount) {
-        return isEnabled() ? economy.format(amount) : String.format("%.2f", amount);
+        String unit = "EP";
+        ES2UniPlugin pl = ES2UniPlugin.getInstance();
+        if (pl != null) {
+            String cfg = pl.getConfig().getString("economy.unit", "EP");
+            if (cfg != null && !cfg.isBlank()) unit = cfg.trim();
+        }
+        String num;
+        if (isEnabled()) {
+            num = economy.format(amount);
+            if (num == null) num = "";
+            num = num.replace("$", "");
+            num = num.replaceAll("(?i)\\b(es\\$?|usd|dollars?|元|金币|coins?|ep)\\b", "").trim();
+            num = num.replaceAll("\\s{2,}", " ");
+        } else {
+            num = "";
+        }
+        if (num.isEmpty()) num = String.format(java.util.Locale.US, "%,.2f", amount);
+        return num + " " + unit;
     }
 
     public String pay(Player from, Player to, double amount) {

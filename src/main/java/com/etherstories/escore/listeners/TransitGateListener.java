@@ -41,14 +41,16 @@ public class TransitGateListener implements Listener {
                 event.getPlayer().sendMessage(ColorUtil.colorize("&8[交通] &c闸机未绑定有效车站"));
                 return;
             }
-            tm.registerGate(event.getBlockPlaced(), station, mode == null ? "BOTH" : mode);
+            String cabin = TransitItems.cabin(item);
+            tm.registerGate(event.getBlockPlaced(), station, mode == null ? "BOTH" : mode, cabin);
             String zh = switch ((mode == null ? "BOTH" : mode).toUpperCase()) {
                 case "IN" -> "仅进站";
                 case "OUT" -> "仅出站";
                 default -> "进出均可";
             };
             event.getPlayer().sendMessage(ColorUtil.colorize(
-                    "&8[交通] &a闸机已放置并写牌 · &f" + tm.stationName(station) + " &8" + zh
+                    "&8[交通] &a闸机已放置并写牌 · &f" + tm.stationName(station)
+                            + " &8" + zh + " &e" + tm.cabinName(cabin)
                             + "\n&8[交通] &7旁边的活板门会在刷卡后打开。拆掉牌子即注销。"));
             return;
         }
@@ -84,7 +86,7 @@ public class TransitGateListener implements Listener {
         if (g != null) {
             event.setCancelled(true);
             plugin.getServer().getScheduler().runTask(plugin, () ->
-                    tm.writeGateSign(event.getBlock(), g.stationId(), g.mode()));
+                    tm.writeGateSign(event.getBlock(), g.stationId(), g.mode(), g.cabin()));
             return;
         }
         TransitManager.AdjustBooth adj = tm.adjustAt(event.getBlock());
@@ -209,7 +211,7 @@ public class TransitGateListener implements Listener {
             player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_BASS, 0.8f, 0.7f);
             return;
         }
-        player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_BELL, 0.7f, 1.4f);
+        player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_HARP, 0.85f, 1.41f);
         if (r.openFlaps()) tm.pulseGateFlaps(block);
     }
 

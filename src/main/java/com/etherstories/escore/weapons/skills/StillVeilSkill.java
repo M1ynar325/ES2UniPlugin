@@ -9,6 +9,7 @@ import org.bukkit.Location;
 import org.bukkit.Particle;
 import org.bukkit.Sound;
 import org.bukkit.World;
+import org.bukkit.entity.AbstractArrow;
 import org.bukkit.entity.Animals;
 import org.bukkit.entity.ArmorStand;
 import org.bukkit.entity.Enemy;
@@ -18,6 +19,7 @@ import org.bukkit.entity.Mob;
 import org.bukkit.entity.Monster;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Slime;
+import org.bukkit.entity.Trident;
 import org.bukkit.entity.Villager;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
@@ -35,6 +37,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Still Veil「静幕」— 圆柱内时停。人只能转视角；敌对生物定住。
+ * 飞行中的箭矢定住，解冻后按原速度方向继续飞。
  * 机械动力实体不冻，避免 Create 碰撞/对实体 tick 崩溃。
  */
 public class StillVeilSkill implements SkillInstance {
@@ -65,7 +68,7 @@ public class StillVeilSkill implements SkillInstance {
         this.ownerUUID = player.getUniqueId();
         this.radius = Math.max(8.0, wm.getCfgDouble(SkillType.STILL_VEIL, "radius", 30.0));
         this.halfH = Math.max(6.0, wm.getCfgDouble(SkillType.STILL_VEIL, "height", 24.0) / 2.0);
-        this.holdTicks = Math.max(20, wm.getCfgInt(SkillType.STILL_VEIL, "duration-ticks", 160));
+        this.holdTicks = Math.max(20, wm.getCfgInt(SkillType.STILL_VEIL, "duration-ticks", 600));
         this.settleTicks = Math.max(10, wm.getCfgInt(SkillType.STILL_VEIL, "settle-ticks", 40));
         this.moteCount = Math.max(80, Math.min(900, wm.getCfgInt(SkillType.STILL_VEIL, "particle-count", 520)));
         this.center = player.getLocation().clone();
@@ -175,7 +178,13 @@ public class StillVeilSkill implements SkillInstance {
             applyNight(p);
         }
         for (Entity e : center.getWorld().getNearbyEntities(center, radius, halfH, radius)) {
-            if (!freezableMob(e) || !inside(e.getLocation())) continue;
+            if (!inside(e.getLocation())) continue;
+            if (freezableArrow(e)) {
+                now.add(e.getUniqueId());
+                freeze(e, false);
+                continue;
+            }
+            if (!freezableMob(e)) continue;
             now.add(e.getUniqueId());
             freeze(e, false);
         }
@@ -231,6 +240,13 @@ public class StillVeilSkill implements SkillInstance {
         }
     }
 
+    static boolean freezableArrow(Entity e) {
+        if (!(e instanceof AbstractArrow a) || e instanceof Trident || a.isDead() || !a.isValid()) {
+            return false;
+        }
+        return !a.isInBlock() || FROZEN.containsKey(e.getUniqueId());
+    }
+
     static boolean freezableMob(Entity e) {
         if (!(e instanceof LivingEntity le) || le.isDead()) return false;
         if (e instanceof Player || e instanceof ArmorStand) return false;
@@ -259,6 +275,10 @@ public class StillVeilSkill implements SkillInstance {
                 continue;
             }
             f.entity.setVelocity(new Vector(0, 0, 0));
+            if (f.entity instanceof AbstractArrow a) {
+                a.setLifetimeTicks(0);
+                a.setTicksLived(1);
+            }
             Location look = f.loc.clone();
             if (f.look) {
                 look.setYaw(f.entity.getLocation().getYaw());
@@ -277,7 +297,7 @@ public class StillVeilSkill implements SkillInstance {
         }
         if (e instanceof LivingEntity le && le.isInsideVehicle()) le.leaveVehicle();
         boolean ai = e instanceof Mob m && m.hasAI();
-        Freeze f = new Freeze(e, e.getLocation().clone(), e.hasGravity(), ai, look);
+        Freeze f = new Freeze(e, e.getLocation().clone(), e.getVelocity().clone(), e.hasGravity(), ai, look);
         f.owners.add(ownerUUID);
         FROZEN.put(id, f);
         e.setGravity(false);
@@ -309,6 +329,9 @@ public class StillVeilSkill implements SkillInstance {
             if (e instanceof Player p && p.isOnline()) {
                 p.removePotionEffect(PotionEffectType.NIGHT_VISION);
             }
+        }
+        if (e instanceof AbstractArrow) {
+            e.setVelocity(f.velocity.clone());
         }
     }
 
@@ -397,14 +420,16 @@ public class StillVeilSkill implements SkillInstance {
     static final class Freeze {
         final Entity entity;
         final Location loc;
+        final Vector velocity;
         final boolean gravity;
         final boolean ai;
         final boolean look;
         final Set<UUID> owners = new HashSet<>();
 
-        Freeze(Entity entity, Location loc, boolean gravity, boolean ai, boolean look) {
+        Freeze(Entity entity, Location loc, Vector velocity, boolean gravity, boolean ai, boolean look) {
             this.entity = entity;
             this.loc = loc;
+            this.velocity = velocity == null ? new Vector() : velocity;
             this.gravity = gravity;
             this.ai = ai;
             this.look = look;

@@ -185,6 +185,7 @@ public class InsuranceManager {
         List<Backup> list = histories.computeIfAbsent(player.getUniqueId(), k -> new ArrayList<>());
         if (!force && !list.isEmpty()) {
             Backup last = list.get(list.size() - 1);
+            if (System.currentTimeMillis() - last.time < 120_000L) return;
             if (b.itemCount() < Math.max(1, (int) (last.itemCount() * 0.4))) return;
         }
         list.add(b);
@@ -413,7 +414,9 @@ public class InsuranceManager {
             cfg.set(p + "cover-kind", c.coverKind);
             cfg.set(p + "cover-place", c.coverPlace);
         }
-        try { cfg.save(dataFile); }
-        catch (IOException e) { plugin.getLogger().warning("insurance.yml 保存失败: " + e.getMessage()); }
+        Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
+            try { cfg.save(dataFile); }
+            catch (IOException e) { plugin.getLogger().warning("insurance.yml 保存失败: " + e.getMessage()); }
+        });
     }
 }

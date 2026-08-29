@@ -111,6 +111,18 @@ public class WeaponPreset {
                 null, null,
                 true),
 
+            build("pale_line",
+                "Pale Line", "霁线",
+                Material.IRON_SWORD,
+                new String[]{"sharpness:3", "unbreaking:2"},
+                new String[]{
+                    "&f&l对准，按下。就这一条线。",
+                    "&3霁青直线，打到谁算谁。日常够用。"
+                },
+                SkillBinder.Slot.RIGHT, SkillType.PALE_LINE,
+                null, null,
+                true),
+
             build("singularity",
                 "Singularity", "奇点",
                 Material.NETHERITE_SWORD,
@@ -135,6 +147,28 @@ public class WeaponPreset {
                 SkillBinder.Slot.RIGHT,       SkillType.LUMINAL_STRIKE,
                 SkillBinder.Slot.SNEAK_RIGHT, SkillType.CELESTIAL_ASCENT)
         );
+    }
+
+    /** 技能商店发货：霁线用预制，其余铁剑绑右键。 */
+    public static ItemStack boundBlade(SkillType skill) {
+        if (skill == SkillType.PALE_LINE) {
+            Preset p = find("pale_line");
+            if (p != null) return p.item().clone();
+        }
+        ItemStack item = new ItemStack(Material.IRON_SWORD);
+        ItemMeta meta = item.getItemMeta();
+        if (meta == null) return item;
+        meta.setDisplayName(ColorUtil.colorize("&f&l" + skill.englishName + " &8「&7" + skill.chineseName + "&8」"));
+        meta.setLore(List.of(
+                ColorUtil.colorize("&7技能商店"),
+                ColorUtil.colorize("&3右键释放 " + skill.displayName())));
+        meta.addItemFlags(ItemFlag.HIDE_ENCHANTS, ItemFlag.HIDE_UNBREAKABLE);
+        meta.setUnbreakable(true);
+        item.setItemMeta(meta);
+        Enchantment unb = Registry.ENCHANTMENT.get(NamespacedKey.minecraft("unbreaking"));
+        if (unb != null) item.addUnsafeEnchantment(unb, 2);
+        SkillBinder.bind(item, skill, SkillBinder.Slot.RIGHT);
+        return item;
     }
 
     public static Preset find(String id) {
