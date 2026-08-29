@@ -32,7 +32,6 @@ public class EcosWebServer {
     private final ChatFeed chat;
     private HttpServer http;
     private byte[] indexHtml = new byte[0];
-    private byte[] phoneHtml = new byte[0];
     private final Map<UUID, Long> lastSay = new ConcurrentHashMap<>();
 
     public EcosWebServer(ES2UniPlugin plugin, WebSessions sessions, ChatFeed chat) {
@@ -48,9 +47,6 @@ public class EcosWebServer {
         }
         try (InputStream in = plugin.getResource("web/index.html")) {
             if (in != null) indexHtml = in.readAllBytes();
-        }
-        try (InputStream in = plugin.getResource("web/phone.html")) {
-            if (in != null) phoneHtml = in.readAllBytes();
         }
         String bind = plugin.getConfig().getString("web.bind", "0.0.0.0");
         int port = plugin.getConfig().getInt("web.port", 8766);
@@ -83,12 +79,6 @@ public class EcosWebServer {
             return;
         }
         String path = ex.getRequestURI().getPath();
-        if ("/phone".equals(path) || "/phone.html".equals(path)) {
-            sendBytes(ex, 200, "text/html; charset=utf-8", phoneHtml.length == 0
-                    ? "<!doctype html><p>missing phone.html</p>".getBytes(StandardCharsets.UTF_8)
-                    : phoneHtml);
-            return;
-        }
         if (!"/".equals(path) && !"/index.html".equals(path)) {
             send(ex, 404, "text/plain", "not found");
             return;
