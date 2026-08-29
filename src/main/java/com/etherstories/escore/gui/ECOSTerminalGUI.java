@@ -79,9 +79,9 @@ public class ECOSTerminalGUI {
         }
         putHead(inv, player);
         act.put(SLOT_HEAD, "head");
-        inv.setItem(SLOT_CLOSE, item(Material.LIGHT_GRAY_DYE, EcosStyle.MIST + "断开",
-                List.of(" " + EcosStyle.MIST + "结束会话",
-                        " " + EcosStyle.MIST + "v" + plugin.getDescription().getVersion())));
+        inv.setItem(SLOT_CLOSE, item(Material.LIGHT_GRAY_DYE,
+                EcosStyle.MIST + "断开  ·  v" + plugin.getDescription().getVersion(),
+                List.of(" " + EcosStyle.MIST + "结束会话")));
         act.put(SLOT_CLOSE, "close");
 
         switch (page) {
@@ -130,13 +130,11 @@ public class ECOSTerminalGUI {
         SkullMeta skullMeta = (SkullMeta) skull.getItemMeta();
         if (skullMeta != null) {
             skullMeta.setOwningPlayer(player);
-            skullMeta.setDisplayName(ColorUtil.colorize(EcosStyle.JIQING + player.getName()));
+            skullMeta.setDisplayName(ColorUtil.colorize(EcosStyle.JIQING + EcosStyle.hello(player.getName())));
             skullMeta.setLore(List.of(
-                    ColorUtil.colorize(" " + EcosStyle.MIST + "ECOS"),
+                    ColorUtil.colorize(" " + EcosStyle.MIST + "ECOS  v" + plugin.getDescription().getVersion()),
                     ColorUtil.colorize(" " + EcosStyle.MIST + "在线  " + EcosStyle.SNOW + pt),
-                    ColorUtil.colorize(" " + EcosStyle.MIST + "延迟  " + EcosStyle.SNOW + player.getPing() + "ms"),
-                    ColorUtil.colorize(""),
-                    ColorUtil.colorize(EcosStyle.MIST + "▸ 版本")
+                    ColorUtil.colorize(" " + EcosStyle.MIST + "延迟  " + EcosStyle.SNOW + player.getPing() + "ms")
             ));
             skull.setItemMeta(skullMeta);
         }

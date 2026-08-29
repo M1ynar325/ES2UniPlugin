@@ -23,6 +23,13 @@ public final class EcosStyle {
 
     private EcosStyle() {}
 
+    public static String hello(String name) {
+        int h = java.time.LocalTime.now().getHour();
+        String g = h < 5 ? "夜深了" : h < 9 ? "早上好" : h < 11 ? "上午好"
+                : h < 14 ? "中午好" : h < 18 ? "下午好" : h < 22 ? "晚上好" : "夜深了";
+        return name == null || name.isBlank() ? g : g + "，" + name;
+    }
+
     public static String terminal(String page) {
         return ColorUtil.colorize("&8[ " + JIQING + "&lECOS " + MIST + "· " + SNOW + page + " &8]");
     }

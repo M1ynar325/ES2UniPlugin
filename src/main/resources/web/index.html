@@ -173,10 +173,10 @@ main{min-width:0}
 <div class=top>
   <div class=brand>
     <i class=mark></i>
-    <div><b>// ECOS</b><span id=who>TERMINAL</span></div>
+    <div><b>// ECOS</b><span id=who>下午好</span></div>
   </div>
   <div class=tools>
-    <span class=folio>TERM / 01</span>
+    <span class=folio id=ver>v—</span>
     <a class=enter href=/phone>进入终端</a>
     <div class=clock id=clock></div>
   </div>
@@ -310,9 +310,11 @@ main{min-width:0}
 <footer class=foot>
   <div>
     <b>// ECOS</b>
-    <span>Etharia Central OS</span>
+    <span id=footVer>v—</span>
   </div>
-  <button class="key bye hidden" type=button id=bye>断开网页</button>
+  <div class=tools>
+    <button class="key bye hidden" type=button id=bye>断开网页</button>
+  </div>
 </footer>
 </div>
 <div id=toast></div>
@@ -320,6 +322,18 @@ main{min-width:0}
 const $=s=>document.querySelector(s);
 const KEY='ecos-web-token';
 let page='home', hits=[], mapSrc='', chatHtml='', queueHtml='', rosterHtml='';
+let me='', ver='';
+function hello(name){
+  const h=new Date().getHours();
+  const g=h<5?'夜深了':h<9?'早上好':h<11?'上午好':h<14?'中午好':h<18?'下午好':h<22?'晚上好':'夜深了';
+  return name?g+'，'+name:g;
+}
+function paintChrome(){
+  const v=ver?'v'+ver:'v—';
+  $('#who').textContent=hello(me);
+  $('#ver').textContent=v;
+  $('#footVer').textContent=v;
+}
 function token(){return sessionStorage.getItem(KEY)||''}
 function setTok(v){if(v)sessionStorage.setItem(KEY,v);else sessionStorage.removeItem(KEY)}
 function headers(){const h={'Accept':'application/json'};if(token())h.Authorization='Bearer '+token();return h}
@@ -336,7 +350,11 @@ function gated(on){
   $('.desk').classList.toggle('live',on);
   $('#bye').classList.toggle('hidden',!on);
   if(on) show(page);
-  else ['home','chat','music','map'].forEach(id=>$('#'+id).classList.add('hidden'));
+  else{
+    me='';
+    ['home','chat','music','map'].forEach(id=>$('#'+id).classList.add('hidden'));
+  }
+  paintChrome();
 }
 function setTape(items){
   const list=(items&&items.length)?items:['ECOS STANDBY'];
@@ -466,7 +484,9 @@ function whoRow(p){
   return `<div class="row who"><img class=head3d alt="" src="${esc(headUrl(p))}" onerror="this.remove()"><div>${esc(p.name)}<small>${esc(p.world)}  ${p.x} ${p.y} ${p.z}${p.ip?' · '+esc(p.ip):''}</small></div></div>`;
 }
 function paint(d){
-  $('#who').textContent=(d.name||'ECOS')+(d.online?'  LIVE':'  STANDBY');
+  me=d.name||'';
+  if(d.version) ver=d.version;
+  paintChrome();
   $('#nm').textContent=d.name||'--';
   $('#on').textContent=d.online?'在线':'离线';
   $('#on').classList.toggle('live',!!d.online);
@@ -574,8 +594,12 @@ document.querySelectorAll('.mute').forEach(b=>b.onclick=()=>{
 $('#bye').onclick=()=>{fetch('/v1/logout',{method:'POST',headers:headers()}).finally(()=>{$('#player').pause();setTok('');gated(false)})};
 $('#nav').onclick=e=>{const b=e.target.closest('[data-p]');if(b)show(b.dataset.p)};
 document.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>show(b.dataset.go));
-setInterval(()=>{$('#clock').textContent=new Date().toLocaleTimeString('zh-CN',{hour12:false})},1000);
-$('#clock').textContent=new Date().toLocaleTimeString('zh-CN',{hour12:false});
+function tick(){
+  $('#clock').textContent=new Date().toLocaleTimeString('zh-CN',{hour12:false});
+  paintChrome();
+}
+setInterval(tick,1000);tick();
+fetch('/v1/info').then(r=>r.json()).then(d=>{if(d&&d.version){ver=d.version;paintChrome()}}).catch(()=>{});
 paintHits({});
 (function(){
   const q=new URLSearchParams(location.search).get('code')||'';

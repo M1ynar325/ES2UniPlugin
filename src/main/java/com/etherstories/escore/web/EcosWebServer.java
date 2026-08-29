@@ -105,7 +105,8 @@ public class EcosWebServer {
         }
         AllMusicHook.NowPlaying now = plugin.getAllMusicHook().getNowPlaying();
         String song = now == null ? "" : now.name();
-        send(ex, 200, "application/json", "{\"ok\":true,\"name\":\"ECOS\",\"online\":"
+        send(ex, 200, "application/json", "{\"ok\":true,\"name\":\"ECOS\",\"version\":\""
+                + esc(pluginVer()) + "\",\"online\":"
                 + Bukkit.getOnlinePlayers().size() + ",\"song\":\"" + esc(song) + "\"}");
     }
 
@@ -367,7 +368,8 @@ public class EcosWebServer {
             Player self = Bukkit.getPlayer(s.uuid());
             skin = self != null ? skinOf(self) : "https://mc-heads.net/skin/" + name;
         }
-        sb.append("{\"ok\":true,\"name\":\"").append(esc(name)).append("\",\"online\":")
+        sb.append("{\"ok\":true,\"name\":\"").append(esc(name)).append("\",\"version\":\"")
+                .append(esc(pluginVer())).append("\",\"online\":")
                 .append(online).append(",\"admin\":").append(admin)
                 .append(",\"uuid\":\"").append(s == null ? "" : s.uuid()).append('"')
                 .append(",\"skin\":\"").append(esc(skin)).append('"')
@@ -575,6 +577,10 @@ public class EcosWebServer {
         if (q < 0) return json.substring(c + 1).replaceAll("[^0-9A-Za-z]", "").trim();
         int q2 = json.indexOf('"', q + 1);
         return q2 < 0 ? "" : json.substring(q + 1, q2);
+    }
+
+    private String pluginVer() {
+        return plugin.getDescription().getVersion();
     }
 
     private static String nz(String s) { return s == null ? "" : s; }

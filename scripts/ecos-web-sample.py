@@ -19,6 +19,7 @@ NOW = int(time.time() * 1000)
 DESK = {
     "ok": True,
     "name": "node0",
+    "version": "1.20.37",
     "online": True,
     "admin": True,
     "tps": 19.94,
@@ -173,7 +174,7 @@ class Handler(BaseHTTPRequestHandler):
             self._send(200, "text/html; charset=utf-8", PHONE)
             return
         if path == "/v1/info":
-            self._json(200, {"ok": True, "name": "ECOS", "online": 7, "song": "夜航星"})
+            self._json(200, {"ok": True, "name": "ECOS", "version": "1.20.37", "online": 7, "song": "夜航星"})
             return
         if path == "/v1/desk":
             if not self._auth():
