@@ -28,6 +28,8 @@ jobs:
             "target/ES2UniPlugin-${VER}.jar" \
             --title "ES2UniPlugin ${VER}" \
             --notes "$(cat <<'EOF'
-          ECOS 主菜单改书本终端；网页补生活页（签到、邮箱、好友、转账二次确认）。
+          ECOS 终端改为 27 格：分类图标常驻、当前页发光，标题带页名。去掉黑玻璃和灰染料占位。
+
+          霁弧 Gleam Arc 可 /ecos weapon bind gleam_arc（右键释放）；skill grant + 潜行+F 仍可用。
           EOF
           )"
