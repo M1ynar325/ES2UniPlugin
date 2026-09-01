@@ -29,7 +29,7 @@ public class LeaderboardGUI {
     }
 
     public void open(Player player) {
-        Inventory inv = Bukkit.createInventory(null, SIZE, ColorUtil.colorize(TITLE));
+        Inventory inv = EcosHolder.of("leaderboard", SIZE, ColorUtil.colorize(TITLE));
 
         ItemStack bg = ECOSTerminalGUI.bg(BG);
         for (int i = 0; i < SIZE; i++) inv.setItem(i, bg);
@@ -68,6 +68,6 @@ public class LeaderboardGUI {
         inv.setItem(TRANSIT_SLOT, ECOSTerminalGUI.item(Material.POWERED_RAIL, "&b轨道交通排行",
                 List.of(ColorUtil.colorize("&8点击切换"))));
         inv.setItem(CLOSE_SLOT, ECOSTerminalGUI.item(Material.BARRIER, "&7关闭",     null));
-        player.openInventory(inv);
+        EcosHolder.open(player, inv);
     }
 }

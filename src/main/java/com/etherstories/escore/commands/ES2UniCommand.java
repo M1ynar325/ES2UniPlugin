@@ -62,9 +62,24 @@ public class ES2UniCommand implements CommandExecutor, TabCompleter {
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+        try {
+            return runCommand(sender, args);
+        } catch (Throwable t) {
+            plugin.getLogger().warning("/ecos 失败: " + t);
+            sender.sendMessage(ColorUtil.colorize("&8[ECOS] &c指令失败: " + t.getClass().getSimpleName()));
+            return true;
+        }
+    }
+
+    private boolean runCommand(CommandSender sender, String[] args) {
         if (args.length == 0) {
-            if (sender instanceof Player p) plugin.getEcosTerminalGUI().open(p);
-            else sendHelp(sender);
+            try {
+                if (sender instanceof Player p) plugin.getEcosTerminalGUI().open(p);
+                else sendHelp(sender);
+            } catch (Throwable t) {
+                plugin.getLogger().warning(" /ecos 打开失败: " + t);
+                sender.sendMessage(ColorUtil.colorize("&8[ECOS] &c打开失败"));
+            }
             return true;
         }
 
@@ -153,6 +168,18 @@ public class ES2UniCommand implements CommandExecutor, TabCompleter {
             case "web" -> {
                 if (!(sender instanceof Player p)) { sender.sendMessage("仅玩家可执行"); return true; }
                 handleWeb(p, args);
+            }
+
+            case "t", "_t" -> {
+                if (!(sender instanceof Player p)) return true;
+                if (args.length < 2) return true;
+                String raw = args.length > 2 ? String.join(" ", java.util.Arrays.copyOfRange(args, 2, args.length)) : "";
+                var hub = plugin.getTerminalHub();
+                if (hub == null) {
+                    p.sendMessage(ColorUtil.colorize("&8[ECOS] &c终端未就绪"));
+                    return true;
+                }
+                hub.click(p, args[1], raw);
             }
 
             case "menu", "gui" -> {
@@ -2741,6 +2768,15 @@ public class ES2UniCommand implements CommandExecutor, TabCompleter {
 
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
+        try {
+            return tabCompleteInner(sender, args);
+        } catch (Throwable t) {
+            plugin.getLogger().warning("tab 失败: " + t);
+            return List.of();
+        }
+    }
+
+    private List<String> tabCompleteInner(CommandSender sender, String[] args) {
         if (args.length == 1)
             return filterPrefix(args[0], List.of(
                     "help", "menu", "gui", "web", "tps", "version", "event", "afk",

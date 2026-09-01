@@ -26,7 +26,7 @@ public class TransitBoardGUI {
     public TransitBoardGUI(ES2UniPlugin plugin) { this.plugin = plugin; }
 
     public void open(Player player) {
-        Inventory inv = Bukkit.createInventory(null, SIZE, ColorUtil.colorize(TITLE));
+        Inventory inv = EcosHolder.of("transit-board", SIZE, ColorUtil.colorize(TITLE));
         ItemStack bg = ECOSTerminalGUI.bg(Material.LIGHT_BLUE_STAINED_GLASS_PANE);
         for (int i = 0; i < SIZE; i++) inv.setItem(i, bg);
 
@@ -64,6 +64,6 @@ public class TransitBoardGUI {
         inv.setItem(PLAYTIME_SLOT, ECOSTerminalGUI.item(Material.GOLDEN_HELMET, "&7在线时长排行",
                 List.of(ColorUtil.colorize("&8点击切换"))));
         inv.setItem(CLOSE_SLOT, ECOSTerminalGUI.item(Material.BARRIER, "&7关闭", null));
-        player.openInventory(inv);
+        EcosHolder.open(player, inv);
     }
 }

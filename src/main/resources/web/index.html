@@ -17,6 +17,8 @@
   --grid-y:rgba(10,42,140,.04);--grid-x:rgba(10,42,140,.028);
   --shade:rgba(10,42,140,.08);--shade-sm:rgba(10,42,140,.06);
   --list:rgba(243,245,247,.7);
+  --sans:"PingFang SC","Hiragino Sans GB","Microsoft YaHei UI","Microsoft YaHei","Noto Sans SC",system-ui,sans-serif;
+  --mono:ui-monospace,"Cascadia Mono","Segoe UI Mono",Menlo,Consolas,monospace;
 }
 /* 夜航：墨底机匣，钴蓝印面与霁青灯不反相，字用纸灰减轻眩光 */
 html[data-theme=night]{
@@ -35,7 +37,7 @@ html{min-height:100%;color-scheme:light;background:
   var(--paper)}
 html[data-theme=night]{color-scheme:dark}
 body{margin:0;min-height:100%;background:transparent;color:var(--ink);
-  font:14px/1.5 "PingFang SC","SF Pro Text",system-ui,-apple-system,sans-serif}
+  font:14px/1.5 var(--sans)}
 body:before{content:"";position:fixed;top:0;left:0;right:0;height:4px;
   background:linear-gradient(90deg,var(--cobalt) 70%,var(--jiqing));z-index:4}
 .shell{width:100%;padding:18px clamp(16px, 3vw, 48px) 48px}
@@ -44,23 +46,24 @@ body:before{content:"";position:fixed;top:0;left:0;right:0;height:4px;
 .brand{display:flex;align-items:center;gap:12px}
 .mark{width:28px;height:28px;background:var(--cobalt);
   box-shadow:inset var(--lamp) 0 0 0 var(--jiqing), 6px 6px 0 var(--mist)}
-.brand b{display:block;font:16px/1.1 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.14em;font-weight:600;color:var(--deep)}
-.brand span,.clock,#line{font:10px/1.3 ui-monospace,Menlo,monospace;letter-spacing:.08em;color:var(--dim)}
+.brand b{display:block;font:16px/1.1 var(--mono);letter-spacing:.14em;font-weight:600;color:var(--deep)}
+.brand span,#who{font:10px/1.3 var(--sans);letter-spacing:.04em;color:var(--dim)}
+.clock,#line{font:10px/1.3 var(--mono);letter-spacing:.08em;color:var(--dim)}
 .clock{flex:none}
 .tools{display:flex;align-items:center;gap:12px 16px;flex-wrap:wrap;justify-content:flex-end}
 .foot{margin-top:28px;padding:16px 0 0;border-top:2px solid var(--cobalt);
   display:flex;justify-content:space-between;align-items:center;gap:16px}
-.foot b{display:block;font:11px/1.2 ui-monospace,Menlo,monospace;letter-spacing:.16em;color:var(--deep);font-weight:600}
-.foot span{display:block;margin-top:6px;font:10px/1 ui-monospace,Menlo,monospace;letter-spacing:.1em;color:var(--dim)}
-.folio{font:10px/1 ui-monospace,Menlo,monospace;letter-spacing:.16em;color:var(--jiqing)}
-.here{font:12px/1 "PingFang SC",system-ui,sans-serif;letter-spacing:.04em;color:var(--dim);white-space:nowrap}
+.foot b{display:block;font:11px/1.2 var(--mono);letter-spacing:.16em;color:var(--deep);font-weight:600}
+.foot span{display:block;margin-top:6px;font:10px/1 var(--mono);letter-spacing:.1em;color:var(--dim)}
+.folio{font:10px/1 var(--mono);letter-spacing:.16em;color:var(--jiqing)}
+.here{font:12px/1 var(--sans);letter-spacing:.02em;color:var(--dim);white-space:nowrap}
 .here.live{color:var(--jiqing)}
 .tape{display:flex;align-items:stretch;margin:0 0 18px;min-height:34px;background:var(--tape);color:var(--mist);
   box-shadow:inset var(--lamp) 0 0 0 var(--jiqing), 4px 4px 0 var(--shade)}
-.tape-tag{flex:none;background:var(--jiqing);color:var(--on);font:10px/1 ui-monospace,Menlo,monospace;
-  letter-spacing:.2em;font-weight:700;padding:0 14px;display:flex;align-items:center}
+.tape-tag{flex:none;background:var(--jiqing);color:var(--on);font:10px/1 var(--sans);
+  letter-spacing:.08em;font-weight:700;padding:0 14px;display:flex;align-items:center}
 .tape-view{flex:1;overflow:hidden;min-width:0}
-.tape-track{display:flex;width:max-content;font:12px/34px ui-monospace,Menlo,monospace;animation:tape 42s linear infinite}
+.tape-track{display:flex;width:max-content;font:12px/34px var(--sans);animation:tape 42s linear infinite}
 .tape-track span{white-space:nowrap;padding:0 22px}
 .tape-track span:before{content:"// ";color:var(--jiqing)}
 .tape:hover .tape-track{animation-play-state:paused}
@@ -72,31 +75,32 @@ body:before{content:"";position:fixed;top:0;left:0;right:0;height:4px;
 .nav{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 16px}
 .nav button,.key{appearance:none;border:0;cursor:pointer;border-radius:0;
   padding:10px 14px 10px 16px;background:var(--ice);color:var(--deep);
-  font:11px/1 ui-monospace,Menlo,monospace;letter-spacing:.1em;
+  font:11px/1 var(--sans);letter-spacing:.04em;
   box-shadow:inset var(--lamp) 0 0 0 var(--gray)}
 .nav button{padding-left:40px;position:relative}
 .nav button:before{content:attr(data-n);position:absolute;left:12px;top:50%;transform:translateY(-50%);
-  font-size:9px;letter-spacing:.08em;color:var(--jiqing)}
+  font:9px/1 var(--mono);letter-spacing:.08em;color:var(--jiqing)}
 .nav button.on,.key.on{background:var(--cobalt);color:var(--on);box-shadow:inset var(--lamp) 0 0 0 var(--jiqing)}
 .nav button.on:before{color:var(--mist)}
 .key:hover,.nav button:hover{box-shadow:inset var(--lamp) 0 0 0 var(--jiqing)}
 .panel{background:var(--white);border:1px solid var(--gray);padding:18px 18px 16px;
   box-shadow:4px 4px 0 var(--shade-sm)}
 .kv{display:grid;grid-template-columns:88px 1fr;gap:10px 16px;align-items:baseline}
-.kv b{font:10px/1.3 ui-monospace,Menlo,monospace;letter-spacing:.08em;color:var(--dim);font-weight:500}
-.kv span{font:15px/1.35 ui-monospace,Menlo,monospace;color:var(--face)}
+.kv b{font:10px/1.3 var(--sans);letter-spacing:.04em;color:var(--dim);font-weight:500}
+.kv span{font:15px/1.35 var(--sans);color:var(--face)}
 .list{border:1px solid var(--gray);background:var(--list);max-height:52vh;overflow:auto}
 .row{padding:10px 12px;border-bottom:1px solid var(--gray)}
 .row:last-child{border:0}
-.row small{display:block;margin-top:3px;color:var(--dim);font:12px/1.4 ui-monospace,Menlo,monospace}
+.row small{display:block;margin-top:3px;color:var(--dim);font:12px/1.4 var(--sans)}
 .log{max-height:52vh;overflow:auto;padding:2px 0 8px}
-.say{padding:3px 0;line-height:1.55;font:15px/1.55 "PingFang SC","SF Pro Text",system-ui,sans-serif}
+.say{padding:3px 0;line-height:1.55;font:15px/1.55 var(--sans)}
 .say .n{color:var(--ink);font-weight:500}
-.say .web{color:var(--dim);margin-right:6px;font:12px/1.55 ui-monospace,Menlo,monospace}
-.say.sys,.say.cmd{color:var(--dim);font:13px/1.55 ui-monospace,Menlo,monospace}
+.say .web{color:var(--dim);margin-right:6px;font:12px/1.55 var(--mono)}
+.say.sys,.say.cmd{color:var(--dim);font:13px/1.55 var(--sans)}
 .say.join{color:var(--jiqing)}
 .say.quit,.say.death{color:var(--dim)}
 .say.admin{color:var(--face)}
+.say.link,.say.chat,.say.web,.say.join,.say.quit,.say.death,.say.sys,.say.cmd{word-break:break-word}
 #ops{margin:16px 0 12px;padding:14px;border:1px solid var(--gray);background:var(--white);
   box-shadow:4px 4px 0 var(--shade-sm)}
 #ops .list{max-height:160px;margin-bottom:10px}
@@ -104,8 +108,13 @@ body:before{content:"";position:fixed;top:0;left:0;right:0;height:4px;
 .composer input{flex:1;min-width:0;width:auto}
 #linkBtn{flex:none;padding:10px 12px;letter-spacing:.08em}
 .acts{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
-.row.hit{cursor:pointer}
-.row.hit:hover{background:var(--ice)}
+.row.hit,.row.song{cursor:pointer}
+.row.hit:hover,.row.song:hover{background:var(--ice)}
+.row.song{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center}
+.star{appearance:none;border:0;background:transparent;color:var(--dim);cursor:pointer;
+  font:18px/1 var(--sans);padding:2px 4px}
+.star.on{color:var(--jiqing)}
+.lib2{margin:0 0 14px}
 .grid{display:grid;gap:12px}
 input{width:100%;padding:12px 14px;background:var(--white);border:1px solid var(--gray);
   color:var(--ink);font:inherit;border-radius:0;letter-spacing:.2em}
@@ -114,13 +123,13 @@ input:focus{outline:2px solid var(--cobalt);border-color:var(--cobalt)}
 .hidden{display:none!important}
 #toast{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);
   background:var(--cobalt);color:var(--on);padding:8px 12px;display:none;z-index:9;
-  font:12px ui-monospace,Menlo,monospace;box-shadow:4px 4px 0 var(--jiqing)}
+  font:12px var(--sans);box-shadow:4px 4px 0 var(--jiqing)}
 iframe{width:100%;height:56vh;border:1px solid var(--gray);background:var(--white)}
 .searchbar{display:flex;gap:8px;margin-bottom:10px}
 .searchbar input{flex:1}
 .pager{display:none;align-items:center;gap:10px;margin-top:10px}
 .pager.on{display:flex}
-.pager span{font:12px ui-monospace,Menlo,monospace;color:var(--dim)}
+.pager span{font:12px var(--mono);color:var(--dim)}
 .pager button:disabled{opacity:.35;cursor:default}
 .hint{color:var(--dim);font-size:13px;margin:0 0 12px}
 .bye{margin-top:14px;background:transparent;color:var(--dim);box-shadow:none;border:1px solid var(--gray)}
@@ -130,18 +139,18 @@ iframe{width:100%;height:56vh;border:1px solid var(--gray);background:var(--whit
 .stage{flex:none;width:88px;height:118px;background:var(--ice);border:1px solid var(--gray);
   box-shadow:4px 4px 0 var(--shade)}
 .stage canvas{display:block;width:88px;height:118px}
-.hero h1{margin:0;font:600 28px/1.1 "PingFang SC",system-ui,sans-serif;color:var(--deep);letter-spacing:.02em}
+.hero h1{margin:0;font:600 28px/1.1 var(--sans);color:var(--deep);letter-spacing:.02em}
 .hero p{margin:6px 0 0;color:var(--dim)}
-.hero p code{font:12px ui-monospace,Menlo,monospace;color:var(--face)}
+.hero p code{font:12px var(--mono);color:var(--face)}
 .pill{flex:none;padding:8px 12px;background:var(--ice);color:var(--deep);
-  font:11px ui-monospace,Menlo,monospace;letter-spacing:.12em;border-left:3px solid var(--jiqing)}
+  font:11px var(--sans);letter-spacing:.04em;border-left:3px solid var(--jiqing)}
 .pill.live{background:var(--cobalt);color:var(--on);border-left-color:var(--jiqing)}
 .stats{grid-template-columns:repeat(auto-fit,minmax(140px,1fr));margin-bottom:14px}
 #ops .stats{grid-template-columns:repeat(auto-fit,minmax(140px,1fr))}
 .stat{background:var(--white);border:1px solid var(--gray);padding:14px 14px 12px;border-left:4px solid var(--cobalt);
   box-shadow:3px 3px 0 var(--shade-sm)}
-.stat b{display:block;font:10px/1.2 ui-monospace,Menlo,monospace;color:var(--dim);letter-spacing:.12em}
-.stat em{display:block;margin-top:10px;font:600 22px/1.1 ui-monospace,Menlo,monospace;font-style:normal;color:var(--face)}
+.stat b{display:block;font:10px/1.2 var(--sans);color:var(--dim);letter-spacing:.04em}
+.stat em{display:block;margin-top:10px;font:600 22px/1.1 var(--sans);font-style:normal;color:var(--face)}
 .nowbox{margin-bottom:14px;border-left:4px solid var(--jiqing)}
 .nowbox .mute{margin-top:12px}
 .nowbox em{margin-top:6px;font-style:normal;font-size:16px;color:var(--deep)}
@@ -150,14 +159,14 @@ iframe{width:100%;height:56vh;border:1px solid var(--gray);background:var(--whit
   repeating-linear-gradient(45deg,var(--ice) 0 8px,var(--white) 8px 16px);object-fit:cover;display:block;
   box-shadow:4px 4px 0 var(--ice)}
 .cover.off{display:none}
-.meta b{display:block;font:600 18px/1.25 "PingFang SC",system-ui,sans-serif;color:var(--deep)}
-.meta small{display:block;margin-top:4px;color:var(--dim);font:12px/1.4 ui-monospace,Menlo,monospace}
+.meta b{display:block;font:600 18px/1.25 var(--sans);color:var(--deep)}
+.meta small{display:block;margin-top:4px;color:var(--dim);font:12px/1.4 var(--sans)}
 .ly{margin-top:14px;padding-top:12px;border-top:1px solid var(--gray)}
 .ly .ln{display:block;line-height:1.45}
 .ly .prev,.ly .next{color:var(--dim);font-size:13px}
 .ly .cur{color:var(--face);font-size:18px;font-weight:500;margin:4px 0}
 .ly .tr{color:var(--dim);font-size:13px}
-.cap{font:10px/1 ui-monospace,Menlo,monospace;color:var(--dim);margin:0 0 8px;letter-spacing:.14em;
+.cap{font:10px/1 var(--sans);color:var(--dim);margin:0 0 8px;letter-spacing:.06em;
   display:flex;align-items:center;gap:8px}
 .cap:before{content:"";width:18px;height:2px;background:var(--cobalt)}
 .go{margin-top:10px}
@@ -166,6 +175,43 @@ iframe{width:100%;height:56vh;border:1px solid var(--gray);background:var(--whit
   border:1px solid var(--gray);padding:14px;box-shadow:4px 4px 0 var(--shade-sm)}
 .home2 .log,.home2 .list{flex:1;min-height:168px;max-height:220px;margin:0}
 .home2 .go{margin-top:12px;align-self:flex-start}
+.life{align-items:start}
+.form{display:grid;gap:8px}
+textarea{width:100%;min-height:88px;padding:12px 14px;background:var(--white);
+  border:1px solid var(--gray);color:var(--ink);font:inherit;border-radius:0;resize:vertical}
+textarea:focus{outline:2px solid var(--cobalt);border-color:var(--cobalt)}
+#payName,#mailName,#friendName,#statusBox,#payAmt,#mailText,#songQ,#routeFrom,#routeTo{letter-spacing:0}
+.row.unread{border-left:3px solid var(--jiqing)}
+.row.pick,.stat.hit{cursor:pointer}
+.stat.hit:hover{box-shadow:3px 3px 0 var(--jiqing)}
+.stat .key{margin-top:10px}
+.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:10px}
+.cal b{display:block;text-align:center;font:10px/1 var(--sans);color:var(--dim);padding:4px 0;font-weight:500}
+.cal i{display:block;text-align:center;padding:8px 0;font:11px/1 var(--mono);
+  background:var(--ice);color:var(--dim);font-style:normal}
+.cal i.on{background:var(--cobalt);color:var(--on)}
+.cal i.today{box-shadow:inset 0 0 0 2px var(--jiqing)}
+.cal i.mk{cursor:pointer}
+.cal i.mk:hover{background:var(--mist)}
+.tabs{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 14px}
+.tabs button{padding-left:14px}
+.tabs button:before{content:none}
+.pane{min-width:0}
+.tax{margin:0;color:var(--dim);font:12px/1.4 var(--sans)}
+.nav button[data-badge]:not([data-badge=""]):after{
+  content:attr(data-badge);position:absolute;right:8px;top:50%;transform:translateY(-50%);
+  font:9px/1 var(--mono);color:var(--jiqing)}
+.nav button.on[data-badge]:not([data-badge=""]):after{color:var(--mist)}
+.modal{position:fixed;inset:0;background:rgba(22,26,32,.4);z-index:8;
+  display:flex;align-items:center;justify-content:center;padding:20px}
+.modal .panel{max-width:360px;width:100%}
+.modal .kv{margin:12px 0 4px}
+.mebox{position:relative}
+.drop{position:absolute;right:0;top:calc(100% + 8px);z-index:6;width:280px;
+  box-shadow:8px 8px 0 var(--shade)}
+#st{cursor:pointer}
+.card{position:fixed;right:20px;bottom:20px;z-index:7;width:min(320px,calc(100vw - 32px));
+  box-shadow:8px 8px 0 var(--shade)}
 .row.who{display:grid;grid-template-columns:40px 1fr;gap:10px;align-items:center}
 .row.who:not(:has(.head3d)){grid-template-columns:1fr}
 .head3d{width:40px;height:40px;background:var(--ice);object-fit:contain}
@@ -179,6 +225,7 @@ main{min-width:0}
   .kv{grid-template-columns:100px 1fr}
   .kv span{font-size:18px}
   .home2{grid-template-columns:minmax(0,1.4fr) minmax(240px,.85fr)}
+  .life{grid-template-columns:1fr 1fr}
   .grid.music{grid-template-columns:minmax(0,1.2fr) minmax(260px,.8fr);align-items:start}
   .grid.map{grid-template-columns:minmax(0,1fr) minmax(220px,280px);align-items:stretch}
   .list,.log{max-height:calc(100vh - 240px)}
@@ -189,6 +236,7 @@ main{min-width:0}
 @media (min-width:1280px){
   .desk.live{grid-template-columns:188px minmax(0,1fr)}
   .home2{grid-template-columns:minmax(0,1.6fr) minmax(300px,1fr)}
+  .life{grid-template-columns:1fr 1fr 1fr}
 }
 
 </style></head><body>
@@ -202,6 +250,19 @@ main{min-width:0}
     <span class=here id=here>尚未接入</span>
     <span class=folio id=ver>v—</span>
     <button class=key type=button id=themeBtn>随系统</button>
+    <div class="mebox hidden" id=mebox>
+      <button class=key type=button id=meBtn>我</button>
+      <div id=meMenu class="panel drop hidden">
+        <div class=cap>改签名</div>
+        <form id=statusForm class=form>
+          <input id=statusBox maxlength=40 placeholder="写下想让别人看见的一句话" autocomplete=off>
+          <div class=acts>
+            <button class="key on" type=submit>保存</button>
+            <button class=key type=button id=statusClr>清除</button>
+          </div>
+        </form>
+      </div>
+    </div>
     <div class=clock id=clock></div>
   </div>
 </div>
@@ -212,9 +273,10 @@ main{min-width:0}
 <div class=desk>
 <nav class="nav hidden" id=nav>
   <button type=button data-p=home data-n=01 class=on>概览</button>
-  <button type=button data-p=chat data-n=02>通讯</button>
-  <button type=button data-p=music data-n=03>点歌</button>
-  <button type=button data-p=map data-n=04>地图</button>
+  <button type=button data-p=life data-n=02>生活</button>
+  <button type=button data-p=chat data-n=03>通讯</button>
+  <button type=button data-p=music data-n=04>点歌</button>
+  <button type=button data-p=map data-n=05>地图</button>
 </nav>
 <main>
 <section id=gate>
@@ -240,15 +302,21 @@ main{min-width:0}
       <div>
         <h1 id=nm>--</h1>
         <p id=st>还没有写下签名</p>
+        <p id=stay class=hidden></p>
+        <p id=reqHint class="hint hidden" data-go=life data-tab=social></p>
       </div>
     </div>
     <div class=pill id=on>尚未进入游戏</div>
   </div>
   <div class="grid stats">
-    <div class=stat><b>余额</b><em id=bal>--</em></div>
-    <div class=stat><b>未读来信</b><em id=mailN>0</em></div>
-    <div class=stat><b>签到</b><em id=chk>--</em></div>
-    <div class=stat><b>在线人数</b><em id=pl>--</em></div>
+    <div class="stat hit" data-go=life data-tab=day><b>余额</b><em id=bal>--</em></div>
+    <div class="stat hit" data-go=life data-tab=social><b>未读来信</b><em id=mailN>0</em></div>
+    <div class=stat>
+      <b>签到</b><em id=chk>--</em>
+      <button class="key on" type=button id=chkBtn>今日签到</button>
+    </div>
+    <div class="stat hit" data-go=map><b>在线人数</b><em id=pl>--</em></div>
+    <div class="stat hit" data-go=life data-tab=day><b>游戏时长</b><em id=pt>--</em></div>
   </div>
   <div class="panel nowbox">
     <div class=nowcard>
@@ -265,6 +333,18 @@ main{min-width:0}
     <div class=acts>
       <button class="key voteSong" type=button>投票切歌</button>
       <button class="key nextSong hidden" type=button>切到下一首</button>
+    </div>
+  </div>
+  <div class="grid home2 lib2">
+    <div class=col>
+      <div class=cap>收藏</div>
+      <div class=list id=homeFav></div>
+      <button class="key go" type=button data-go=music>点歌</button>
+    </div>
+    <div class=col>
+      <div class=cap>最近播放</div>
+      <div class=list id=homeHist></div>
+      <button class="key go" type=button data-go=music>点歌</button>
     </div>
   </div>
   <div id=ops class=hidden>
@@ -288,6 +368,168 @@ main{min-width:0}
       <div class=cap>此刻在线</div>
       <div class=list id=homeWho></div>
       <button class="key go" type=button data-go=map>查看地图</button>
+    </div>
+  </div>
+</section>
+<section id=life class=hidden>
+  <div class="grid stats">
+    <div class=stat><b>余额</b><em id=lifeBal>--</em></div>
+    <div class=stat><b>签到</b><em id=lifeChk>--</em></div>
+    <div class=stat><b>补签券</b><em id=lifeMk>0</em></div>
+    <div class=stat><b>住宿</b><em id=lifeStay>--</em></div>
+  </div>
+  <div class=tabs id=lifeTabs>
+    <button class="key on" type=button data-tab=day>日常</button>
+    <button class=key type=button data-tab=social>社交</button>
+    <button class=key type=button data-tab=city>城市</button>
+    <button class=key type=button data-tab=file>档案</button>
+    <button class=key type=button data-tab=board>榜</button>
+  </div>
+  <div class="grid home2 life pane" id=pane-day>
+    <div class=col>
+      <div class=cap>本月签到</div>
+      <div class=cal id=cal></div>
+      <p class=hint>亮起的日子已经签过。有补签券时，点过去的空日即可补签。</p>
+      <div class=acts>
+        <button class="key on" type=button id=chkBtn2>今日签到</button>
+        <button class=key type=button id=shareBtn>位置分享</button>
+      </div>
+    </div>
+    <div class=col>
+      <div class=cap>转账</div>
+      <form id=payForm class=form>
+        <input id=payName placeholder="收款人游戏名" autocomplete=off>
+        <input id=payAmt inputmode=decimal placeholder="金额">
+        <p class=tax id=payTax></p>
+        <button class="key on" type=submit>转出</button>
+      </form>
+      <p class=hint id=playHint></p>
+    </div>
+  </div>
+  <div class="grid home2 life pane hidden" id=pane-social>
+    <div class=col>
+      <div class=cap>写信</div>
+      <form id=mailForm class=form>
+        <input id=mailName placeholder="收件人游戏名" autocomplete=off>
+        <textarea id=mailText maxlength=800 placeholder="写下想说的话"></textarea>
+        <button class="key on" type=submit>送出</button>
+      </form>
+    </div>
+    <div class=col>
+      <div class=cap>来信</div>
+      <div class=list id=mailBox></div>
+    </div>
+    <div class=col>
+      <div class=cap>好友请求</div>
+      <div class=list id=reqBox></div>
+      <form id=friendForm class=form style="margin-top:12px">
+        <div class=searchbar>
+          <input id=friendName placeholder="游戏名" autocomplete=off>
+          <button class="key on" type=submit>加好友</button>
+        </div>
+      </form>
+    </div>
+    <div class=col>
+      <div class=cap>好友</div>
+      <div class=list id=friendBox></div>
+    </div>
+    <div class=col>
+      <div class=cap>公告</div>
+      <div class=list id=noticeBox></div>
+    </div>
+    <div class=col>
+      <div class=cap>活动</div>
+      <div class=list id=eventBox></div>
+    </div>
+  </div>
+  <div class="grid home2 life pane hidden" id=pane-city>
+    <div class=col>
+      <div class=cap>路线</div>
+      <p class=hint id=rideHint></p>
+      <form id=routeForm class=form>
+        <input id=routeFrom list=stops placeholder="起点站" autocomplete=off>
+        <input id=routeTo list=stops placeholder="终点站" autocomplete=off>
+        <datalist id=stops></datalist>
+        <button class="key on" type=submit>查询票价</button>
+      </form>
+      <p class=tax id=routeOut></p>
+      <div class=cap>乘车记录</div>
+      <div class=list id=rideHist></div>
+    </div>
+    <div class=col>
+      <div class=cap>招工</div>
+      <div class=list id=jobBox></div>
+    </div>
+    <div class=col>
+      <div class=cap>展示</div>
+      <div class=list id=showBox></div>
+    </div>
+    <div class=col>
+      <div class=cap>我的房产</div>
+      <div class=list id=homeBox></div>
+    </div>
+    <div class=col>
+      <div class=cap>挂牌出售</div>
+      <p class=hint>购买需在游戏里确认。网页只看盘。</p>
+      <div class=list id=saleBox></div>
+    </div>
+    <div class=col>
+      <div class=cap>我的领地</div>
+      <div class=list id=landBox></div>
+    </div>
+    <div class=col>
+      <div class=cap>公开领地</div>
+      <div class=list id=pubBox></div>
+    </div>
+    <div class=col>
+      <div class=cap>套件</div>
+      <p class=hint>领取需进入游戏，背包才接得住。</p>
+      <div class=list id=kitBox></div>
+    </div>
+    <div class=col>
+      <div class=cap>技能店</div>
+      <p class=hint>购买会发到背包，请在游戏里完成。</p>
+      <div class=list id=skillBox></div>
+    </div>
+  </div>
+  <div class="grid home2 life pane hidden" id=pane-file>
+    <div class=col>
+      <div class=cap>死亡记录</div>
+      <p class=hint>传送回死亡点请在游戏里操作。</p>
+      <div class=list id=deathBox></div>
+    </div>
+    <div class=col>
+      <div class=cap>坐标收藏</div>
+      <p class=hint>网页可以删，传送要人在游戏里。</p>
+      <div class=list id=wpBox></div>
+    </div>
+    <div class=col>
+      <div class=cap>保险备份</div>
+      <p class=hint id=coverHint></p>
+      <div class=list id=insBox></div>
+    </div>
+    <div class=col>
+      <div class=cap>特效</div>
+      <p class=hint>装备后需进入游戏才会看见粒子。网页改的是记录。</p>
+      <div class=acts>
+        <button class=key type=button id=auraOff>卸下</button>
+        <button class=key type=button id=auraBright>亮度</button>
+      </div>
+      <div class=list id=auraBox></div>
+    </div>
+  </div>
+  <div class="grid home2 life pane hidden" id=pane-board>
+    <div class=col>
+      <div class=cap>时长榜</div>
+      <div class=list id=playBox></div>
+    </div>
+    <div class=col>
+      <div class=cap>交易榜</div>
+      <div class=list id=tradeBox></div>
+    </div>
+    <div class=col>
+      <div class=cap>乘车榜</div>
+      <div class=list id=rideBox></div>
     </div>
   </div>
 </section>
@@ -335,6 +577,16 @@ main{min-width:0}
       <div class=list id=queue></div>
     </div>
   </div>
+  <div class="grid home2 lib2" style="margin-top:14px">
+    <div class=col>
+      <div class=cap>收藏</div>
+      <div class=list id=favs></div>
+    </div>
+    <div class=col>
+      <div class=cap>最近播放</div>
+      <div class=list id=hist></div>
+    </div>
+  </div>
 </section>
 <section id=map class=hidden>
   <div class="grid map">
@@ -355,11 +607,34 @@ main{min-width:0}
 </footer>
 </div>
 <div id=toast></div>
+<div id=modal class="modal hidden">
+  <div class=panel>
+    <div class=cap id=modalCap>请确认</div>
+    <p id=modalTxt></p>
+    <div class="kv hidden" id=modalKv></div>
+    <div class=acts>
+      <button class="key on" type=button id=modalOk>确认</button>
+      <button class=key type=button id=modalNo>取消</button>
+    </div>
+  </div>
+</div>
+<div id=card class="panel card hidden">
+  <div class=cap>选中的人</div>
+  <b id=cardName></b>
+  <div class=acts>
+    <button class=key type=button data-card=mail>写信</button>
+    <button class=key type=button data-card=pay>转账</button>
+    <button class=key type=button data-card=say>私信</button>
+    <button class=key type=button data-card=add>加好友</button>
+    <button class=key type=button id=cardClose>收起</button>
+  </div>
+</div>
 <script>
 const $=s=>document.querySelector(s);
 const KEY='ecos-web-token';
 let page='home', hits=[], mapSrc='', chatHtml='', queueHtml='', rosterHtml='';
-let me='', ver='', wantMute=false, lastUrl='', hereOnline=null, linkAll=false, saying=false;
+let me='', ver='', wantMute=false, lastUrl='', hereOnline=null, linkAll=false, saying=false, linkBusy=false;
+let favs=[], hist=[], favIds=new Set();
 function hello(name){
   const h=new Date().getHours();
   const g=h<5?'夜深了':h<9?'早上好':h<11?'上午好':h<14?'中午好':h<18?'下午好':h<22?'晚上好':'夜深了';
@@ -436,21 +711,26 @@ function cycleTheme(){
   toast(next==='auto'?'已跟随系统外观':next==='night'?'已切换为夜航':'已切换为纸面');
 }
 function esc(s){return String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+const PAGES=['home','life','chat','music','map'];
 function show(p){
   page=p;
-  ['home','chat','music','map'].forEach(id=>$('#'+id).classList.toggle('hidden',id!==p));
+  PAGES.forEach(id=>$('#'+id).classList.toggle('hidden',id!==p));
   $('#nav').querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.p===p));
+  if(p==='life') pullLife();
 }
 function gated(on){
   $('#gate').classList.toggle('hidden',on);
   $('#nav').classList.toggle('hidden',!on);
   $('.desk').classList.toggle('live',on);
   $('#bye').classList.toggle('hidden',!on);
+  const mebox=$('#mebox');
+  if(mebox) mebox.classList.toggle('hidden',!on);
+  if(!on){const m=$('#meMenu');if(m)m.classList.add('hidden')}
   if(on) show(page);
   else{
     me='';
     hereOnline=null;
-    ['home','chat','music','map'].forEach(id=>$('#'+id).classList.add('hidden'));
+    PAGES.forEach(id=>$('#'+id).classList.add('hidden'));
   }
   paintChrome();
 }
@@ -462,6 +742,18 @@ function setTape(items){
   $('#tapeTrack').innerHTML=html;
 }
 setTape();
+function songMeta(s){
+  return [s.author,s.album,s.caller?('由 '+s.caller+' 点播'):'',s.time].filter(Boolean).join(' · ');
+}
+function songRow(s, i){
+  const on=!!(s.id&&(s.fav||favIds.has(s.id)));
+  const idx=i==null?'':` data-i="${i}"`;
+  return `<div class="row song" data-id="${esc(s.id||'')}" data-name="${esc(s.name||'')}" data-author="${esc(s.author||'')}" data-album="${esc(s.album||'')}"${idx}><div>${esc(s.name||s.id||'未命名')}<small>${esc(songMeta(s))}</small></div>${s.id?`<button type=button class="star${on?' on':''}" data-fav>${on?'★':'☆'}</button>`:''}</div>`;
+}
+function songRows(list, empty){
+  if(!list||!list.length) return `<div class=row>${esc(empty)}</div>`;
+  return list.map(s=>songRow(s)).join('');
+}
 function paintHits(d, empty){
   const list=d&&d.songs?d.songs:(Array.isArray(d)?d:[]);
   hits=list;
@@ -470,7 +762,7 @@ function paintHits(d, empty){
     $('#pager').classList.remove('on');
     return;
   }
-  $('#hits').innerHTML=hits.map((s,i)=>`<div class="row hit" data-i="${i}">${esc(s.name)}<small>${esc(s.author)}${s.album?' · '+esc(s.album):''}</small></div>`).join('');
+  $('#hits').innerHTML=hits.map((s,i)=>songRow(s,i)).join('');
   const pages=d.pages||0, page=d.page||1;
   if(pages>1){
     $('#pager').classList.add('on');
@@ -478,6 +770,55 @@ function paintHits(d, empty){
     $('#prevPage').disabled=!d.prev;
     $('#nextPage').disabled=!d.next;
   } else $('#pager').classList.remove('on');
+}
+function paintLib(d){
+  favs=d&&d.favorites?d.favorites:[];
+  hist=d&&d.history?d.history:[];
+  favIds=new Set(favs.map(s=>s.id).filter(Boolean));
+  const homeN=6;
+  const hf=$('#homeFav'), hh=$('#homeHist'), ff=$('#favs'), ht=$('#hist');
+  if(hf) hf.innerHTML=songRows(favs.slice(0,homeN),'还没有收藏');
+  if(hh) hh.innerHTML=songRows(hist.slice(0,homeN),'还没有播放记录');
+  if(ff) ff.innerHTML=songRows(favs,'还没有收藏');
+  if(ht) ht.innerHTML=songRows(hist,'还没有播放记录');
+  document.querySelectorAll('#hits .song').forEach(row=>{
+    const s=songFromRow(row);
+    const b=row.querySelector('.star');
+    if(!b) return;
+    const on=!!(s&&s.id&&(s.fav||favIds.has(s.id)));
+    b.classList.toggle('on',on);
+    b.textContent=on?'★':'☆';
+  });
+}
+function pullLib(){
+  if(!token())return;
+  fetch('/v1/library',{headers:headers()}).then(r=>{
+    if(r.status===401)return;
+    return r.json();
+  }).then(d=>{
+    if(d&&d.ok) paintLib(d);
+  }).catch(()=>{});
+}
+function playSong(s){
+  if(!s||!s.id){toast('这首没有歌曲编号，无法点播');return}
+  fetch('/v1/music',{method:'POST',headers:{...headers(),'Content-Type':'application/json'},body:JSON.stringify({id:s.id})}
+  ).then(r=>r.json()).then(d=>{
+    toast(d.ok?'已为您点播 '+(s.name||''):(d.error||'点播没有完成，请稍后再试'));
+    if(d.ok){pull();pullLib()}
+  }).catch(()=>toast('点播没有完成，请稍后再试'));
+}
+function toggleFav(s){
+  if(!s||!s.id){toast('这首没有歌曲编号，无法收藏');return}
+  fetch('/v1/music',{method:'POST',headers:{...headers(),'Content-Type':'application/json'},body:JSON.stringify({action:'fav',id:s.id,name:s.name||'',author:s.author||'',album:s.album||''})}
+  ).then(r=>r.json()).then(d=>{
+    toast(d.ok?(d.msg||(d.fav?'已收藏':'已取消收藏')):(d.error||'收藏没有完成，请稍后再试'));
+    if(d.ok) pullLib();
+  }).catch(()=>toast('收藏没有完成，请稍后再试'));
+}
+function songFromRow(row){
+  if(!row) return null;
+  if(row.dataset.i!=null&&hits[+row.dataset.i]) return hits[+row.dataset.i];
+  return {id:row.dataset.id,name:row.dataset.name,author:row.dataset.author,album:row.dataset.album};
 }
 function doSearch(body, empty){
   fetch('/v1/search',{method:'POST',headers:{...headers(),'Content-Type':'application/json'},body:JSON.stringify(body)})
@@ -549,53 +890,104 @@ function paintNow(now){
   if($('#lyHome').dataset.k!==ly){$('#lyHome').dataset.k=ly;$('#lyHome').innerHTML=ly}
 }
 function kindOf(l){return l.kind||(l.web?'web':'chat')}
+function legacyHtml(s){
+  if(!s) return '';
+  const codes={0:'#000000',1:'#0000AA',2:'#00AA00',3:'#00AAAA',4:'#AA0000',5:'#AA00AA',6:'#FFAA00',7:'#AAAAAA',
+    8:'#555555',9:'#5555FF',a:'#55FF55',b:'#55FFFF',c:'#FF5555',d:'#FF55FF',e:'#FFFF55',f:'#FFFFFF'};
+  let i=0,out='',n=0;
+  const close=()=>{while(n>0){out+='</span>';n--}};
+  const open=st=>{out+='<span style="'+st+'">';n++};
+  const str=String(s);
+  while(i<str.length){
+    const c=str[i];
+    if((c==='\u00a7'||c==='&')&&i+1<str.length){
+      const k=str[++i].toLowerCase();
+      i++;
+      if(k==='x'&&i+12<=str.length){
+        let hex='',ok=true;
+        for(let t=0;t<6;t++){
+          if(str[i]!=='\u00a7'&&str[i]!=='&'){ok=false;break}
+          hex+=str[i+1];i+=2;
+        }
+        if(ok){open('color:#'+hex);continue}
+      }
+      if(k==='#'&&i+6<=str.length){open('color:#'+str.slice(i,i+6));i+=6;continue}
+      if(codes[k]){open('color:'+codes[k]);continue}
+      if(k==='l'){open('font-weight:700');continue}
+      if(k==='o'){open('font-style:italic');continue}
+      if(k==='n'){open('text-decoration:underline');continue}
+      if(k==='m'){open('text-decoration:line-through');continue}
+      if(k==='r'||k==='k'){close();continue}
+      continue;
+    }
+    out+=esc(c);i++;
+  }
+  close();
+  return out;
+}
 function sayLine(l){
   const k=kindOf(l);
+  if(l.display) return `<div class="say ${esc(k)}">${legacyHtml(l.display)}</div>`;
   if(k==='web'||l.web) return `<div class="say web"><span class=web>[Web]</span><span class=n>&lt;${esc(l.name)}&gt;</span> ${esc(l.text)}</div>`;
-  if(k==='chat') return `<div class=say><span class=n>&lt;${esc(l.name)}&gt;</span> ${esc(l.text)}</div>`;
+  if(k==='chat'||k==='link') return `<div class="say ${esc(k)}"><span class=n>&lt;${esc(l.name)}&gt;</span> ${esc(l.text)}</div>`;
   return `<div class="say ${esc(k)}">${esc(l.text)}</div>`;
 }
 function headUrl(p){
   if(p&&p.head) return p.head;
   const n=p&&p.name?p.name:'Steve';
-  return 'https://mc-heads.net/head/'+encodeURIComponent(n)+'/80';
+  return '/v1/skin?n='+encodeURIComponent(n);
 }
 function skinUrl(d){
   if(d&&d.skin) return d.skin;
   const n=d&&d.name?d.name:'Steve';
-  return 'https://mc-heads.net/skin/'+encodeURIComponent(n);
+  return '/v1/skin?n='+encodeURIComponent(n);
 }
 let skinViewer=null, skinKey='';
 function paintSkin(d){
-  const url=skinUrl(d);
-  if(!window.skinview3d||!window.skinview3d.SkinViewer) return;
-  const canvas=$('#skin3d');
-  if(!canvas) return;
-  if(!skinViewer){
-    skinViewer=new skinview3d.SkinViewer({canvas,width:88,height:118,skin:url});
-    skinViewer.autoRotate=true;
-    skinViewer.autoRotateSpeed=.5;
-    try{skinViewer.animation=new skinview3d.WalkingAnimation()}catch(e){}
-    if(skinViewer.controls) skinViewer.controls.enableZoom=false;
-  }else if(skinKey!==url){
-    skinViewer.loadSkin(url);
-  }
-  skinKey=url;
+  try{
+    const url=skinUrl(d);
+    if(!window.skinview3d||!window.skinview3d.SkinViewer) return;
+    const canvas=$('#skin3d');
+    if(!canvas) return;
+    if(!skinViewer){
+      skinViewer=new skinview3d.SkinViewer({canvas,width:88,height:118,skin:url});
+      skinViewer.autoRotate=true;
+      skinViewer.autoRotateSpeed=.5;
+      try{skinViewer.animation=new skinview3d.WalkingAnimation()}catch(e){}
+      if(skinViewer.controls) skinViewer.controls.enableZoom=false;
+    }else if(skinKey!==url){
+      skinViewer.loadSkin(url);
+    }
+    skinKey=url;
+  }catch(e){}
 }
 function whoRow(p){
-  return `<div class="row who"><img class=head3d alt="" src="${esc(headUrl(p))}" onerror="this.remove()"><div>${esc(p.name)}<small>${esc(p.world)}  ${p.x} ${p.y} ${p.z}${p.ip?' · '+esc(p.ip):''}</small></div></div>`;
+  return `<div class="row who pick" data-name="${esc(p.name)}"><img class=head3d alt="" src="${esc(headUrl(p))}" onerror="this.remove()"><div>${esc(p.name)}<small>${esc(p.world)}  ${p.x} ${p.y} ${p.z}${p.ip?' · '+esc(p.ip):''}</small></div></div>`;
 }
 function paint(d){
   me=d.name||'';
   if(d.version) ver=d.version;
   paintChrome();
   $('#nm').textContent=d.name||'--';
-  paintSkin(d);
+  try{paintSkin(d)}catch(e){}
   $('#bal').textContent=d.balance||'--';
   $('#mailN').textContent=d.mail??0;
   $('#chk').textContent=d.checked?'今日已签到 · 连签 '+(d.streak??0)+' 日':'今日尚未签到';
   $('#pl').textContent=d.players??(d.who||[]).length;
   $('#st').textContent=d.status||'还没有写下签名';
+  const stay=$('#stay');
+  if(stay){stay.textContent=d.stay||'';stay.classList.toggle('hidden',!d.stay)}
+  const rh=$('#reqHint');
+  if(rh){
+    rh.textContent=d.reqs?('有 '+d.reqs+' 条好友请求，可在生活页处理'):'';
+    rh.classList.toggle('hidden',!d.reqs);
+  }
+  const chkBtn=$('#chkBtn');
+  if(chkBtn) chkBtn.classList.toggle('hidden',!!d.checked);
+  const pt=$('#pt');
+  if(pt) pt.textContent=d.played||'--';
+  const navLife=$('#nav [data-p=life]');
+  if(navLife) navLife.dataset.badge=((d.mail||0)+(d.reqs||0))||'';
   syncAudio(d);
   paintNow(d.now);
   setTape(d.tape);
@@ -628,12 +1020,10 @@ function paint(d){
     $('#mapFrame').src=d.map;
     $('#mapFrame').classList.remove('hidden');
   }
-  linkAll=!!d.link;
   const linkBtn=$('#linkBtn');
   if(linkBtn){
     linkBtn.classList.toggle('hidden',!d.hasLink);
-    linkBtn.classList.toggle('on',linkAll);
-    linkBtn.textContent=linkAll?'互通':'本服';
+    if(!linkBusy) setLinkUi(!!d.link);
   }
   document.querySelectorAll('.nextSong').forEach(b=>b.classList.toggle('hidden',!d.admin));
 }
@@ -645,7 +1035,187 @@ function pull(){
   fetch('/v1/desk',{headers:headers()}).then(r=>{
     if(r.status===401){setTok('');gated(false);toast('连接已失效，请重新接入');throw 0}
     return r.json();
-  }).then(d=>{gated(true);paint(d)}).catch(()=>{}).finally(()=>{deskBusy=false});
+  }).then(d=>{
+    if(!d||!d.ok){toast((d&&d.error)||'终端没有返回数据');return}
+    gated(true);
+    try{paint(d)}catch(e){toast('界面未能刷新')}
+    pullLib();
+    if(page==='life') pullLife();
+  }).catch(()=>{}).finally(()=>{deskBusy=false});
+}
+let lifeBusy=false;
+function emptyRow(t){return `<div class=row>${esc(t)}</div>`}
+function boardRows(list){
+  if(!list||!list.length) return emptyRow('还没有记录');
+  return list.map(e=>`<div class=row>${esc(e.name)}<small>${esc(e.v)}</small></div>`).join('');
+}
+function paintCal(cal, makeup){
+  const el=$('#cal');
+  if(!el||!cal){if(el) el.innerHTML='';return}
+  const y=cal.y, m=cal.m, today=cal.today, on=new Set(cal.days||[]);
+  const first=new Date(y,m-1,1).getDay();
+  const dim=new Date(y,m,0).getDate();
+  const now=new Date();
+  const thisMonth=now.getFullYear()===y&&now.getMonth()+1===m;
+  const heads=['日','一','二','三','四','五','六'].map(s=>`<b>${s}</b>`).join('');
+  let cells='';
+  for(let i=0;i<first;i++) cells+='<i></i>';
+  for(let d=1;d<=dim;d++){
+    const cls=[''];
+    if(on.has(d)) cls.push('on');
+    if(thisMonth&&d===today) cls.push('today');
+    if(makeup>0&&thisMonth&&d<today&&!on.has(d)) cls.push('mk');
+    const date=`${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    cells+=`<i class="${cls.join(' ').trim()}" data-day="${date}">${d}</i>`;
+  }
+  el.innerHTML=heads+cells;
+}
+let taxOn=false, taxRate=0, lifeTab='day';
+function showLifeTab(tab){
+  lifeTab=tab||'day';
+  document.querySelectorAll('#life .pane').forEach(p=>p.classList.toggle('hidden',p.id!=='pane-'+lifeTab));
+  document.querySelectorAll('#lifeTabs [data-tab]').forEach(b=>b.classList.toggle('on',b.dataset.tab===lifeTab));
+}
+function paintLife(d){
+  taxOn=!!d.taxOn; taxRate=+d.taxRate||0;
+  $('#lifeBal').textContent=d.balance||'--';
+  $('#lifeChk').textContent=d.checked?('已签 · 连签 '+(d.streak||0)+' 日'):'今日尚未签到';
+  $('#lifeMk').textContent=d.makeup??0;
+  $('#lifeStay').textContent=d.stay||'未入住';
+  const ph=$('#playHint');
+  if(ph) ph.textContent=(d.played?('累计在线 '+d.played):'')+(d.miles&&d.miles.length?(' · 里程碑 '+d.miles.join(' / ')):'')+(d.recycle?(' · 回收站 '+d.recycle+' 件'):'');
+  const sb=$('#statusBox');
+  if(sb&&document.activeElement!==sb) sb.value=d.status||'';
+  const share=$('#shareBtn');
+  if(share){share.textContent=d.share?'位置分享 · 开':'位置分享 · 关';share.classList.toggle('on',!!d.share)}
+  const chk2=$('#chkBtn2');
+  if(chk2) chk2.classList.toggle('hidden',!!d.checked);
+  paintCal(d.cal, d.makeup||0);
+  paintTax();
+  $('#mailBox').innerHTML=(d.mail&&d.mail.length)?d.mail.map(m=>
+    `<div class="row${m.read?'':' unread'}">${esc(m.from)} · ${esc(m.date)}${m.read?'':' · 未读'}<small>${esc(m.text)}</small><div class=acts>
+      ${m.read?'':`<button class=key type=button data-act=mail.read data-id="${m.i}">标为已读</button>`}
+      <button class=key type=button data-confirm="删除这封来自 ${esc(m.from)} 的信？" data-act=mail.del data-id="${m.i}">删除</button>
+      <button class=key type=button data-reply="${esc(m.from)}">回信</button>
+    </div></div>`).join(''):emptyRow('信箱是空的');
+  $('#reqBox').innerHTML=(d.reqs&&d.reqs.length)?d.reqs.map(r=>
+    `<div class=row>${esc(r.name)}<div class=acts>
+      <button class="key on" type=button data-act=friend.acc data-id="${esc(r.id)}">接受</button>
+      <button class=key type=button data-act=friend.den data-id="${esc(r.id)}">拒绝</button>
+    </div></div>`).join(''):emptyRow('没有待处理的请求');
+  $('#friendBox').innerHTML=(d.friends&&d.friends.length)?d.friends.map(f=>
+    `<div class="row pick" data-name="${esc(f.name)}">${esc(f.name)}<small>${f.online?(f.loc||'在线'):'离线'}${f.share?' · 分享位置':''}</small><div class=acts>
+      <button class=key type=button data-reply="${esc(f.name)}">写信</button>
+      <button class=key type=button data-pay="${esc(f.name)}">转账</button>
+      <button class=key type=button data-say="${esc(f.name)}">私信</button>
+      <button class=key type=button data-confirm="删除好友 ${esc(f.name)}？" data-act=friend.del data-id="${esc(f.id)}">删除</button>
+    </div></div>`).join(''):emptyRow('还没有好友');
+  $('#noticeBox').innerHTML=(d.notices&&d.notices.length)?d.notices.map(n=>
+    `<div class=row>${esc(n.from)} · ${esc(n.date)}<small>${esc(n.text)}</small></div>`).join(''):emptyRow('暂无公告');
+  $('#eventBox').innerHTML=(d.events&&d.events.length)?d.events.map(e=>
+    `<div class=row>${esc(e.name)}<small>${e.n}${e.max?('/'+e.max):''} 人${e.in?' · 已参加':''}</small><div class=acts>
+      <button class="key${e.in?'':' on'}" type=button data-act=ev.toggle data-id="${esc(e.id)}">${e.in?'退出':'参加'}</button>
+    </div></div>`).join(''):emptyRow('目前没有活动');
+  $('#jobBox').innerHTML=(d.jobs&&d.jobs.length)?d.jobs.map(j=>
+    `<div class=row>${esc(j.title)}<small>${esc(j.who)} · ${esc(j.slots)} · ${esc(j.pay)}${j.mine?' · 已接':''}</small>${j.mine?'':`<div class=acts>
+      <button class="key on" type=button data-confirm="领取委托「${esc(j.title)}」？" data-act=job.take data-id="${esc(j.id)}">领取</button>
+    </div>`}</div>`).join(''):emptyRow('暂无委托');
+  $('#showBox').innerHTML=(d.show&&d.show.length)?d.show.map(s=>
+    `<div class=row>${esc(s.title)}<small>${esc(s.who)} · ${s.votes} 票</small><div class=acts>
+      <button class=key type=button data-act=show.vote data-id="${esc(s.id)}">投票</button>
+    </div></div>`).join(''):emptyRow('暂无展示');
+  $('#playBox').innerHTML=boardRows(d.play);
+  $('#tradeBox').innerHTML=boardRows(d.trade);
+  $('#rideBox').innerHTML=boardRows(d.rides);
+  const rh=$('#rideHint');
+  if(rh) rh.textContent=d.rideHint||(d.tap?'已开通拍卡支付':'拍卡支付未开（进站闸机上开）');
+  const dl=$('#stops');
+  if(dl) dl.innerHTML=(d.stops||[]).map(s=>`<option value="${esc(s.name)}"></option>`).join('');
+  $('#rideHist').innerHTML=(d.histRide&&d.histRide.length)?d.histRide.map(r=>
+    `<div class=row>${esc(r.from)} → ${esc(r.to)}<small>${esc(r.fare)}</small></div>`).join(''):emptyRow('还没有乘车记录');
+  $('#homeBox').innerHTML=(d.homes&&d.homes.length)?d.homes.map(h=>
+    `<div class=row>${esc(h.addr)}<small>${h.sale?('挂牌 '+esc(h.price)):'未挂牌'}</small></div>`).join(''):emptyRow('还没有房产');
+  $('#saleBox').innerHTML=(d.sale&&d.sale.length)?d.sale.map(h=>
+    `<div class=row>${esc(h.addr)}<small>${esc(h.who)} · ${esc(h.price)}</small></div>`).join(''):emptyRow('没有挂牌房源');
+  $('#landBox').innerHTML=(d.lands&&d.lands.length)?d.lands.map(l=>
+    `<div class=row>${esc(l.name)}<small>${l.vis?'公开':'隐藏'} · ${l.area} 格</small><div class=acts>
+      <button class=key type=button data-act=land.vis data-id="${esc(l.name)}">${l.vis?'隐藏':'公开'}</button>
+    </div></div>`).join(''):emptyRow('还没有领地');
+  $('#pubBox').innerHTML=(d.pubs&&d.pubs.length)?d.pubs.map(l=>
+    `<div class=row>${esc(l.name)}<small>${esc(l.who)}</small></div>`).join(''):emptyRow('没有公开领地');
+  $('#kitBox').innerHTML=(d.kits&&d.kits.length)?d.kits.map(k=>
+    `<div class=row>${esc(k.name)}<small>${esc(k.rule)} · ${k.n} 件</small></div>`).join(''):emptyRow('没有套件');
+  $('#skillBox').innerHTML=(d.skills&&d.skills.length)?d.skills.map(k=>
+    `<div class=row>${esc(k.name)}<small>${esc(k.price)}</small></div>`).join(''):emptyRow('技能店是空的');
+  $('#deathBox').innerHTML=(d.deaths&&d.deaths.length)?d.deaths.map(x=>
+    `<div class=row>${esc(x.cause||'死亡')}<small>${esc(x.date)} · ${esc(x.w)} ${x.x} ${x.y} ${x.z}</small></div>`).join(''):emptyRow('没有死亡记录');
+  $('#wpBox').innerHTML=(d.wps&&d.wps.length)?d.wps.map(w=>
+    `<div class=row>${esc(w.name)}<small>${esc(w.w)} ${w.x} ${w.y} ${w.z}</small><div class=acts>
+      <button class=key type=button data-confirm="删除坐标「${esc(w.name)}」？" data-act=wp.del data-id="${esc(w.name)}">删除</button>
+    </div></div>`).join(''):emptyRow('还没有收藏坐标');
+  const ch=$('#coverHint');
+  if(ch) ch.textContent=d.cover?((d.cover.ok?'上次死亡已承保':'上次死亡未承保')+(d.cover.place?(' · '+d.cover.place):'')):'还没有死亡承保记录';
+  $('#insBox').innerHTML=(d.ins&&d.ins.length)?d.ins.map(b=>
+    `<div class=row>${esc(b.when)}<small>${b.n} 件物品</small></div>`).join(''):emptyRow('没有备份');
+  $('#auraBox').innerHTML=(d.auras&&d.auras.length)?d.auras.map(a=>
+    `<div class=row>${esc(a.name)}${a.on?' · 装备中':''}<div class=acts>
+      <button class="key${a.on?' on':''}" type=button data-act=aura.eq data-id="${esc(a.id)}">${a.on?'已装备':'装备'}</button>
+    </div></div>`).join(''):emptyRow('还没有特效');
+  const br=$('#auraBright');
+  if(br) br.textContent='亮度 · '+(d.bright||'中');
+}
+function pullLife(){
+  if(!token()||lifeBusy)return;
+  lifeBusy=true;
+  fetch('/v1/life',{headers:headers()}).then(r=>{
+    if(r.status===401)return;
+    return r.json();
+  }).then(d=>{
+    if(d&&d.ok) paintLife(d);
+  }).catch(()=>{}).finally(()=>{lifeBusy=false});
+}
+function act(body, after){
+  fetch('/v1/act',{method:'POST',headers:{...headers(),'Content-Type':'application/json'},body:JSON.stringify(body)})
+    .then(r=>r.json()).then(d=>{
+      toast(d.ok?(d.msg||'已完成'):(d.error||'没有完成，请稍后再试'));
+      if(d.ok){pull();pullLife();if(after) after()}
+    }).catch(()=>toast('没有完成，请稍后再试'));
+}
+let cardName='';
+function pickName(n){
+  if(!n) return;
+  cardName=n;
+  ['#payName','#mailName','#friendName'].forEach(sel=>{const el=$(sel);if(el) el.value=n});
+  const card=$('#card'), nm=$('#cardName');
+  if(nm) nm.textContent=n;
+  if(card) card.classList.remove('hidden');
+}
+function closeCard(){const c=$('#card');if(c)c.classList.add('hidden')}
+function ask(text, fn, detail, okLabel){
+  const modal=$('#modal'), txt=$('#modalTxt'), kv=$('#modalKv'), cap=$('#modalCap'), ok=$('#modalOk');
+  if(!modal||!txt){if(confirm(text)) fn();return}
+  txt.textContent=text;
+  if(kv){
+    kv.innerHTML=detail||'';
+    kv.classList.toggle('hidden',!detail);
+  }
+  if(cap) cap.textContent=detail?'核对之后再确认':'请确认';
+  if(ok) ok.textContent=okLabel||'确认';
+  modal.classList.remove('hidden');
+  modal._fn=fn;
+}
+function openMe(){
+  const m=$('#meMenu');
+  if(m) m.classList.toggle('hidden');
+}
+function paintTax(){
+  const el=$('#payTax');
+  if(!el) return;
+  const n=parseFloat(($('#payAmt')||{}).value||'');
+  if(!n||n<=0){el.textContent=taxOn?('转账税率 '+(taxRate*100).toFixed(1)+'%'):'';return}
+  if(!taxOn){el.textContent='';return}
+  const fee=Math.round(n*taxRate*100)/100;
+  el.textContent='含税需再付 '+fee+'（税率 '+(taxRate*100).toFixed(1)+'%）';
 }
 function pullNow(){
   if(!token()||nowBusy)return;
@@ -679,14 +1249,21 @@ $('#searchForm').onsubmit=e=>{
 };
 $('#prevPage').onclick=()=>doSearch({dir:'prev'});
 $('#nextPage').onclick=()=>doSearch({dir:'next'});
-$('#hits').onclick=e=>{
-  const row=e.target.closest('[data-i]');
+function onLibClick(e){
+  const star=e.target.closest('[data-fav]');
+  if(star){
+    e.preventDefault();
+    toggleFav(songFromRow(star.closest('.song')));
+    return;
+  }
+  const row=e.target.closest('.song');
   if(!row)return;
-  const s=hits[+row.dataset.i];
-  if(!s||!s.id)return;
-  fetch('/v1/music',{method:'POST',headers:{...headers(),'Content-Type':'application/json'},body:JSON.stringify({id:s.id})}
-  ).then(r=>r.json()).then(d=>{toast(d.ok?'已为您点播 '+(s.name||''):(d.error||'点播没有完成，请稍后再试'));if(d.ok)pull()}).catch(()=>toast('点播没有完成，请稍后再试'));
-};
+  playSong(songFromRow(row));
+}
+['#hits','#homeFav','#homeHist','#favs','#hist'].forEach(sel=>{
+  const el=$(sel);
+  if(el) el.onclick=onLibClick;
+});
 let tabHints=[], tabI=-1, tabBase='';
 function applyHint(base, hint){
   const i=base.lastIndexOf(' ');
@@ -726,15 +1303,24 @@ $('#sayForm').onsubmit=e=>{
     pull();
   }).catch(()=>toast('这条消息没有送出')).finally(()=>saying=false);
 };
+function setLinkUi(on){
+  linkAll=!!on;
+  const b=$('#linkBtn');
+  if(!b) return;
+  b.classList.toggle('on',linkAll);
+  b.textContent=linkAll?'互通':'本服';
+}
 $('#linkBtn').onclick=()=>{
-  fetch('/v1/link',{method:'POST',headers:{...headers(),'Content-Type':'application/json'},body:JSON.stringify({all:!linkAll})}
+  if(linkBusy)return;
+  linkBusy=true;
+  const next=!linkAll;
+  setLinkUi(next);
+  fetch('/v1/link',{method:'POST',headers:{...headers(),'Content-Type':'application/json'},body:JSON.stringify({all:next})}
   ).then(r=>r.json()).then(d=>{
-    if(!d.ok){toast(d.error||'未能切换发送范围');return}
-    linkAll=!!d.link;
-    $('#linkBtn').classList.toggle('on',linkAll);
-    $('#linkBtn').textContent=linkAll?'互通':'本服';
-    toast(linkAll?'此后发往互通服':'此后仅本服可见');
-  }).catch(()=>toast('未能切换发送范围'));
+    if(!d.ok){setLinkUi(!next);toast(d.error||'未能切换发送范围');return}
+    setLinkUi(!!d.link);
+    toast(d.link?'此后发往全部互通服':'此后仅本服可见');
+  }).catch(()=>{setLinkUi(!next);toast('未能切换发送范围')}).finally(()=>{linkBusy=false});
 };
 function musicAct(action, okMsg){
   fetch('/v1/music',{method:'POST',headers:{...headers(),'Content-Type':'application/json'},body:JSON.stringify({action})}
@@ -767,7 +1353,118 @@ if(window.matchMedia){
 applyTheme();
 $('#bye').onclick=()=>{fetch('/v1/logout',{method:'POST',headers:headers()}).finally(()=>{$('#player').pause();setTok('');gated(false)})};
 $('#nav').onclick=e=>{const b=e.target.closest('[data-p]');if(b)show(b.dataset.p)};
-document.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>show(b.dataset.go));
+document.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>{
+  show(b.dataset.go);
+  if(b.dataset.tab) showLifeTab(b.dataset.tab);
+});
+function doCheckin(){act({do:'checkin'})}
+$('#chkBtn').onclick=doCheckin;
+$('#chkBtn2').onclick=doCheckin;
+$('#shareBtn').onclick=()=>act({do:'friend.share'});
+$('#statusForm').onsubmit=e=>{
+  e.preventDefault();
+  act({do:'status',text:$('#statusBox').value},()=>{$('#meMenu').classList.add('hidden')});
+};
+$('#statusClr').onclick=()=>ask('清除签名？',()=>act({do:'status',text:''},()=>{$('#statusBox').value='';$('#meMenu').classList.add('hidden')}));
+$('#meBtn').onclick=e=>{e.stopPropagation();openMe()};
+$('#st').onclick=()=>{const m=$('#meMenu');if(m)m.classList.remove('hidden')};
+$('#payAmt').addEventListener('input',paintTax);
+$('#payForm').onsubmit=e=>{
+  e.preventDefault();
+  const name=$('#payName').value.trim(), amount=$('#payAmt').value.trim();
+  if(!name){toast('请写下收款人');return}
+  if(!amount){toast('请写下金额');return}
+  const n=parseFloat(amount);
+  if(!n||n<=0){toast('金额无效');return}
+  const fee=taxOn?Math.round(n*taxRate*100)/100:0;
+  const total=Math.round((n+fee)*100)/100;
+  ask('转出后不能撤回。',()=>act({do:'pay',name,amount},()=>{$('#payAmt').value='';paintTax()}),
+    `<b>收款人</b><span>${esc(name)}</span><b>金额</b><span>${esc(amount)}</span>`
+    +(fee?`<b>税额</b><span>${fee}（${(taxRate*100).toFixed(1)}%）</span><b>实付</b><span>${total}</span>`:''),
+    '确认转出');
+};
+$('#mailForm').onsubmit=e=>{
+  e.preventDefault();
+  const name=$('#mailName').value.trim(), text=$('#mailText').value.trim();
+  if(!name){toast('请写下收件人');return}
+  if(!text){toast('请写下内容');return}
+  act({do:'mail.send',name,text},()=>{$('#mailText').value=''});
+};
+$('#friendForm').onsubmit=e=>{
+  e.preventDefault();
+  const name=$('#friendName').value.trim();
+  if(!name){toast('请写下游戏名');return}
+  act({do:'friend.add',name});
+};
+$('#lifeTabs').onclick=e=>{
+  const b=e.target.closest('[data-tab]');
+  if(b) showLifeTab(b.dataset.tab);
+};
+$('#routeForm').onsubmit=e=>{
+  e.preventDefault();
+  const name=$('#routeFrom').value.trim(), text=$('#routeTo').value.trim();
+  if(!name||!text){toast('请写下起点和终点');return}
+  act({do:'route',name,text},()=>{});
+};
+$('#auraOff').onclick=()=>act({do:'aura.off'});
+$('#auraBright').onclick=()=>act({do:'aura.bright'});
+$('#modalOk').onclick=()=>{
+  const fn=$('#modal')._fn;
+  $('#modal').classList.add('hidden');
+  if(fn) fn();
+};
+$('#modalNo').onclick=()=>$('#modal').classList.add('hidden');
+$('#cardClose').onclick=closeCard;
+document.querySelectorAll('#card [data-card]').forEach(b=>b.onclick=()=>{
+  const n=cardName;
+  if(!n) return;
+  const k=b.dataset.card;
+  if(k==='mail'){show('life');showLifeTab('social');$('#mailName').value=n;$('#mailText').focus();closeCard()}
+  else if(k==='pay'){show('life');showLifeTab('day');$('#payName').value=n;$('#payAmt').focus();closeCard()}
+  else if(k==='say'){show('chat');$('#sayBox').value='/msg '+n+' ';$('#sayBox').focus();closeCard()}
+  else if(k==='add'){show('life');showLifeTab('social');act({do:'friend.add',name:n});closeCard()}
+});
+function goReply(name){
+  show('life');showLifeTab('social');
+  $('#mailName').value=name;$('#mailText').focus();
+}
+function goPay(name){
+  show('life');showLifeTab('day');
+  $('#payName').value=name;$('#payAmt').focus();
+}
+$('#life').onclick=e=>{
+  const day=e.target.closest('[data-day]');
+  if(day&&day.classList.contains('mk')){
+    ask('用一张补签券补签 '+day.dataset.day+'？',()=>act({do:'makeup',id:day.dataset.day}));
+    return;
+  }
+  const reply=e.target.closest('[data-reply]');
+  if(reply){goReply(reply.dataset.reply);return}
+  const pay=e.target.closest('[data-pay]');
+  if(pay){goPay(pay.dataset.pay);return}
+  const say=e.target.closest('[data-say]');
+  if(say){
+    show('chat');
+    $('#sayBox').value='/msg '+say.dataset.say+' ';
+    $('#sayBox').focus();
+    return;
+  }
+  const btn=e.target.closest('[data-act]');
+  if(btn){
+    const run=()=>act({do:btn.dataset.act,id:btn.dataset.id});
+    if(btn.dataset.confirm) ask(btn.dataset.confirm,run);
+    else run();
+    return;
+  }
+  const pick=e.target.closest('.pick');
+  if(pick&&pick.dataset.name) pickName(pick.dataset.name);
+};
+document.addEventListener('click',e=>{
+  if(!e.target.closest('#mebox')){const m=$('#meMenu');if(m)m.classList.add('hidden')}
+  if(e.target.closest('#life')||e.target.closest('#card')||e.target.closest('#modal')||e.target.closest('#mebox')) return;
+  const pick=e.target.closest('.pick');
+  if(pick&&pick.dataset.name) pickName(pick.dataset.name);
+});
 function tick(){
   $('#clock').textContent=new Date().toLocaleTimeString('zh-CN',{hour12:false});
   paintChrome();
@@ -775,6 +1472,7 @@ function tick(){
 setInterval(tick,1000);tick();
 fetch('/v1/info').then(r=>r.json()).then(d=>{if(d&&d.version){ver=d.version;paintChrome()}}).catch(()=>{});
 paintHits({});
+paintLib({});
 (function(){
   const q=new URLSearchParams(location.search).get('code')||'';
   const digits=q.replace(/\D/g,'').slice(0,6);
@@ -783,7 +1481,7 @@ paintHits({});
     if(digits.length===6 && !token()) $('#pairForm').requestSubmit();
   }
 })();
-pull();setInterval(pull,4000);setInterval(pullNow,1000);
+pull();setInterval(pull,4000);setInterval(pullNow,1000);setInterval(()=>{if(page==='life')pullLife()},8000);
 </script>
 <script src="https://cdn.jsdelivr.net/npm/skinview3d@3.3.0/bundles/skinview3d.bundle.js" onload="if(token())pull()"></script>
 </body></html>

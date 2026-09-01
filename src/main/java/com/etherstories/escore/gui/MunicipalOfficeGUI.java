@@ -27,7 +27,7 @@ public class MunicipalOfficeGUI {
     public MunicipalOfficeGUI(ES2UniPlugin plugin) { this.plugin = plugin; }
 
     public void open(Player player) {
-        Inventory inv = Bukkit.createInventory(null, 27, TITLE);
+        Inventory inv = EcosHolder.of("municipal", 27, TITLE);
         ECOSTerminalGUI.fillTabBar(inv);
 
         int jobs = plugin.getJobBoardManager().listActive().size();
@@ -60,6 +60,6 @@ public class MunicipalOfficeGUI {
         }
 
         inv.setItem(SLOT_BACK, ECOSTerminalGUI.item(Material.ARROW, "&7返回终端", null));
-        player.openInventory(inv);
+        EcosHolder.open(player, inv);
     }
 }

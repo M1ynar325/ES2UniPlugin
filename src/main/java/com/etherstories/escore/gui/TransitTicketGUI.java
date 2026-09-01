@@ -43,13 +43,13 @@ public class TransitTicketGUI {
     public void openOrigin(Player player) {
         dest.remove(player.getUniqueId());
         cabinPick.remove(player.getUniqueId());
-        Inventory inv = Bukkit.createInventory(null, 54, TITLE);
+        Inventory inv = EcosHolder.of("transit-ticket", 54, TITLE);
         for (int i = 0; i < 54; i++)
             inv.setItem(i, ECOSTerminalGUI.bg(Material.WHITE_STAINED_GLASS_PANE));
         inv.setItem(4, ECOSTerminalGUI.item(Material.COMPASS, "&f选择起点", List.of("&7点击车站")));
         fillStations(player, inv, null);
         inv.setItem(SLOT_BACK, ECOSTerminalGUI.item(Material.ARROW, "&7返回", null));
-        player.openInventory(inv);
+        EcosHolder.open(player, inv);
     }
 
     public void openDest(Player player) {
@@ -57,7 +57,7 @@ public class TransitTicketGUI {
         cabinPick.remove(player.getUniqueId());
         String from = origin.get(player.getUniqueId());
         TransitManager.Station fs = plugin.getTransitManager().getStation(from);
-        Inventory inv = Bukkit.createInventory(null, 54, TITLE);
+        Inventory inv = EcosHolder.of("transit-ticket", 54, TITLE);
         for (int i = 0; i < 54; i++)
             inv.setItem(i, ECOSTerminalGUI.bg(Material.WHITE_STAINED_GLASS_PANE));
         inv.setItem(4, ECOSTerminalGUI.item(Material.PAPER,
@@ -65,7 +65,7 @@ public class TransitTicketGUI {
                 List.of("&7再点终点买单程票")));
         fillStations(player, inv, from);
         inv.setItem(SLOT_BACK, ECOSTerminalGUI.item(Material.ARROW, "&7重选起点", null));
-        player.openInventory(inv);
+        EcosHolder.open(player, inv);
     }
 
     private void fillStations(Player player, Inventory inv, String exclude) {
@@ -102,7 +102,7 @@ public class TransitTicketGUI {
         String to = dest.get(player.getUniqueId());
         TransitManager tm = plugin.getTransitManager();
         cabinPick.put(player.getUniqueId(), true);
-        Inventory inv = Bukkit.createInventory(null, 54, TITLE);
+        Inventory inv = EcosHolder.of("transit-ticket", 54, TITLE);
         for (int i = 0; i < 54; i++)
             inv.setItem(i, ECOSTerminalGUI.bg(Material.WHITE_STAINED_GLASS_PANE));
         inv.setItem(4, ECOSTerminalGUI.item(Material.NAME_TAG, "&f选择席别",
@@ -124,7 +124,7 @@ public class TransitTicketGUI {
         }
         slotIds.put(player.getUniqueId(), ids);
         inv.setItem(SLOT_BACK, ECOSTerminalGUI.item(Material.ARROW, "&7重选终点", null));
-        player.openInventory(inv);
+        EcosHolder.open(player, inv);
     }
 
     public String stationAt(Player player, int slot) {

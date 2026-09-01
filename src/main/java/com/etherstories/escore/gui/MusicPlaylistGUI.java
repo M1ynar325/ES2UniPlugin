@@ -28,7 +28,7 @@ public class MusicPlaylistGUI {
     }
 
     public void open(Player player) {
-        Inventory inv = Bukkit.createInventory(null, 54, TITLE);
+        Inventory inv = EcosHolder.of("music-playlist", 54, TITLE);
         for (int i = 0; i < 54; i++)
             inv.setItem(i, ECOSTerminalGUI.bg(Material.RED_STAINED_GLASS_PANE));
 
@@ -64,7 +64,7 @@ public class MusicPlaylistGUI {
                 List.of("&7不会清空 AllMusic 当前队列", "&c▸ 点击停止自动续点")));
         inv.setItem(SLOT_BACK, ECOSTerminalGUI.item(Material.ARROW, "&7返回点歌", null));
         inv.setItem(SLOT_CLOSE, ECOSTerminalGUI.item(Material.BARRIER, "&c关闭", null));
-        player.openInventory(inv);
+        EcosHolder.open(player, inv);
     }
 
     public String getKey(Player player, int slot) {

@@ -56,7 +56,7 @@ public class TransitMapGUI {
         page.put(player.getUniqueId(), p);
 
         TransitManager.Line line = lines.get(p);
-        Inventory inv = Bukkit.createInventory(null, 54, TITLE);
+        Inventory inv = EcosHolder.of("transit-map", 54, TITLE);
         for (int i = 0; i < 54; i++)
             inv.setItem(i, ECOSTerminalGUI.bg(Material.YELLOW_STAINED_GLASS_PANE));
 
@@ -108,7 +108,7 @@ public class TransitMapGUI {
         if (fromId != null)
             inv.setItem(SLOT_CLEAR, ECOSTerminalGUI.item(Material.BARRIER, "&7取消选站", null));
         inv.setItem(SLOT_BACK, ECOSTerminalGUI.item(Material.BARRIER, "&7返回交通处", null));
-        player.openInventory(inv);
+        EcosHolder.open(player, inv);
     }
 
     public String clickStation(Player player, String stationId) {

@@ -20,7 +20,11 @@ public class AnvilInputGUI {
         JOB_TITLE, JOB_REWARD, JOB_SLOTS, JOB_DESC, JOB_EDIT_TITLE,
         ESTATE_REGISTER, ESTATE_PRICE,
         HOTEL_CREATE, HOTEL_PRICE, HOTEL_TRANSFER, HOTEL_MGR, HOTEL_DELETE, GRANT_TICKET,
-        SKILL_SHOP_PRICE
+        SKILL_SHOP_PRICE,
+        KIT_COOLDOWN, STATION_NAME_ZH, STATION_NAME_EN,
+        BC_ADD, BC_ONCE, BC_EDIT,
+        SHOWCASE_TITLE, TRANSIT_TYPE_CREATE, TRANSIT_TYPE_RENAME, WHISPER,
+        REGION_CREATE, TERRITORY_CREATE, MAIL_NAME, REPORT
     }
 
     public record InputState(Context context, String currentInput, UUID metadata, String placeholder) {}
@@ -42,6 +46,10 @@ public class AnvilInputGUI {
     private final Map<UUID, String> hotelContext = new HashMap<>();
     private final Map<UUID, String> grantKind = new HashMap<>();
     private final Map<UUID, String> skillShopKey = new HashMap<>();
+    private final Map<UUID, String> stationRename = new HashMap<>();
+    private final Map<UUID, String> resumePage = new HashMap<>();
+    private final Map<UUID, Integer> bcEdit = new HashMap<>();
+    private final Map<UUID, String> typeRename = new HashMap<>();
 
     public AnvilInputGUI(ES2UniPlugin plugin) {
         this.plugin = plugin;
@@ -152,6 +160,94 @@ public class AnvilInputGUI {
                 "输入: 玩家名 数量   离线也可");
     }
 
+    public void openForKitCooldown(Player player) {
+        String name = plugin.getKitEditGUI().getEditing(player);
+        if (name == null) {
+            player.sendMessage(ColorUtil.colorize("&8[ECOS] &7没有正在编辑的套件"));
+            return;
+        }
+        var def = plugin.getKitManager().get(name);
+        String hint = def == null ? "3600" : String.valueOf(Math.max(0, def.cooldownSeconds));
+        open(player, Context.KIT_COOLDOWN, hint, null,
+                "Kit 冷却", "输入秒数，例如 3600 = 1小时；仅冷却模式生效");
+    }
+
+    public void openForStationRename(Player player, String stationId, boolean english) {
+        if (stationId == null || stationId.isBlank()) return;
+        stationRename.put(player.getUniqueId(), stationId);
+        if (english)
+            open(player, Context.STATION_NAME_EN, "English name", null,
+                    "Station name", "Type the English name, cancel to abort");
+        else
+            open(player, Context.STATION_NAME_ZH, "中文站名", null,
+                    "车站中文名", "输入中文站名，cancel 取消");
+    }
+
+    public void openForBroadcastAdd(Player player) {
+        open(player, Context.BC_ADD, "广播内容", null, "添加定时广播", "输入循环播放的内容");
+    }
+
+    public void openForBroadcastOnce(Player player) {
+        open(player, Context.BC_ONCE, "广播内容", null, "立即广播", "输入后立刻全服发送");
+    }
+
+    public void openForBroadcastEdit(Player player, int index) {
+        bcEdit.put(player.getUniqueId(), index);
+        open(player, Context.BC_EDIT, "新内容", null, "编辑广播 #" + (index + 1), "输入新的定时消息");
+    }
+
+    public void openForShowcaseTitle(Player player) {
+        open(player, Context.SHOWCASE_TITLE, "-", null, "登记展示点", "输入标题，打 - 无标题");
+    }
+
+    public void openForTransitTypeCreate(Player player) {
+        open(player, Context.TRANSIT_TYPE_CREATE, "metro 地铁", null,
+                "新建车型", "输入: id 显示名");
+    }
+
+    public void openForTransitTypeRename(Player player, String typeId) {
+        if (typeId == null || typeId.isBlank()) return;
+        typeRename.put(player.getUniqueId(), typeId);
+        open(player, Context.TRANSIT_TYPE_RENAME, "新名称", null, "改车型名", "输入显示名");
+    }
+
+    public void openForWhisper(Player player, UUID target) {
+        if (target == null) return;
+        open(player, Context.WHISPER, "私信内容", target, "私信", "输入要发送的内容");
+    }
+
+    public void openForMailName(Player player) {
+        open(player, Context.MAIL_NAME, "玩家名称", null,
+                "写信", "输入游戏名，离线也可（需进过服）");
+    }
+
+    public void openForReport(Player player, UUID about) {
+        open(player, Context.REPORT, "悄悄话内容", about,
+                "悄悄话 / 举报", "仅管理员可见，输入内容");
+    }
+
+    /** 在线优先，再按进过服的离线名解析。 */
+    public static OfflinePlayer findPlayed(String name) {
+        if (name == null || name.isBlank()) return null;
+        Player online = Bukkit.getPlayerExact(name);
+        if (online != null) return online;
+        OfflinePlayer hit = null;
+        for (OfflinePlayer op : Bukkit.getOfflinePlayers()) {
+            if (op.getName() == null || !op.getName().equalsIgnoreCase(name.trim())) continue;
+            if (op.hasPlayedBefore() || op.isOnline()) return op;
+            hit = op;
+        }
+        return hit;
+    }
+
+    public void openForRegionCreate(Player player) {
+        open(player, Context.REGION_CREATE, "地区名", null, "创建地区", "先脚下点角点，再输入名称");
+    }
+
+    public void openForTerritoryCreate(Player player) {
+        open(player, Context.TERRITORY_CREATE, "领地名", null, "创建领地", "先脚下点角点，再输入名称");
+    }
+
     /** AllMusic: search song by name. */
     public void openForMusicSearch(Player player) {
         open(player, Context.MUSIC_SEARCH, "歌名", null,
@@ -223,6 +319,20 @@ public class AnvilInputGUI {
             case HOTEL_DELETE     -> confirmHotelDelete(player, state);
             case GRANT_TICKET     -> confirmGrant(player, state);
             case SKILL_SHOP_PRICE -> confirmSkillShopPrice(player, state);
+            case KIT_COOLDOWN     -> confirmKitCooldown(player, state);
+            case STATION_NAME_ZH  -> confirmStationRename(player, state, false);
+            case STATION_NAME_EN  -> confirmStationRename(player, state, true);
+            case BC_ADD           -> confirmBcAdd(player, state);
+            case BC_ONCE          -> confirmBcOnce(player, state);
+            case BC_EDIT          -> confirmBcEdit(player, state);
+            case SHOWCASE_TITLE   -> confirmShowcase(player, state);
+            case TRANSIT_TYPE_CREATE -> confirmTypeCreate(player, state);
+            case TRANSIT_TYPE_RENAME -> confirmTypeRename(player, state);
+            case WHISPER          -> confirmWhisper(player, state);
+            case REGION_CREATE    -> confirmRegionCreate(player, state, false);
+            case TERRITORY_CREATE -> confirmRegionCreate(player, state, true);
+            case MAIL_NAME        -> confirmMailName(player, state);
+            case REPORT           -> confirmReport(player, state);
         }
     }
 
@@ -234,6 +344,10 @@ public class AnvilInputGUI {
         hotelContext.remove(player.getUniqueId());
         grantKind.remove(player.getUniqueId());
         skillShopKey.remove(player.getUniqueId());
+        stationRename.remove(player.getUniqueId());
+        bcEdit.remove(player.getUniqueId());
+        typeRename.remove(player.getUniqueId());
+        resumeBook(player, null);
     }
 
     /** True if text is empty or still the placeholder. */
@@ -335,7 +449,7 @@ public class AnvilInputGUI {
             return;
         }
         plugin.getKitManager().createEmpty(name);
-        player.sendMessage(ColorUtil.colorize("&8[ECOS] &7已创建套件 &f" + name + " &7— 放入物品后点保存"));
+        player.sendMessage(ColorUtil.colorize("&8[ECOS] &7已创建套件 &f" + name + " &7— 整理背包后点「导入背包」"));
         Bukkit.getScheduler().runTask(plugin, () -> plugin.getKitEditGUI().open(player, name));
     }
 
@@ -376,6 +490,9 @@ public class AnvilInputGUI {
     private void pollMusicSearch(Player player, int attempt) {
         if (!player.isOnline()) return;
         if (plugin.getAllMusicHook().hasSearch(player)) {
+            var hub = plugin.getTerminalHub();
+            var session = hub == null ? null : hub.session(player);
+            if (session != null) session.put("from", "music");
             plugin.getMusicSearchResultGUI().open(player);
             return;
         }
@@ -754,16 +871,282 @@ public class AnvilInputGUI {
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 
+    private void confirmKitCooldown(Player player, InputState state) {
+        String name = plugin.getKitEditGUI().getEditing(player);
+        if (name == null) {
+            player.sendMessage(ColorUtil.colorize("&8[ECOS] &7编辑会话已失效"));
+            Bukkit.getScheduler().runTask(plugin, () -> plugin.getAdminKitGUI().open(player));
+            return;
+        }
+        if (isBlankOrPlaceholder(state)) {
+            player.sendMessage(ColorUtil.colorize("&8[ECOS] &7已取消"));
+            Bukkit.getScheduler().runTask(plugin, () -> plugin.getKitEditGUI().open(player, name));
+            return;
+        }
+        try {
+            int sec = Integer.parseInt(sanitize(state.currentInput()));
+            if (sec < 0) throw new NumberFormatException();
+            var def = plugin.getKitManager().get(name);
+            if (def == null) {
+                player.sendMessage(ColorUtil.colorize("&8[ECOS] &7套件不存在"));
+                Bukkit.getScheduler().runTask(plugin, () -> plugin.getAdminKitGUI().open(player));
+                return;
+            }
+            def.cooldownSeconds = sec;
+            def.claimMode = com.etherstories.escore.managers.KitManager.ClaimMode.COOLDOWN;
+            plugin.getKitManager().saveKit(def);
+            player.sendMessage(ColorUtil.colorize("&8[ECOS] &7冷却已设为 &f"
+                    + com.etherstories.escore.managers.KitManager.formatDuration(sec)));
+        } catch (NumberFormatException e) {
+            player.sendMessage(ColorUtil.colorize("&8[ECOS] &7请输入非负整数秒数"));
+            Bukkit.getScheduler().runTask(plugin, () -> openForKitCooldown(player));
+            return;
+        }
+        Bukkit.getScheduler().runTask(plugin, () -> plugin.getKitEditGUI().open(player, name));
+    }
+
+    private void confirmStationRename(Player player, InputState state, boolean english) {
+        String sid = stationRename.remove(player.getUniqueId());
+        if (sid == null) return;
+        if (isBlankOrPlaceholder(state)) {
+            player.sendMessage(ColorUtil.colorize("&8[交通] &7已取消"));
+            Bukkit.getScheduler().runTask(plugin, () -> plugin.getTransitStationGUI().open(player, sid));
+            return;
+        }
+        String name = sanitize(state.currentInput());
+        String err = english
+                ? plugin.getTransitManager().renameStationEn(sid, name)
+                : plugin.getTransitManager().renameStation(sid, name);
+        player.sendMessage(ColorUtil.colorize(err == null
+                ? (english ? "&8[交通] &aEnglish name: &f" + name : "&8[交通] &a中文名已更新: &f" + name)
+                : "&8[交通] &c" + err));
+        Bukkit.getScheduler().runTask(plugin, () -> plugin.getTransitStationGUI().open(player, sid));
+    }
+
+    private void confirmBcAdd(Player player, InputState state) {
+        if (isBlankOrPlaceholder(state)) {
+            player.sendMessage(ColorUtil.colorize("&8[ECOS] &7已取消"));
+            Bukkit.getScheduler().runTask(plugin, () -> plugin.getAdminBroadcastGUI().open(player));
+            return;
+        }
+        String msg = sanitize(state.currentInput());
+        java.util.List<String> list = new java.util.ArrayList<>(plugin.getConfigManager().getBroadcastMessages());
+        list.add(msg);
+        plugin.getAdminBroadcastGUI().saveMessages(list);
+        plugin.getAuditLogManager().log(player, "BC_ADD",
+                msg.length() > 60 ? msg.substring(0, 60) + "…" : msg);
+        player.sendMessage(ColorUtil.colorize("&8[ECOS] &7已添加定时消息"));
+        Bukkit.getScheduler().runTask(plugin, () -> plugin.getAdminBroadcastGUI().open(player));
+    }
+
+    private void confirmBcOnce(Player player, InputState state) {
+        if (isBlankOrPlaceholder(state)) {
+            player.sendMessage(ColorUtil.colorize("&8[ECOS] &7广播已取消"));
+            Bukkit.getScheduler().runTask(plugin, () -> plugin.getAdminBroadcastGUI().open(player));
+            return;
+        }
+        String msg = sanitize(state.currentInput());
+        String full = plugin.getConfigManager().getBroadcastPrefix() + msg;
+        Bukkit.broadcastMessage(ColorUtil.colorize(full));
+        plugin.getNoticeManager().recordBroadcast(msg);
+        Bukkit.getScheduler().runTask(plugin, () -> plugin.getAdminBroadcastGUI().open(player));
+    }
+
+    private void confirmBcEdit(Player player, InputState state) {
+        Integer idx = bcEdit.remove(player.getUniqueId());
+        if (isBlankOrPlaceholder(state) || idx == null) {
+            player.sendMessage(ColorUtil.colorize("&8[ECOS] &7已取消"));
+            Bukkit.getScheduler().runTask(plugin, () -> plugin.getAdminBroadcastGUI().open(player));
+            return;
+        }
+        var entries = new java.util.ArrayList<>(plugin.getConfigManager().getBroadcastEntries());
+        if (idx >= 0 && idx < entries.size()) {
+            var old = entries.get(idx);
+            entries.set(idx, new com.etherstories.escore.broadcast.BroadcastEntry(
+                    sanitize(state.currentInput()), old.days));
+            plugin.getAdminBroadcastGUI().saveEntries(entries);
+            player.sendMessage(ColorUtil.colorize("&8[ECOS] &7已更新消息 #" + (idx + 1)));
+        }
+        Bukkit.getScheduler().runTask(plugin, () -> plugin.getAdminBroadcastGUI().open(player));
+    }
+
+    private void confirmRegionCreate(Player player, InputState state, boolean territory) {
+        boolean admin = player.hasPermission("es2uni.admin");
+        String fallback = territory ? (admin ? "admin-territory" : "my-territory") : "admin-region";
+        if (isBlankOrPlaceholder(state)) {
+            resumeBook(player, fallback);
+            return;
+        }
+        var rm = plugin.getRegionManager();
+        if (!rm.hasSelection(player.getUniqueId())) {
+            player.sendMessage(ColorUtil.colorize("&8[ECOS] &c先在书页点角点1 / 角点2（脚下）"));
+            resumeBook(player, fallback);
+            return;
+        }
+        String name = sanitize(state.currentInput());
+        if (territory) {
+            var hit = rm.checkTerritoryOverlap(player.getUniqueId());
+            if (hit != null) {
+                player.sendMessage(ColorUtil.colorize("&8[领地] &c与「" + hit.name() + "」重叠"));
+                resumeBook(player, fallback);
+                return;
+            }
+            if (!admin) {
+                long area = rm.getSelectionArea(player.getUniqueId());
+                long minArea = plugin.getConfigManager().getTerritoryMinArea();
+                if (area < minArea) {
+                    player.sendMessage(ColorUtil.colorize("&8[领地] &c面积太小（" + area + " 格），最少 " + minArea));
+                    resumeBook(player, fallback);
+                    return;
+                }
+                if (!plugin.getVaultHook().isEnabled()) {
+                    player.sendMessage(ColorUtil.colorize("&8[领地] &c经济系统不可用"));
+                    resumeBook(player, fallback);
+                    return;
+                }
+                double cost = plugin.getConfigManager().calcTerritoryCost(area);
+                if (plugin.getVaultHook().getBalance(player) < cost) {
+                    player.sendMessage(ColorUtil.colorize("&8[领地] &c余额不足，需要 "
+                            + plugin.getVaultHook().format(cost)));
+                    resumeBook(player, fallback);
+                    return;
+                }
+                String err = plugin.getVaultHook().withdraw(player, cost);
+                if (err != null) {
+                    player.sendMessage(ColorUtil.colorize("&8[领地] &c扣款失败: " + err));
+                    resumeBook(player, fallback);
+                    return;
+                }
+            }
+            var loc = player.getLocation();
+            boolean ok = rm.claimTerritory(player.getUniqueId(), name,
+                    loc.getBlockX(), loc.getBlockY(), loc.getBlockZ());
+            player.sendMessage(ColorUtil.colorize(ok ? "&8[领地] &a已创建 &f" + name : "&8[领地] &c创建失败"));
+        } else {
+            if (!admin) {
+                player.sendMessage(ColorUtil.colorize("&8[地区] &c无权"));
+                resumeBook(player, fallback);
+                return;
+            }
+            boolean ok = rm.createDistrict(player.getUniqueId(), name);
+            player.sendMessage(ColorUtil.colorize(ok ? "&8[地区] &a已创建 &f" + name : "&8[地区] &c创建失败"));
+        }
+        resumeBook(player, fallback);
+    }
+
+    private void confirmMailName(Player player, InputState state) {
+        if (isBlankOrPlaceholder(state)) {
+            player.sendMessage(ColorUtil.colorize("&8[ECOS] &7请输入玩家名称"));
+            resumeBook(player, "mail-list");
+            return;
+        }
+        OfflinePlayer target = findPlayed(sanitize(state.currentInput()));
+        if (target == null || (!target.hasPlayedBefore() && !target.isOnline())) {
+            player.sendMessage(ColorUtil.colorize("&8[ECOS] &7找不到这个玩家（需进过服）"));
+            resumeBook(player, "mail-list");
+            return;
+        }
+        plugin.getMailManager().giveDraftBook(player, target);
+    }
+
+    private void confirmReport(Player player, InputState state) {
+        if (isBlankOrPlaceholder(state)) {
+            resumeBook(player, "player-action");
+            return;
+        }
+        String about = null;
+        if (state.metadata() != null) {
+            OfflinePlayer op = Bukkit.getOfflinePlayer(state.metadata());
+            about = op.getName();
+        }
+        plugin.getReportManager().submit(player, about, sanitize(state.currentInput()));
+        resumeBook(player, "player-action");
+    }
+
+    private void confirmWhisper(Player player, InputState state) {
+        if (isBlankOrPlaceholder(state) || state.metadata() == null) {
+            resumeBook(player, "player-action");
+            return;
+        }
+        Player t = Bukkit.getPlayer(state.metadata());
+        if (t == null) {
+            player.sendMessage(ColorUtil.colorize("&8[ECOS] &7对方已离线"));
+            resumeBook(player, "player-action");
+            return;
+        }
+        String msg = sanitize(state.currentInput());
+        String out = "&8[私信] &f" + player.getName() + " &8→ &f" + t.getName() + ": &7" + msg;
+        player.sendMessage(ColorUtil.colorize(out));
+        t.sendMessage(ColorUtil.colorize(out));
+        var cmd = plugin.getEcosCommand();
+        if (cmd != null) cmd.recordWhisper(player.getUniqueId(), t.getUniqueId());
+        resumeBook(player, "player-action");
+    }
+
+    private void confirmShowcase(Player player, InputState state) {
+        String title = isBlankOrPlaceholder(state) || sanitize(state.currentInput()).equals("-")
+                ? null : sanitize(state.currentInput());
+        String err = plugin.getShowcaseManager().register(player, title);
+        player.sendMessage(ColorUtil.colorize(err != null ? "&8[ECOS] &7" + err : "&8[ECOS] &a展示点已登记"));
+        Bukkit.getScheduler().runTask(plugin, () -> plugin.getShowcaseGUI().open(player));
+    }
+
+    private void confirmTypeCreate(Player player, InputState state) {
+        if (isBlankOrPlaceholder(state)) {
+            Bukkit.getScheduler().runTask(plugin, () -> plugin.getTransitTypesGUI().open(player));
+            return;
+        }
+        String[] parts = sanitize(state.currentInput()).split("\\s+", 2);
+        String id = parts[0].trim().toLowerCase(java.util.Locale.ROOT).replaceAll("[^a-z0-9_\\-]", "");
+        String name = parts.length > 1 ? parts[1] : id;
+        String err = plugin.getTransitManager().createType(id, "&b", name);
+        player.sendMessage(ColorUtil.colorize(err != null ? "&8[交通] &c" + err : "&8[交通] &a类型已创建"));
+        if (err == null)
+            Bukkit.getScheduler().runTask(plugin, () -> plugin.getTransitTypeEditGUI().open(player, id));
+        else
+            Bukkit.getScheduler().runTask(plugin, () -> plugin.getTransitTypesGUI().open(player));
+    }
+
+    private void confirmTypeRename(Player player, InputState state) {
+        String id = typeRename.remove(player.getUniqueId());
+        if (id == null) return;
+        if (isBlankOrPlaceholder(state)) {
+            Bukkit.getScheduler().runTask(plugin, () -> plugin.getTransitTypeEditGUI().open(player, id));
+            return;
+        }
+        String err = plugin.getTransitManager().renameType(id, sanitize(state.currentInput()));
+        player.sendMessage(ColorUtil.colorize(err == null ? "&8[交通] &a已改名" : "&8[交通] &c" + err));
+        Bukkit.getScheduler().runTask(plugin, () -> plugin.getTransitTypeEditGUI().open(player, id));
+    }
+
+    private void rememberResume(Player player) {
+        var hub = plugin.getTerminalHub();
+        var session = hub == null ? null : hub.session(player);
+        if (session != null && session.pageId() != null)
+            resumePage.put(player.getUniqueId(), session.pageId());
+    }
+
+    private void resumeBook(Player player, String fallback) {
+        String page = resumePage.remove(player.getUniqueId());
+        if (page == null) page = fallback;
+        final String go = page;
+        Bukkit.getScheduler().runTask(plugin, () -> {
+            var hub = plugin.getTerminalHub();
+            if (hub != null) hub.open(player, go == null ? "overview" : go);
+        });
+    }
+
     private void open(Player player, Context ctx, String placeholder, UUID meta,
                       String title, String loreHint) {
-        player.closeInventory();
+        rememberResume(player);
+        try { player.closeInventory(); } catch (Throwable ignored) {}
         pending.put(player.getUniqueId(), new InputState(ctx, "", meta, placeholder));
 
         player.sendMessage(ColorUtil.colorize("&8[ECOS] &f" + title + " &8· &7" + loreHint));
         boolean sample = placeholder != null && !placeholder.isEmpty() && !placeholder.contains("输入");
         if (sample)
-            player.sendMessage(ColorUtil.colorize("&8示例 &f" + placeholder + "  &8·  &fcancel &8取消"));
+            player.sendMessage(ColorUtil.colorize("&8聊天输入金额/名称，示例 &f" + placeholder + "  &8·  &fcancel &8取消并回到上一页"));
         else
-            player.sendMessage(ColorUtil.colorize("&8聊天输入，&fcancel &8取消"));
+            player.sendMessage(ColorUtil.colorize("&8合上书，在聊天输入。&fcancel &8取消并回到上一页"));
     }
 }

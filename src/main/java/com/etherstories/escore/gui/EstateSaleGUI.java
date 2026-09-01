@@ -31,7 +31,7 @@ public class EstateSaleGUI {
     public void open(Player player) {
         List<EstateUnit> rooms = plugin.getEstateManager().listedForSale();
         listed.put(player.getUniqueId(), rooms);
-        Inventory inv = Bukkit.createInventory(null, 27, TITLE);
+        Inventory inv = EcosHolder.of("estate-sale", 27, TITLE);
         for (int i = 0; i < Math.min(rooms.size(), 18); i++) {
             EstateUnit u = rooms.get(i);
             boolean mine = player.getUniqueId().equals(u.owner());
@@ -57,7 +57,7 @@ public class EstateSaleGUI {
         }
         inv.setItem(SLOT_BACK, ECOSTerminalGUI.item(Material.ARROW, "&7返回房产", null));
         inv.setItem(SLOT_CLOSE, ECOSTerminalGUI.item(Material.BARRIER, "&c关闭", null));
-        player.openInventory(inv);
+        EcosHolder.open(player, inv);
     }
 
     private String price(double v) {

@@ -8,8 +8,8 @@ import java.util.UUID;
 
 public class ChatFeed {
 
-    /** kind: chat / web / sys / join / quit / death / admin / cmd */
-    public record Line(long ts, String name, String text, String kind, UUID only) {
+    /** kind: chat / web / link / sys / join / quit / death / admin / cmd */
+    public record Line(long ts, String name, String text, String kind, UUID only, String display) {
         public boolean web() {
             return "web".equals(kind);
         }
@@ -23,28 +23,33 @@ public class ChatFeed {
     }
 
     public synchronized void add(String name, String text) {
-        add(name, text, "chat", null);
+        add(name, text, "chat", null, text);
     }
 
     public synchronized void add(String name, String text, boolean web) {
-        add(name, text, web ? "web" : "chat", null);
+        add(name, text, web ? "web" : "chat", null, text);
     }
 
     public synchronized void add(String name, String text, String kind) {
-        add(name, text, kind, null);
+        add(name, text, kind, null, text);
     }
 
     public synchronized void add(String name, String text, String kind, UUID only) {
+        add(name, text, kind, only, text);
+    }
+
+    public synchronized void add(String name, String text, String kind, UUID only, String display) {
         if (name == null || text == null) return;
         String plain = strip(text);
         if (plain.isBlank()) return;
         String k = kind == null || kind.isBlank() ? "chat" : kind;
+        String shown = display == null || display.isBlank() ? text : display;
         long now = System.currentTimeMillis();
         if (!lines.isEmpty()) {
             Line last = lines.get(lines.size() - 1);
             if (last.text().equals(plain) && now - last.ts() < 400) return;
         }
-        lines.add(new Line(now, name, plain, k, only));
+        lines.add(new Line(now, name, plain, k, only, shown));
         while (lines.size() > max) lines.removeFirst();
     }
 

@@ -25,7 +25,7 @@ public class AdminGrantGUI {
     }
 
     public void open(Player player) {
-        Inventory inv = Bukkit.createInventory(null, 27, TITLE);
+        Inventory inv = EcosHolder.of("admin-grant", 27, TITLE);
         inv.setItem(SLOT_MAKEUP, ECOSTerminalGUI.item(Material.PAPER, "&e补签券",
                 List.of(" &7聊天输入: &f玩家 数量",
                         " &8离线也可（进过服）",
@@ -36,6 +36,6 @@ public class AdminGrantGUI {
                         "", "&d▸ 发放")));
         inv.setItem(SLOT_BACK, ECOSTerminalGUI.item(Material.ARROW, "&7返回终端", null));
         inv.setItem(SLOT_CLOSE, ECOSTerminalGUI.item(Material.BARRIER, "&c关闭", null));
-        player.openInventory(inv);
+        EcosHolder.open(player, inv);
     }
 }

@@ -178,18 +178,22 @@ public class JobBoardManager {
     }
 
     public String take(Player worker, String id) {
+        return take(worker.getUniqueId(), worker.getName(), id);
+    }
+
+    public String take(UUID uuid, String name, String id) {
         Job j = jobs.get(id);
         if (j == null) return "委托不存在";
         if (j.locked) return "委托已锁定，不再接受新人";
         if (!j.hasRoom()) return "人数已满或不可接";
-        if (j.poster.equals(worker.getUniqueId())) return "不能接自己的委托";
-        if (j.workers.contains(worker.getUniqueId())) return "你已接过此委托";
+        if (j.poster.equals(uuid)) return "不能接自己的委托";
+        if (j.workers.contains(uuid)) return "你已接过此委托";
 
-        j.workers.add(worker.getUniqueId());
-        j.workerNames.add(worker.getName());
+        j.workers.add(uuid);
+        j.workerNames.add(name == null ? "?" : name);
         j.refreshStatus();
         save();
-        notify(j.poster, "&a" + worker.getName() + " &7加入委托 &f" + j.title
+        notify(j.poster, "&a" + (name == null ? "?" : name) + " &7加入委托 &f" + j.title
                 + " &8(" + j.slotsLabel() + ")");
         return null;
     }

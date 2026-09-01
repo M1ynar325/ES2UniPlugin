@@ -42,7 +42,7 @@ public class TransitTypeEditGUI {
             return;
         }
         editing.put(player.getUniqueId(), typeId);
-        Inventory inv = Bukkit.createInventory(null, 54, TITLE);
+        Inventory inv = EcosHolder.of("transit-type-edit", 54, TITLE);
         for (int i = 0; i < 54; i++)
             inv.setItem(i, ECOSTerminalGUI.bg(Material.RED_STAINED_GLASS_PANE));
 
@@ -69,7 +69,7 @@ public class TransitTypeEditGUI {
                     List.of(on ? " &a正在使用" : " &a▸ 点击")));
         }
         inv.setItem(SLOT_BACK, ECOSTerminalGUI.item(Material.ARROW, "&7返回类型列表", null));
-        player.openInventory(inv);
+        EcosHolder.open(player, inv);
     }
 
     public String editing(Player player) { return editing.get(player.getUniqueId()); }

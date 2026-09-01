@@ -30,7 +30,7 @@ public class TransitClaimsGUI {
     public TransitClaimsGUI(ES2UniPlugin plugin) { this.plugin = plugin; }
 
     public void open(Player player) {
-        Inventory inv = Bukkit.createInventory(null, 54, TITLE);
+        Inventory inv = EcosHolder.of("transit-claims", 54, TITLE);
         for (int i = 0; i < 54; i++)
             inv.setItem(i, ECOSTerminalGUI.bg(Material.RED_STAINED_GLASS_PANE));
 
@@ -57,7 +57,7 @@ public class TransitClaimsGUI {
         }
         slots.put(player.getUniqueId(), ids);
         inv.setItem(SLOT_BACK, ECOSTerminalGUI.item(Material.ARROW, "&7返回管理", null));
-        player.openInventory(inv);
+        EcosHolder.open(player, inv);
     }
 
     public String claimAt(Player player, int slot) {

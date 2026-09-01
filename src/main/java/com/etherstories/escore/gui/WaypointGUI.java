@@ -31,7 +31,7 @@ public class WaypointGUI {
     }
 
     public void open(Player player) {
-        Inventory inv = Bukkit.createInventory(null, SIZE, ColorUtil.colorize(TITLE));
+        Inventory inv = EcosHolder.of("waypoint", SIZE, ColorUtil.colorize(TITLE));
 
         ItemStack bg = ECOSTerminalGUI.bg(BG);
         for (int i = LIST_SIZE; i < SIZE; i++) inv.setItem(i, bg);
@@ -57,7 +57,7 @@ public class WaypointGUI {
 
         inv.setItem(BACK_SLOT,  ECOSTerminalGUI.item(Material.ARROW,   "&7返回终端", null));
         inv.setItem(CLOSE_SLOT, ECOSTerminalGUI.item(Material.BARRIER, "&7关闭",     null));
-        player.openInventory(inv);
+        EcosHolder.open(player, inv);
     }
 
     public boolean isListSlot(int slot, Player player) {

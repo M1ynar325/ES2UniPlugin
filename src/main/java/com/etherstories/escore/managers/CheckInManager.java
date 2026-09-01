@@ -1,6 +1,7 @@
 package com.etherstories.escore.managers;
 
 import com.etherstories.escore.ES2UniPlugin;
+import org.bukkit.Bukkit;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
@@ -70,6 +71,19 @@ public class CheckInManager {
             moneyPart = "  &c经济系统不可用，未发放货币";
         }
         return "&8[ECOS] &a签到成功！ &7连续 &f" + streak + " &7天" + moneyPart;
+    }
+
+    /** 网页签到：离线也能发奖励。 */
+    public String checkInWeb(UUID uuid) {
+        if (!plugin.getConfigManager().isCheckInEnabled()) return "签到功能已关闭";
+        if (!checkIn(uuid)) return "今日已签到";
+        int streak = getStreak(uuid);
+        double reward = plugin.getConfigManager().calcCheckInReward(streak);
+        if (reward > 0 && plugin.getVaultHook().isEnabled())
+            plugin.getVaultHook().deposit(Bukkit.getOfflinePlayer(uuid), reward);
+        return "签到成功 · 连签 " + streak + " 日"
+                + (reward > 0 && plugin.getVaultHook().isEnabled()
+                ? " · " + plugin.getVaultHook().format(reward) : "");
     }
 
     public boolean hasCheckedInToday(UUID uuid) {

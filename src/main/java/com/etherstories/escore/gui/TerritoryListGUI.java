@@ -44,7 +44,7 @@ public class TerritoryListGUI {
         int page    = pages.getOrDefault(player.getUniqueId(), 0);
         int maxPage = list.isEmpty() ? 0 : (list.size() - 1) / LIST_SIZE;
 
-        Inventory inv = Bukkit.createInventory(null, SIZE, ColorUtil.colorize(TITLE));
+        Inventory inv = EcosHolder.of("territory-list", SIZE, ColorUtil.colorize(TITLE));
         ItemStack bg  = ECOSTerminalGUI.bg(Material.GRAY_STAINED_GLASS_PANE);
         for (int i = LIST_SIZE; i < SIZE; i++) inv.setItem(i, bg);
 
@@ -76,7 +76,7 @@ public class TerritoryListGUI {
                 ? ECOSTerminalGUI.item(Material.ARROW, "&7下一页", List.of(ColorUtil.colorize("&8第 " + (page + 2) + " / " + (maxPage + 1) + " 页")))
                 : bg);
 
-        player.openInventory(inv);
+        EcosHolder.open(player, inv);
     }
 
     public void prevPage(Player player) {

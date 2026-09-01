@@ -33,7 +33,7 @@ public class InsuranceBackupGUI {
         if (c == null) return;
         List<InsuranceManager.Backup> hist = plugin.getInsuranceManager().getHistory(c.player);
 
-        Inventory inv = Bukkit.createInventory(null, 54, TITLE);
+        Inventory inv = EcosHolder.of("insurance-bak", 54, TITLE);
         for (int i = 0; i < 54; i++)
             inv.setItem(i, ECOSTerminalGUI.bg(Material.LIGHT_BLUE_STAINED_GLASS_PANE));
 
@@ -62,7 +62,7 @@ public class InsuranceBackupGUI {
         inv.setItem(SLOT_BACK, ECOSTerminalGUI.item(Material.ARROW, "&7返回保险柜", null));
         inv.setItem(SLOT_DENY, ECOSTerminalGUI.item(Material.BARRIER, "&c拒绝理赔", null));
         inv.setItem(SLOT_CLOSE, ECOSTerminalGUI.item(Material.STRUCTURE_VOID, "&c关闭", null));
-        admin.openInventory(inv);
+        EcosHolder.open(admin, inv);
     }
 
     public String getClaimId(Player p) { return claimOf.get(p.getUniqueId()); }

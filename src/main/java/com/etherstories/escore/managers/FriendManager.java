@@ -63,11 +63,14 @@ public class FriendManager {
 
     /** Returns false if already friends or request already sent. */
     public boolean sendRequest(Player sender, Player target) {
-        UUID s = sender.getUniqueId(), t = target.getUniqueId();
-        if (s.equals(t)) return false;
-        if (areFriends(s, t)) return false;
-        if (pending.getOrDefault(t, Collections.emptySet()).contains(s)) return false;
-        pending.computeIfAbsent(t, k -> new HashSet<>()).add(s);
+        return sendRequest(sender.getUniqueId(), target.getUniqueId());
+    }
+
+    public boolean sendRequest(UUID sender, UUID target) {
+        if (sender == null || target == null || sender.equals(target)) return false;
+        if (areFriends(sender, target)) return false;
+        if (pending.getOrDefault(target, Collections.emptySet()).contains(sender)) return false;
+        pending.computeIfAbsent(target, k -> new HashSet<>()).add(sender);
         return true;
     }
 

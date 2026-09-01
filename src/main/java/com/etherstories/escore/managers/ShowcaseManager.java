@@ -71,11 +71,15 @@ public class ShowcaseManager {
     }
 
     public String vote(Player voter, String id) {
+        return vote(voter.getUniqueId(), id);
+    }
+
+    public String vote(UUID voter, String id) {
         ensureVoteDay();
         Showcase s = showcases.get(id);
         if (s == null) return "展示点不存在";
-        if (s.owner().equals(voter.getUniqueId())) return "不能给自己投票";
-        Set<String> set = votesToday.computeIfAbsent(voter.getUniqueId(), k -> new HashSet<>());
+        if (s.owner().equals(voter)) return "不能给自己投票";
+        Set<String> set = votesToday.computeIfAbsent(voter, k -> new HashSet<>());
         if (set.contains(id)) return "今天已经给这个点投过票了";
         set.add(id);
         showcases.put(id, new Showcase(s.id(), s.owner(), s.ownerName(), s.title(),

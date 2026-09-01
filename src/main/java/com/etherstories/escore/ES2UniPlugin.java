@@ -21,6 +21,9 @@ import com.etherstories.escore.web.ChatFeed;
 import com.etherstories.escore.web.EcosWebChatListener;
 import com.etherstories.escore.web.EcosWebServer;
 import com.etherstories.escore.web.WebSessions;
+import org.bukkit.event.Event;
+import org.bukkit.event.EventPriority;
+import org.bukkit.event.Listener;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public class ES2UniPlugin extends JavaPlugin {
@@ -77,6 +80,7 @@ public class ES2UniPlugin extends JavaPlugin {
 
     // GUIs
     private ECOSTerminalGUI  ecosTerminalGUI;
+    private com.etherstories.escore.gui.terminal.TerminalHub terminalHub;
     private EventListGUI     eventListGUI;
     private AdminEventGUI    adminEventGUI;
     private AnvilInputGUI    anvilInputGUI;
@@ -212,6 +216,27 @@ public class ES2UniPlugin extends JavaPlugin {
         allMusicHook   = new AllMusicHook();   allMusicHook.hook(getLogger());
 
         ecosTerminalGUI = new ECOSTerminalGUI(this);
+        terminalHub = new com.etherstories.escore.gui.terminal.TerminalHub(this);
+        try {
+            terminalHub.installDefaults();
+        } catch (Throwable t) {
+            getLogger().severe("终端 Hub 初始化失败: " + t);
+            t.printStackTrace();
+        }
+
+        // 指令和手持物必须先挂。后面某个 GUI 构造炸掉时，/ecos 和右键不能跟着死。
+        ES2UniCommand cmd = new ES2UniCommand(this);
+        ecosCommand = cmd;
+        var es2 = getCommand("es2");
+        if (es2 == null) {
+            getLogger().severe("plugin.yml 没有 es2，客户端只会看到 usage");
+        } else {
+            es2.setExecutor(cmd);
+            es2.setTabCompleter(cmd);
+        }
+        getServer().getPluginManager().registerEvents(new PlayerListener(this), this);
+
+        try {
         eventListGUI    = new EventListGUI(this);
         adminEventGUI   = new AdminEventGUI(this);
         anvilInputGUI   = new AnvilInputGUI(this);
@@ -276,43 +301,41 @@ public class ES2UniPlugin extends JavaPlugin {
         hotelDeskGUI       = new HotelDeskGUI(this);
         adminGrantGUI      = new AdminGrantGUI(this);
         skillShopGUI       = new SkillShopGUI(this);
-
-        getServer().getPluginManager().registerEvents(new PlayerListener(this), this);
-        getServer().getPluginManager().registerEvents(new AFKListener(this), this);
-        getServer().getPluginManager().registerEvents(new ChatItemListener(this), this);
-        getServer().getPluginManager().registerEvents(new GUIListener(this), this);
-        getServer().getPluginManager().registerEvents(new WeaponListener(this), this);
-        getServer().getPluginManager().registerEvents(
-                new com.etherstories.escore.listeners.TimeStopListener(), this);
-        getServer().getPluginManager().registerEvents(
-                new com.etherstories.escore.listeners.PveListener(this), this);
-        getServer().getPluginManager().registerEvents(
-                new com.etherstories.escore.listeners.TransitGateListener(this), this);
-        getServer().getPluginManager().registerEvents(
-                new com.etherstories.escore.listeners.PayCommandTaxListener(this), this);
-        getServer().getPluginManager().registerEvents(
-                new com.etherstories.escore.listeners.HotelListener(this), this);
-        getServer().getPluginManager().registerEvents(
-                new com.etherstories.escore.listeners.EstateListener(this), this);
-        new com.etherstories.escore.listeners.QuickShopTaxListener(this).tryRegister();
-
-        ES2UniCommand cmd = new ES2UniCommand(this);
-        ecosCommand = cmd;
-        getCommand("es2").setExecutor(cmd);
-        getCommand("es2").setTabCompleter(cmd);
-
-        startTasks();
-        startWeb();
+            getServer().getPluginManager().registerEvents(new AFKListener(this), this);
+            getServer().getPluginManager().registerEvents(new ChatItemListener(this), this);
+            getServer().getPluginManager().registerEvents(new GUIListener(this), this);
+            getServer().getPluginManager().registerEvents(new WeaponListener(this), this);
+            getServer().getPluginManager().registerEvents(
+                    new com.etherstories.escore.listeners.TimeStopListener(), this);
+            getServer().getPluginManager().registerEvents(
+                    new com.etherstories.escore.listeners.PveListener(this), this);
+            getServer().getPluginManager().registerEvents(
+                    new com.etherstories.escore.listeners.TransitGateListener(this), this);
+            getServer().getPluginManager().registerEvents(
+                    new com.etherstories.escore.listeners.PayCommandTaxListener(this), this);
+            getServer().getPluginManager().registerEvents(
+                    new com.etherstories.escore.listeners.HotelListener(this), this);
+            getServer().getPluginManager().registerEvents(
+                    new com.etherstories.escore.listeners.EstateListener(this), this);
+            new com.etherstories.escore.listeners.QuickShopTaxListener(this).tryRegister();
+            startTasks();
+            startWeb();
+        } catch (Throwable t) {
+            getLogger().severe("enable 后半段失败（/ecos 仍应可用）: " + t);
+            t.printStackTrace();
+        }
 
         String ver = getDescription().getVersion();
-        getServer().getConsoleSender().sendMessage(ColorUtil.colorize(
-                "&b  ___  ____ ___  ____\n" +
-                "&b | __||    |   \\/ ___|\n" +
-                "&b | _|  \\  / | | \\___ \\\n" +
-                "&b |___| |__| |___/____/\n" +
-                "&b ECOS Terminal &8v" + ver + " &7| EtherStories ES2\n" +
-                "&8 Essentials: " + (essentialsHook.isEnabled() ? "&aOK" : "&cN/A") +
-                "  &8Vault: "     + (vaultHook.isEnabled()      ? "&aOK" : "&cN/A")));
+        getLogger().info("");
+        getLogger().info("  _____    ____    ___    ____");
+        getLogger().info(" | ____|  / ___|  / _ \\  / ___|");
+        getLogger().info(" |  _|   | |     | | | | \\___ \\");
+        getLogger().info(" | |___  | |___  | |_| |  ___) |");
+        getLogger().info(" |_____|  \\____|  \\___/  |____/");
+        getLogger().info("  ECOS Terminal  v" + ver + "  ·  EtherStories ES2");
+        getLogger().info("  Essentials " + (essentialsHook.isEnabled() ? "OK" : "N/A")
+                + "   Vault " + (vaultHook.isEnabled() ? "OK" : "N/A"));
+        getLogger().info("");
         getLogger().info("enabled v" + ver + ".");
     }
 
@@ -373,7 +396,8 @@ public class ES2UniPlugin extends JavaPlugin {
     private void startWeb() {
         if (chatFeed == null) chatFeed = new ChatFeed(160);
         if (!webChatBound) {
-            getServer().getPluginManager().registerEvents(new EcosWebChatListener(chatFeed), this);
+            getServer().getPluginManager().registerEvents(new EcosWebChatListener(this, chatFeed), this);
+            bindLinkChat();
             webChatBound = true;
         }
         webSessions = new WebSessions(
@@ -384,6 +408,26 @@ public class ES2UniPlugin extends JavaPlugin {
             ecosWebServer.start();
         } catch (Exception e) {
             getLogger().warning("ECOS Web 启动失败: " + e.getMessage());
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private void bindLinkChat() {
+        try {
+            Class<? extends Event> ev = (Class<? extends Event>) Class.forName("com.etherstories.link.LinkChatShowEvent");
+            getServer().getPluginManager().registerEvent(ev, new Listener() {}, EventPriority.MONITOR,
+                    (l, event) -> {
+                        if (chatFeed == null) return;
+                        try {
+                            String kind = String.valueOf(event.getClass().getMethod("kind").invoke(event));
+                            if ("whisper".equals(kind)) return;
+                            String name = String.valueOf(event.getClass().getMethod("name").invoke(event));
+                            String text = String.valueOf(event.getClass().getMethod("text").invoke(event));
+                            String display = String.valueOf(event.getClass().getMethod("display").invoke(event));
+                            chatFeed.add(name, text, "link", null, display);
+                        } catch (Exception ignored) {}
+                    }, this, true);
+        } catch (ClassNotFoundException ignored) {
         }
     }
 
@@ -425,6 +469,7 @@ public class ES2UniPlugin extends JavaPlugin {
     public MilestoneManager getMilestoneManager() { return milestoneManager; }
 
     public ECOSTerminalGUI  getEcosTerminalGUI()  { return ecosTerminalGUI; }
+    public com.etherstories.escore.gui.terminal.TerminalHub getTerminalHub() { return terminalHub; }
     public EventListGUI     getEventListGUI()     { return eventListGUI; }
     public AdminEventGUI    getAdminEventGUI()    { return adminEventGUI; }
     public AnvilInputGUI    getAnvilInputGUI()    { return anvilInputGUI; }

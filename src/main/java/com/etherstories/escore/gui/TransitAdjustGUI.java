@@ -36,7 +36,7 @@ public class TransitAdjustGUI {
         String name = s == null ? stationId : s.displayName();
         TransitManager.AdjustQuote q = tm.quoteAdjust(player, stationId);
 
-        Inventory inv = Bukkit.createInventory(null, 27, TITLE);
+        Inventory inv = EcosHolder.of("transit-adjust", 27, TITLE);
         for (int i = 0; i < 27; i++)
             inv.setItem(i, ECOSTerminalGUI.bg(Material.ORANGE_STAINED_GLASS_PANE));
 
@@ -60,7 +60,7 @@ public class TransitAdjustGUI {
                             " &8" + q.detail())));
         }
         inv.setItem(SLOT_CLOSE, ECOSTerminalGUI.item(Material.BARRIER, "&c关闭", null));
-        player.openInventory(inv);
+        EcosHolder.open(player, inv);
     }
 
     public void cleanup(Player player) { stationOf.remove(player.getUniqueId()); }

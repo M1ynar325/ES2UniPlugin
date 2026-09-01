@@ -30,7 +30,7 @@ public class SkillShopGUI {
     }
 
     public void open(Player player) {
-        Inventory inv = Bukkit.createInventory(null, 54, TITLE);
+        Inventory inv = EcosHolder.of("skillshop", 54, TITLE);
         fillBg(inv);
         List<SkillShopManager.Listing> sale = plugin.getSkillShopManager().forSale();
         for (int i = 0; i < Math.min(sale.size(), SKILL_SLOTS.length); i++) {
@@ -41,11 +41,11 @@ public class SkillShopGUI {
                         " &7上架: &f" + sale.size(),
                         "", "&8右键释放")));
         inv.setItem(SLOT_CLOSE, ECOSTerminalGUI.item(Material.BARRIER, "&c关闭", null));
-        player.openInventory(inv);
+        EcosHolder.open(player, inv);
     }
 
     public void openAdmin(Player player) {
-        Inventory inv = Bukkit.createInventory(null, 54, ADMIN_TITLE);
+        Inventory inv = EcosHolder.of("skillshop-admin", 54, ADMIN_TITLE);
         fillBg(inv);
         SkillType[] all = SkillType.values();
         for (int i = 0; i < Math.min(all.length, SKILL_SLOTS.length); i++) {
@@ -56,7 +56,7 @@ public class SkillShopGUI {
                         " &e右键 &7改价格",
                         "", "&8改完立即写入 skillshop.yml")));
         inv.setItem(SLOT_CLOSE, ECOSTerminalGUI.item(Material.BARRIER, "&c关闭", null));
-        player.openInventory(inv);
+        EcosHolder.open(player, inv);
     }
 
     public SkillType skillAt(int slot, boolean admin) {

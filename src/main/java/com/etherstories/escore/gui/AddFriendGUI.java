@@ -33,7 +33,7 @@ public class AddFriendGUI {
     }
 
     public void open(Player viewer) {
-        Inventory inv = Bukkit.createInventory(null, SIZE, TITLE);
+        Inventory inv = EcosHolder.of("add-friend", SIZE, TITLE);
         ItemStack bg = ECOSTerminalGUI.bg(Material.GRAY_STAINED_GLASS_PANE);
         for (int i = LIST; i < SIZE; i++) inv.setItem(i, bg);
 
@@ -58,7 +58,7 @@ public class AddFriendGUI {
                         "&8cancel 取消")));
         inv.setItem(SLOT_BACK, ECOSTerminalGUI.item(Material.ARROW, "&7返回好友", null));
         inv.setItem(SLOT_CLOSE, ECOSTerminalGUI.item(Material.BARRIER, "&c关闭", null));
-        viewer.openInventory(inv);
+        EcosHolder.open(viewer, inv);
     }
 
     private ItemStack head(Player target) {

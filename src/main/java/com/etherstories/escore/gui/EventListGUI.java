@@ -29,7 +29,7 @@ public class EventListGUI {
 
     public void open(Player player) {
         String title = ColorUtil.colorize(plugin.getConfigManager().getEventGUITitle());
-        Inventory inv = Bukkit.createInventory(null, SIZE, title);
+        Inventory inv = EcosHolder.of("event", SIZE, title);
 
         Collection<ServerEvent> events = plugin.getEventManager().getAllEvents();
         List<ServerEvent> list = new ArrayList<>(events);
@@ -54,7 +54,7 @@ public class EventListGUI {
                     List.of(ColorUtil.colorize("&8等待管理员创建活动"))));
         }
 
-        player.openInventory(inv);
+        EcosHolder.open(player, inv);
     }
 
     private ItemStack buildEventItem(ServerEvent event, Player player) {

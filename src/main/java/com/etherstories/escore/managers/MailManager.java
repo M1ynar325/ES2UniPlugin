@@ -1,11 +1,16 @@
 package com.etherstories.escore.managers;
 
 import com.etherstories.escore.ES2UniPlugin;
+import com.etherstories.escore.utils.ColorUtil;
 import org.bukkit.Bukkit;
+import org.bukkit.Material;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.Sound;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.BookMeta;
 
 import java.io.File;
 import java.io.IOException;
@@ -99,6 +104,38 @@ public class MailManager {
 
     public void setPending(UUID writer, UUID recipient) {
         pendingTo.put(writer, recipient);
+    }
+
+    /** 发书与笔，签名后投递给 recipient（可离线）。背包满则不挂 pending。 */
+    public boolean giveDraftBook(Player writer, OfflinePlayer recipient) {
+        if (writer == null || recipient == null) return false;
+        UUID to = recipient.getUniqueId();
+        if (to.equals(writer.getUniqueId())) {
+            writer.sendMessage(ColorUtil.colorize("&8[ECOS] &7不能给自己写信"));
+            return false;
+        }
+        if (!recipient.hasPlayedBefore() && !recipient.isOnline()) {
+            writer.sendMessage(ColorUtil.colorize("&8[ECOS] &7这个玩家没进过服"));
+            return false;
+        }
+        int empty = writer.getInventory().firstEmpty();
+        if (empty == -1) {
+            writer.sendMessage(ColorUtil.colorize("&8[ECOS] &7背包已满"));
+            return false;
+        }
+        setPending(writer.getUniqueId(), to);
+        ItemStack book = new ItemStack(Material.WRITABLE_BOOK);
+        BookMeta bm = (BookMeta) book.getItemMeta();
+        if (bm != null) {
+            bm.setTitle("draft");
+            bm.setAuthor(writer.getName());
+            book.setItemMeta(bm);
+        }
+        writer.getInventory().setItem(empty, book);
+        String name = recipient.getName() == null ? "玩家" : recipient.getName();
+        writer.sendMessage(ColorUtil.colorize("&8[ECOS] &7书已放入背包，写完签名发给 &f" + name
+                + (recipient.isOnline() ? "" : " &8(离线)")));
+        return true;
     }
 
     public UUID consumePending(UUID writer) {

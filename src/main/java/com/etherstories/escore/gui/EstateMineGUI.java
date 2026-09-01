@@ -43,7 +43,7 @@ public class EstateMineGUI {
                 ? new ArrayList<>(plugin.getEstateManager().all())
                 : plugin.getEstateManager().ownedBy(player.getUniqueId());
         listed.put(player.getUniqueId(), rooms);
-        Inventory inv = Bukkit.createInventory(null, 54, admin ? ADMIN_TITLE : TITLE);
+        Inventory inv = EcosHolder.of(admin ? "estate-mine-admin" : "estate-mine", 54, admin ? ADMIN_TITLE : TITLE);
         ItemStack bg = EcosStyle.chrome();
         for (int i = 0; i < 54; i++) inv.setItem(i, bg);
         for (int i = 0; i < Math.min(rooms.size(), 45); i++) {
@@ -67,7 +67,7 @@ public class EstateMineGUI {
         }
         inv.setItem(SLOT_BACK, ECOSTerminalGUI.item(Material.ARROW, "&7返回楼盘", null));
         inv.setItem(SLOT_CLOSE, ECOSTerminalGUI.item(Material.BARRIER, "&c关闭", null));
-        player.openInventory(inv);
+        EcosHolder.open(player, inv);
     }
 
     public EstateUnit unitAt(Player p, int slot) {

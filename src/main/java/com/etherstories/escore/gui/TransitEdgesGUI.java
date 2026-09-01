@@ -47,7 +47,7 @@ public class TransitEdgesGUI {
             return;
         }
         lineOf.put(player.getUniqueId(), lineId);
-        Inventory inv = Bukkit.createInventory(null, 54, TITLE);
+        Inventory inv = EcosHolder.of("transit-edges", 54, TITLE);
         for (int i = 0; i < 54; i++)
             inv.setItem(i, ECOSTerminalGUI.bg(Material.RED_STAINED_GLASS_PANE));
 
@@ -102,7 +102,7 @@ public class TransitEdgesGUI {
                         " &7车站上的所属线也会摘掉",
                         armedDelete.contains(player.getUniqueId()) ? " &c▸ 确认删除" : " &8▸ 点两次删除")));
         inv.setItem(SLOT_BACK, ECOSTerminalGUI.item(Material.ARROW, "&7返回管理", null));
-        player.openInventory(inv);
+        EcosHolder.open(player, inv);
     }
 
     public String lineOf(Player player) { return lineOf.get(player.getUniqueId()); }

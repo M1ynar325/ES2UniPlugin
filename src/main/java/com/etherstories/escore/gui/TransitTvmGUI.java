@@ -33,7 +33,7 @@ public class TransitTvmGUI {
         stationOf.put(player.getUniqueId(), stationId);
         TransitManager.Station s = plugin.getTransitManager().getStation(stationId);
         String name = s == null ? stationId : s.displayName();
-        Inventory inv = Bukkit.createInventory(null, 27, TITLE);
+        Inventory inv = EcosHolder.of("transit-tvm", 27, TITLE);
         for (int i = 0; i < 27; i++)
             inv.setItem(i, ECOSTerminalGUI.bg(Material.YELLOW_STAINED_GLASS_PANE));
 
@@ -65,7 +65,7 @@ public class TransitTvmGUI {
                         "",
                         "&6▸ 办理")));
         inv.setItem(SLOT_CLOSE, ECOSTerminalGUI.item(Material.BARRIER, "&c关闭", null));
-        player.openInventory(inv);
+        EcosHolder.open(player, inv);
         plugin.getTransitTicketGUI().setOrigin(player, stationId);
     }
 

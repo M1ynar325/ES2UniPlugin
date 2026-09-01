@@ -29,7 +29,7 @@ public class HomeListGUI {
         int size = rows * 9;
 
         String title = ColorUtil.colorize(plugin.getConfigManager().getHomeGUITitle());
-        Inventory inv = Bukkit.createInventory(null, size, title);
+        Inventory inv = EcosHolder.of("home", size, title);
 
         // Fill last row with bg
         ItemStack bg = ECOSTerminalGUI.item(BG, " ", null);
@@ -58,7 +58,7 @@ public class HomeListGUI {
         inv.setItem(closeSlot, ECOSTerminalGUI.item(Material.BARRIER,
                 ColorUtil.colorize("&c关闭"), null));
 
-        player.openInventory(inv);
+        EcosHolder.open(player, inv);
     }
 
     public static int getBackSlot(int size)  { return size - 5; }

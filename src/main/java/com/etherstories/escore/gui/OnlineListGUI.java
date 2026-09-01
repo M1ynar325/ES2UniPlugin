@@ -28,7 +28,7 @@ public class OnlineListGUI {
     }
 
     public void open(Player viewer) {
-        Inventory inv = Bukkit.createInventory(null, SIZE, ColorUtil.colorize(TITLE));
+        Inventory inv = EcosHolder.of("online", SIZE, ColorUtil.colorize(TITLE));
 
         ItemStack bg = ECOSTerminalGUI.bg(BG);
         for (int i = LIST_SIZE; i < SIZE; i++) inv.setItem(i, bg);
@@ -49,7 +49,7 @@ public class OnlineListGUI {
 
         inv.setItem(BACK_SLOT,  ECOSTerminalGUI.item(Material.ARROW,   "&7返回终端", null));
         inv.setItem(CLOSE_SLOT, ECOSTerminalGUI.item(Material.BARRIER, "&7关闭",     null));
-        viewer.openInventory(inv);
+        EcosHolder.open(viewer, inv);
     }
 
     private ItemStack buildHead(Player target) {

@@ -44,7 +44,7 @@ public class PlayerSelectGUI {
             case PAY      -> plugin.getConfigManager().getPaySelectTitle();
             case MAIL     -> "&7选择留言对象";
         };
-        Inventory inv = Bukkit.createInventory(null, SIZE, ColorUtil.colorize(titleKey));
+        Inventory inv = EcosHolder.of("player-select", SIZE, ColorUtil.colorize(titleKey));
 
         ItemStack bg = ECOSTerminalGUI.item(BG, " ", null);
         for (int i = SIZE - 9; i < SIZE; i++) inv.setItem(i, bg);
@@ -76,7 +76,7 @@ public class PlayerSelectGUI {
         inv.setItem(BACK_SLOT,  ECOSTerminalGUI.item(Material.ARROW, ColorUtil.colorize("&f返回终端"), null));
         inv.setItem(CLOSE_SLOT, ECOSTerminalGUI.item(Material.BARRIER, ColorUtil.colorize("&c关闭"), null));
 
-        viewer.openInventory(inv);
+        EcosHolder.open(viewer, inv);
     }
 
     private ItemStack buildHead(Player target, SelectContext context) {

@@ -36,7 +36,7 @@ public class MusicSearchResultGUI {
         if (songs == null) songs = List.of();
         cache.put(player.getUniqueId(), songs);
 
-        Inventory inv = Bukkit.createInventory(null, 54, TITLE);
+        Inventory inv = EcosHolder.of("music-search", 54, TITLE);
         ItemStack bg = pane(Material.GRAY_STAINED_GLASS_PANE);
         for (int i = 0; i < 54; i++) inv.setItem(i, bg);
 
@@ -74,7 +74,12 @@ public class MusicSearchResultGUI {
         inv.setItem(BACK_SLOT, item(Material.OAK_DOOR, "&7返回点歌菜单", List.of()));
         inv.setItem(RETRY_SLOT, item(Material.NAME_TAG, "&a重新搜索", List.of("&7再输入歌名")));
 
-        player.openInventory(inv);
+        EcosHolder.open(player, inv);
+    }
+
+    public List<AllMusicHook.SongEntry> cached(Player player) {
+        List<AllMusicHook.SongEntry> list = cache.get(player.getUniqueId());
+        return list == null ? List.of() : list;
     }
 
     public AllMusicHook.SongEntry getAt(Player player, int slot) {

@@ -94,6 +94,22 @@ public final class ESLinkHook {
         }
     }
 
+    /** 本服互通公屏那一行，和游戏里颜色一致。 */
+    public String localLine(String name, String msg) {
+        String tag = "";
+        try {
+            Object p = plugin();
+            if (p != null) {
+                Object chat = p.getClass().getMethod("chat").invoke(p);
+                Object r = chat.getClass().getMethod("localTag").invoke(chat);
+                if (r instanceof String s) tag = s;
+            }
+        } catch (Throwable ignored) {
+        }
+        if (tag == null || tag.isBlank()) tag = org.bukkit.ChatColor.AQUA + "[ES2] ";
+        return tag + (name == null ? "?" : name) + ": " + (msg == null ? "" : msg);
+    }
+
     public void setChatAll(UUID uuid, boolean all) {
         Object p = plugin();
         if (p == null || uuid == null) return;

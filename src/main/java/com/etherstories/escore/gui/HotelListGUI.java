@@ -49,7 +49,7 @@ public class HotelListGUI {
         String title = stayLabel == null
                 ? TITLE
                 : ColorUtil.colorize(EcosStyle.MIST + "ECOS / " + EcosStyle.JIQING + "酒店 " + EcosStyle.MIST + "· &c入住");
-        Inventory inv = Bukkit.createInventory(null, 54, title);
+        Inventory inv = EcosHolder.of("hotel", 54, title);
         for (int i = 0; i < Math.min(hotels.size(), 45); i++) {
             HotelManager.Hotel h = hotels.get(i);
             int vacant = 0;
@@ -76,14 +76,14 @@ public class HotelListGUI {
                 List.of("&8输入酒店名", "", "&a▸ 开始")));
         inv.setItem(SLOT_BACK, ECOSTerminalGUI.item(Material.ARROW, "&7返回终端", null));
         inv.setItem(SLOT_CLOSE, ECOSTerminalGUI.item(Material.BARRIER, "&c关闭", null));
-        player.openInventory(inv);
+        EcosHolder.open(player, inv);
     }
 
     public void openMine(Player player) {
         mineView.add(player.getUniqueId());
         List<HotelManager.Hotel> hotels = plugin.getHotelManager().ownedOrManaged(player.getUniqueId());
         listed.put(player.getUniqueId(), hotels);
-        Inventory inv = Bukkit.createInventory(null, 54, TITLE);
+        Inventory inv = EcosHolder.of("hotel", 54, TITLE);
         for (int i = 0; i < Math.min(hotels.size(), 45); i++) {
             HotelManager.Hotel h = hotels.get(i);
             inv.setItem(i, ECOSTerminalGUI.item(Material.BELL, "&e" + h.name,
@@ -96,7 +96,7 @@ public class HotelListGUI {
         fillStayBar(inv, player);
         inv.setItem(SLOT_BACK, ECOSTerminalGUI.item(Material.ARROW, "&7返回全部", null));
         inv.setItem(SLOT_CLOSE, ECOSTerminalGUI.item(Material.BARRIER, "&c关闭", null));
-        player.openInventory(inv);
+        EcosHolder.open(player, inv);
     }
 
     private void fillStayBar(Inventory inv, Player player) {

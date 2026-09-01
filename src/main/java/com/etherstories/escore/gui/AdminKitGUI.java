@@ -29,7 +29,7 @@ public class AdminKitGUI {
     }
 
     public void open(Player player) {
-        Inventory inv = Bukkit.createInventory(null, 54, TITLE);
+        Inventory inv = EcosHolder.of("admin-kit", 54, TITLE);
         ItemStack bg = pane(Material.GRAY_STAINED_GLASS_PANE);
         for (int i = 0; i < 54; i++) inv.setItem(i, bg);
 
@@ -61,7 +61,7 @@ public class AdminKitGUI {
                 )));
         inv.setItem(BACK_SLOT, item(Material.ARROW, "&7返回终端", List.of()));
         inv.setItem(CLOSE_SLOT, item(Material.BARRIER, "&c关闭", List.of()));
-        player.openInventory(inv);
+        EcosHolder.open(player, inv);
     }
 
     public String getAt(Player player, int slot) {

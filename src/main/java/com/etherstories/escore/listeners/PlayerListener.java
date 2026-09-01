@@ -149,7 +149,7 @@ public class PlayerListener implements Listener {
         Action action = event.getAction();
         if (action != Action.RIGHT_CLICK_AIR && action != Action.RIGHT_CLICK_BLOCK) return;
         Player player = event.getPlayer();
-        ItemStack item = player.getInventory().getItemInMainHand();
+        ItemStack item = event.getItem();
         if (!ECOSTerminalItem.isTerminalItem(item)) return;
         event.setCancelled(true);
         plugin.getEcosTerminalGUI().open(player);

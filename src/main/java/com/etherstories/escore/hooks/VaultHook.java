@@ -92,6 +92,41 @@ public class VaultHook {
         return null;
     }
 
+    public String pay(org.bukkit.OfflinePlayer from, org.bukkit.OfflinePlayer to, double amount, double tax) {
+        if (!isEnabled()) return "经济系统不可用。";
+        if (from == null || to == null) return "找不到玩家。";
+        if (amount <= 0) return "金额必须大于 0。";
+        if (to.getUniqueId().equals(from.getUniqueId())) return "不能转给自己。";
+        double total = amount + Math.max(0, tax);
+        if (!economy.has(from, total))
+            return "余额不足（含税需 " + format(total) + "）。";
+        var w = economy.withdrawPlayer(from, amount);
+        if (w != null && !w.transactionSuccess()) {
+            return w.errorMessage != null ? w.errorMessage : "扣款失败";
+        }
+        economy.depositPlayer(to, amount);
+        if (tax > 0) {
+            var tw = economy.withdrawPlayer(from, tax);
+            if (tw != null && !tw.transactionSuccess()) {
+                economy.depositPlayer(from, amount);
+                economy.withdrawPlayer(to, amount);
+                return "扣税失败";
+            }
+            ES2UniPlugin pl = ES2UniPlugin.getInstance();
+            if (pl != null) {
+                String sink = pl.getTaxManager().getSinkAccount();
+                if (sink != null && !sink.isBlank())
+                    economy.depositPlayer(Bukkit.getOfflinePlayer(sink), tax);
+            }
+        }
+        try {
+            Player onlineFrom = from.getPlayer();
+            if (onlineFrom != null)
+                ES2UniPlugin.getInstance().getTradeStatsManager().recordPay(onlineFrom, to, amount, tax);
+        } catch (Throwable ignored) {}
+        return null;
+    }
+
     public String withdraw(Player player, double amount) {
         return withdraw(player, amount, true, "消费");
     }

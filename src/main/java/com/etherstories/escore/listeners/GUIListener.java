@@ -69,56 +69,116 @@ public class GUIListener implements Listener {
 
     // ── All inventory clicks ──────────────────────────────────────────────────
 
-    private static boolean isEcosMenu(org.bukkit.inventory.InventoryView view) {
-        if (view == null) return false;
-        org.bukkit.inventory.Inventory top = view.getTopInventory();
-        if (EcosHolder.isTerminal(top.getHolder())) return true;
+    private boolean titleFailureLogged = false;
+
+    private String viewTitle(org.bukkit.event.inventory.InventoryInteractEvent event) {
         try {
-            if (ECOSTerminalGUI.isTitle(view.getTitle())) return true;
-        } catch (Throwable ignored) {}
-        return ECOSTerminalGUI.looksLikeMenu(top);
-    }
-
-    private static void deny(org.bukkit.event.inventory.InventoryInteractEvent event) {
-        event.setCancelled(true);
-        event.setResult(Event.Result.DENY);
-    }
-
-    private static void sweepMenuItems(Player player) {
-        ItemStack[] contents = player.getInventory().getContents();
-        for (int i = 0; i < contents.length; i++) {
-            if (ECOSTerminalGUI.isMenuItem(contents[i])) contents[i] = null;
+            String t = event.getView().getTitle();
+            if (t != null) return t;
+        } catch (Throwable t) {
+            if (!titleFailureLogged) {
+                titleFailureLogged = true;
+                plugin.getLogger().warning("InventoryView.getTitle() 不可用，靠标题分发的 GUI 会失灵: " + t);
+            }
         }
-        player.getInventory().setContents(contents);
-        ItemStack cur = player.getItemOnCursor();
-        if (ECOSTerminalGUI.isMenuItem(cur)) player.setItemOnCursor(null);
+        return "";
     }
 
-    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = false)
+    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = false)
     public void onInventoryClick(InventoryClickEvent event) {
         if (!(event.getWhoClicked() instanceof Player player)) return;
 
-        // 聊天输入等待中时，点任何 GUI 不误触确认
         if (plugin.getAnvilInputGUI().isInInput(player)) {
             event.setCancelled(true);
             return;
         }
 
-        String title = event.getView().getTitle();
-
-        if (isEcosMenu(event.getView())) {
-            deny(event);
-            handleTerminal(event, player);
-            plugin.getNewbieGuideManager().mark(player.getUniqueId(),
-                    com.etherstories.escore.managers.NewbieGuideManager.Step.OPEN_TERMINAL);
+        Inventory top = event.getView().getTopInventory();
+        String title = viewTitle(event);
+        String kind = EcosHolder.kindOf(player, top);
+        if (kind == null) kind = EcosHolder.kindFromItem(event.getCurrentItem());
+        if (kind == null) {
+            dispatchByTitle(event, player, title);
             return;
         }
-        if (ECOSTerminalGUI.isMenuItem(event.getCurrentItem())
-                || ECOSTerminalGUI.isMenuItem(event.getCursor())) {
-            deny(event);
-            sweepMenuItems(player);
-            return;
-        } else if (title.equals(t(plugin.getConfigManager().getEventGUITitle()))) {
+        if (!"kit-edit".equals(kind)) {
+            event.setCancelled(true);
+            event.setResult(Event.Result.DENY);
+        }
+        if (!dispatchByKind(event, player, kind, title)) dispatchByTitle(event, player, title);
+    }
+
+    private boolean dispatchByKind(InventoryClickEvent event, Player player, String kind, String title) {
+        return switch (kind) {
+            case "home" -> { handleHomeList(event, player); yield true; }
+            case "friends", "friends-req" -> { handleFriendList(event, player); yield true; }
+            case "mail" -> { handleMailbox(event, player); yield true; }
+            case "online" -> { handleOnlineList(event, player); yield true; }
+            case "notice" -> { handleNotice(event, player); yield true; }
+            case "leaderboard" -> { handleLeaderboard(event, player); yield true; }
+            case "waypoint" -> { handleWaypointGUI(event, player); yield true; }
+            case "territory-list" -> { handleTerritoryList(event, player); yield true; }
+            case "admin-territory" -> { handleAdminTerritory(event, player); yield true; }
+            case "my-territory" -> { handleMyTerritory(event, player); yield true; }
+            case "admin-event" -> { handleAdminEvent(event, player); yield true; }
+            case "event" -> { handleEventList(event, player); yield true; }
+            case "pay-confirm" -> { handlePayConfirm(event, player); yield true; }
+            case "player-select" -> { handlePlayerSelect(event, player); yield true; }
+            case "player-action" -> { handlePlayerAction(event, player); yield true; }
+            case "add-friend" -> { handleAddFriend(event, player); yield true; }
+            case "aura" -> { handleAuraShop(event, player); yield true; }
+            case "skillshop" -> { handleSkillShop(event, player, false); yield true; }
+            case "skillshop-admin" -> { handleSkillShop(event, player, true); yield true; }
+            case "admin-kit" -> { handleAdminKit(event, player); yield true; }
+            case "kit" -> { handleKitList(event, player); yield true; }
+            case "kit-edit" -> { handleKitEdit(event, player); yield true; }
+            case "music" -> { handleMusicMenu(event, player); yield true; }
+            case "music-search" -> { handleMusicSearch(event, player); yield true; }
+            case "music-history" -> { handleMusicHistory(event, player); yield true; }
+            case "music-fav" -> { handleMusicFavorites(event, player); yield true; }
+            case "music-playlist" -> { handleMusicPlaylist(event, player); yield true; }
+            case "admin-tax" -> { handleAdminTax(event, player); yield true; }
+            case "admin-bc" -> { handleAdminBroadcast(event, player); yield true; }
+            case "checkin" -> { handleCheckInCalendar(event, player); yield true; }
+            case "trade" -> { handleTradeBoard(event, player); yield true; }
+            case "showcase" -> { handleShowcase(event, player); yield true; }
+            case "newbie" -> { handleNewbieGuide(event, player); yield true; }
+            case "municipal" -> { handleMunicipalOffice(event, player); yield true; }
+            case "jobs" -> { handleJobBoard(event, player); yield true; }
+            case "job-history" -> { handleJobHistory(event, player); yield true; }
+            case "insurance" -> { handleInsurance(event, player); yield true; }
+            case "insurance-bak" -> { handleInsuranceBackup(event, player); yield true; }
+            case "recycle" -> { handleRecycleBin(event, player); yield true; }
+            case "estate" -> { handleEstateBuildings(event, player); yield true; }
+            case "estate-rooms" -> { handleEstateRooms(event, player); yield true; }
+            case "estate-mine", "estate-mine-admin" -> { handleEstateMine(event, player); yield true; }
+            case "estate-sale" -> { handleEstateSale(event, player); yield true; }
+            case "estate-tools" -> { handleEstateTools(event, player); yield true; }
+            case "hotel" -> { handleHotelList(event, player); yield true; }
+            case "hotel-desk" -> { handleHotelDesk(event, player); yield true; }
+            case "admin-grant" -> { handleAdminGrant(event, player); yield true; }
+            case "admin-region" -> { handleAdminRegion(event, player); yield true; }
+            case "transit-office" -> { handleTransitOffice(event, player); yield true; }
+            case "transit-map" -> { handleTransitMap(event, player); yield true; }
+            case "transit-ticket" -> { handleTransitTicket(event, player); yield true; }
+            case "transit-history" -> { handleTransitHistory(event, player); yield true; }
+            case "transit-tvm" -> { handleTransitTvm(event, player); yield true; }
+            case "transit-adjust" -> { handleTransitAdjust(event, player); yield true; }
+            case "transit-admin" -> { handleTransitAdmin(event, player); yield true; }
+            case "transit-edges" -> { handleTransitEdges(event, player); yield true; }
+            case "transit-station" -> { handleTransitStation(event, player); yield true; }
+            case "transit-announce" -> { handleTransitAnnounce(event, player); yield true; }
+            case "transit-types" -> { handleTransitTypes(event, player); yield true; }
+            case "transit-type-edit" -> { handleTransitTypeEdit(event, player); yield true; }
+            case "transit-claims" -> { handleTransitClaims(event, player); yield true; }
+            case "transit-riders" -> { handleTransitRiders(event, player); yield true; }
+            case "transit-board" -> { handleTransitBoard(event, player); yield true; }
+            default -> false;
+        };
+    }
+
+    private void dispatchByTitle(InventoryClickEvent event, Player player, String title) {
+        if (title.equals(t(plugin.getConfigManager().getEventGUITitle()))) {
             handleEventList(event, player);
         } else if (title.equals(t(plugin.getConfigManager().getAdminEventGUITitle()))) {
             handleAdminEvent(event, player);
@@ -246,347 +306,23 @@ public class GUIListener implements Listener {
         }
     }
 
-    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = false)
+    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = false)
     public void onInventoryDrag(InventoryDragEvent event) {
-        if (!(event.getWhoClicked() instanceof Player player)) return;
-        if (isEcosMenu(event.getView())) {
-            deny(event);
-            return;
-        }
-        for (ItemStack it : event.getNewItems().values()) {
-            if (ECOSTerminalGUI.isMenuItem(it)) {
-                deny(event);
-                sweepMenuItems(player);
-                return;
-            }
-        }
-        if (ECOSTerminalGUI.isMenuItem(event.getOldCursor())
-                || ECOSTerminalGUI.isMenuItem(event.getCursor())) {
-            deny(event);
-            sweepMenuItems(player);
-        }
+        if (!(event.getWhoClicked() instanceof Player p)) return;
+        String kind = EcosHolder.kindOf(p, event.getView().getTopInventory());
+        if (kind != null && !"kit-edit".equals(kind)) event.setCancelled(true);
     }
 
-    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = false)
-    public void onInventoryCreative(InventoryCreativeEvent event) {
-        if (isEcosMenu(event.getView())) deny(event);
-    }
-
-    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = false)
-    public void onDrop(PlayerDropItemEvent event) {
-        Player player = event.getPlayer();
-        if (isEcosMenu(player.getOpenInventory())
-                || ECOSTerminalGUI.isMenuItem(event.getItemDrop().getItemStack())) {
+    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = false)
+    public void onDropFromGui(PlayerDropItemEvent event) {
+        if (EcosHolder.ours(event.getPlayer(), event.getPlayer().getOpenInventory().getTopInventory()))
             event.setCancelled(true);
-            event.getItemDrop().remove();
-            sweepMenuItems(player);
-        }
     }
 
-    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = false)
-    public void onPickup(org.bukkit.event.entity.EntityPickupItemEvent event) {
-        if (!(event.getEntity() instanceof Player player)) return;
-        if (!ECOSTerminalGUI.isMenuItem(event.getItem().getItemStack())) return;
-        event.setCancelled(true);
-        event.getItem().remove();
-        sweepMenuItems(player);
-    }
-
-    // ── ECOS Terminal ─────────────────────────────────────────────────────────
-
-    private void handleTerminal(InventoryClickEvent event, Player player) {
-        event.setCancelled(true);
-        String act = plugin.getEcosTerminalGUI().actionAt(player, event.getRawSlot());
-        if (act == null) return;
-        if (act.startsWith("tab:")) {
-            ECOSTerminalGUI.Page page = ECOSTerminalGUI.Page.valueOf(act.substring(4));
-            Bukkit.getScheduler().runTask(plugin, () -> plugin.getEcosTerminalGUI().open(player, page));
-            return;
-        }
-        switch (act) {
-            case "head" -> player.sendMessage(ColorUtil.colorize(
-                    plugin.getConfigManager().getVersionDisplayTemplate()
-                            .replace("{version}",    plugin.getDescription().getVersion())
-                            .replace("{mc_version}", plugin.getServer().getVersion())
-                            .replace("{authors}",    String.join(", ", plugin.getDescription().getAuthors()))
-            ));
-
-            case "web-pair" -> {
-                player.closeInventory();
-                Bukkit.getScheduler().runTask(plugin, () ->
-                        Bukkit.dispatchCommand(player, "ecos web"));
-            }
-            case "close" -> player.closeInventory();
-            case "aura" -> {
-                player.closeInventory();
-                Bukkit.getScheduler().runTask(plugin, () -> plugin.getAuraShopGUI().open(player));
-            }
-            case "skillshop" -> {
-                player.closeInventory();
-                Bukkit.getScheduler().runTask(plugin, () -> plugin.getSkillShopGUI().open(player));
-            }
-            case "adm-skillshop" -> {
-                player.closeInventory();
-                Bukkit.getScheduler().runTask(plugin, () -> plugin.getSkillShopGUI().openAdmin(player));
-            }
-            case "friends" -> {
-                player.closeInventory();
-                Bukkit.getScheduler().runTask(plugin, () -> plugin.getFriendListGUI().open(player));
-            }
-            case "mail" -> {
-                player.closeInventory();
-                Bukkit.getScheduler().runTask(plugin, () -> plugin.getMailboxGUI().open(player));
-            }
-            case "online" -> {
-                player.closeInventory();
-                Bukkit.getScheduler().runTask(plugin, () -> plugin.getOnlineListGUI().open(player));
-            }
-            case "notices" -> {
-                player.closeInventory();
-                plugin.getNewbieGuideManager().mark(player.getUniqueId(),
-                        com.etherstories.escore.managers.NewbieGuideManager.Step.READ_NOTICE);
-                Bukkit.getScheduler().runTask(plugin, () -> plugin.getNoticeGUI().open(player));
-            }
-            case "leaderboard" -> {
-                player.closeInventory();
-                Bukkit.getScheduler().runTask(plugin, () -> plugin.getLeaderboardGUI().open(player));
-            }
-            case "waypoints" -> {
-                player.closeInventory();
-                Bukkit.getScheduler().runTask(plugin, () -> plugin.getWaypointGUI().open(player));
-            }
-            case "status" -> {
-                player.closeInventory();
-                plugin.getAnvilInputGUI().openForStatus(player);
-            }
-            case "death" -> {
-                player.closeInventory();
-                List<DeathManager.DeathRecord> deaths = plugin.getDeathManager().get(player.getUniqueId());
-                if (deaths.isEmpty()) {
-                    player.sendMessage(ColorUtil.colorize("&8[ECOS] &7暂无死亡记录"));
-                } else {
-                    player.sendMessage(ColorUtil.colorize("&8[ECOS] &7死亡记录:"));
-                    for (DeathManager.DeathRecord d : deaths)
-                        player.sendMessage(ColorUtil.colorize("  &8" + d.date() + "  &7"
-                                + d.world() + " (" + d.x() + "," + d.y() + "," + d.z()
-                                + ")  &8" + d.cause()));
-                }
-            }
-            case "checkin" -> {
-                player.closeInventory();
-                Bukkit.getScheduler().runTask(plugin, () -> plugin.getCheckInCalendarGUI().open(player));
-            }
-            case "summary" ->
-                    Bukkit.getScheduler().runTask(plugin, () -> plugin.getEcosTerminalGUI().open(player));
-            case "balance" -> {
-                if (!plugin.getVaultHook().isEnabled()) {
-                    player.sendMessage(ColorUtil.colorize("&8[ECOS] &7经济系统不可用"));
-                    return;
-                }
-                player.sendMessage(ColorUtil.colorize("&8[ECOS] &7余额: &f"
-                        + plugin.getVaultHook().format(plugin.getVaultHook().getBalance(player))));
-            }
-            case "estate" -> {
-                player.closeInventory();
-                Bukkit.getScheduler().runTask(plugin, () -> plugin.getEstateBuildingsGUI().open(player));
-            }
-            case "estate-sale" -> {
-                player.closeInventory();
-                Bukkit.getScheduler().runTask(plugin, () -> plugin.getEstateSaleGUI().open(player));
-            }
-            case "estate-tools" -> {
-                player.closeInventory();
-                Bukkit.getScheduler().runTask(plugin, () -> plugin.getEstateToolsGUI().open(player));
-            }
-            case "adm-estate" -> {
-                if (!player.hasPermission("es2uni.admin")) return;
-                player.closeInventory();
-                Bukkit.getScheduler().runTask(plugin, () -> plugin.getEstateMineGUI().openAdmin(player));
-            }
-            case "estate-list" -> {
-                player.closeInventory();
-                Bukkit.getScheduler().runTask(plugin, () -> plugin.getEstateMineGUI().openMine(player));
-            }
-            case "hotel" -> {
-                player.closeInventory();
-                Bukkit.getScheduler().runTask(plugin, () -> plugin.getHotelListGUI().open(player));
-            }
-            case "hotel-checkout" -> {
-                if (event.isRightClick()) {
-                    player.closeInventory();
-                    Bukkit.getScheduler().runTask(plugin, () -> plugin.getHotelListGUI().open(player));
-                    return;
-                }
-                var stay = plugin.getHotelManager().stayOf(player.getUniqueId());
-                String err = plugin.getHotelManager().checkout(player, stay);
-                player.sendMessage(ColorUtil.colorize(err == null ? "&8[酒店] &7已退房" : "&8[酒店] &c" + err));
-                Bukkit.getScheduler().runTask(plugin, () -> plugin.getEcosTerminalGUI().open(player));
-            }
-            case "adm-grant" -> {
-                if (!player.hasPermission("es2uni.admin")) return;
-                player.closeInventory();
-                Bukkit.getScheduler().runTask(plugin, () -> plugin.getAdminGrantGUI().open(player));
-            }
-            case "trade" -> {
-                player.closeInventory();
-                Bukkit.getScheduler().runTask(plugin, () -> plugin.getTradeBoardGUI().open(player));
-            }
-            case "lucky" -> {
-                player.closeInventory();
-                if (plugin.getLuckyBlockManager().isOpening(player.getUniqueId())) {
-                    player.sendMessage(ColorUtil.colorize("&8[ECOS] &7正在开启中…"));
-                    return;
-                }
-                boolean before = plugin.getLuckyBlockManager().hasClaimedToday(player.getUniqueId());
-                plugin.getLuckyBlockManager().claimAnimated(player, msg -> {
-                    player.sendMessage(ColorUtil.colorize(msg));
-                    if (!before && plugin.getLuckyBlockManager().hasClaimedToday(player.getUniqueId())) {
-                        plugin.getNewbieGuideManager().mark(player.getUniqueId(),
-                                com.etherstories.escore.managers.NewbieGuideManager.Step.CLAIM_LUCKY);
-                    }
-                    Bukkit.getScheduler().runTaskLater(plugin,
-                            () -> plugin.getEcosTerminalGUI().open(player), 8L);
-                });
-            }
-            case "showcase" -> {
-                player.closeInventory();
-                Bukkit.getScheduler().runTask(plugin, () -> plugin.getShowcaseGUI().open(player));
-            }
-            case "municipal" -> {
-                player.closeInventory();
-                Bukkit.getScheduler().runTask(plugin, () -> plugin.getMunicipalOfficeGUI().open(player));
-            }
-            case "newbie" -> {
-                player.closeInventory();
-                Bukkit.getScheduler().runTask(plugin, () -> plugin.getNewbieGuideGUI().open(player));
-            }
-            case "tps" -> {
-                player.closeInventory();
-                double[] all = com.etherstories.escore.utils.TPSUtil.getAllTPS();
-                double mspt = com.etherstories.escore.utils.TPSUtil.getMSPT();
-                player.sendMessage(ColorUtil.colorize(
-                        plugin.getConfigManager().getTpsDisplayTemplate()
-                                .replace("{tps_1m}",  com.etherstories.escore.utils.TPSUtil.formatTPS(all[0]))
-                                .replace("{tps_5m}",  com.etherstories.escore.utils.TPSUtil.formatTPS(all[1]))
-                                .replace("{tps_15m}", com.etherstories.escore.utils.TPSUtil.formatTPS(all[2]))
-                                .replace("{mspt}",    com.etherstories.escore.utils.TPSUtil.formatMSPT(mspt))
-                ));
-            }
-            case "events" -> {
-                player.closeInventory();
-                Bukkit.getScheduler().runTask(plugin, () -> plugin.getEventListGUI().open(player));
-            }
-            case "afk" -> {
-                player.closeInventory();
-                plugin.getAfkManager().manualToggle(player);
-            }
-            case "home" -> {
-                if (!plugin.getEssentialsHook().isEnabled()) return;
-                if (event.isRightClick()) {
-                    player.closeInventory();
-                    Bukkit.getScheduler().runTaskLater(plugin,
-                            () -> player.performCommand("sethome"), 1L);
-                } else {
-                    player.closeInventory();
-                    Bukkit.getScheduler().runTask(plugin,
-                            () -> plugin.getHomeListGUI().open(player));
-                }
-            }
-            case "tpa" -> {
-                if (!plugin.getEssentialsHook().isEnabled()) return;
-                player.closeInventory();
-                Bukkit.getScheduler().runTask(plugin,
-                        () -> plugin.getPlayerSelectGUI().open(player, PlayerSelectGUI.SelectContext.TPA));
-            }
-            case "tpahere" -> {
-                if (!plugin.getEssentialsHook().isEnabled()) return;
-                player.closeInventory();
-                Bukkit.getScheduler().runTask(plugin,
-                        () -> plugin.getPlayerSelectGUI().open(player, PlayerSelectGUI.SelectContext.TPA_HERE));
-            }
-            case "pay" -> {
-                if (!plugin.getVaultHook().isEnabled()) return;
-                player.closeInventory();
-                Bukkit.getScheduler().runTask(plugin,
-                        () -> plugin.getPlayerSelectGUI().open(player, PlayerSelectGUI.SelectContext.PAY));
-            }
-            case "adm-events" -> {
-                if (!player.hasPermission("es2uni.admin")) return;
-                player.closeInventory();
-                Bukkit.getScheduler().runTask(plugin, () -> plugin.getAdminEventGUI().open(player));
-            }
-            case "adm-bc" -> {
-                if (!player.hasPermission("es2uni.admin")) return;
-                player.closeInventory();
-                Bukkit.getScheduler().runTask(plugin, () -> plugin.getAdminBroadcastGUI().open(player));
-            }
-            case "adm-tax" -> {
-                if (!player.hasPermission("es2uni.admin")) return;
-                player.closeInventory();
-                Bukkit.getScheduler().runTask(plugin, () -> plugin.getAdminTaxGUI().open(player));
-            }
-            case "adm-reload" -> {
-                if (!player.hasPermission("es2uni.admin")) return;
-                plugin.reload();
-                plugin.getAuditLogManager().log(player, "RELOAD", "config reload");
-                player.sendMessage(ColorUtil.colorize(plugin.getConfigManager().getReloadMessage()));
-                Bukkit.getScheduler().runTask(plugin, () -> plugin.getEcosTerminalGUI().open(player));
-            }
-            case "adm-territory" -> {
-                if (!player.hasPermission("es2uni.admin")) return;
-                player.closeInventory();
-                Bukkit.getScheduler().runTask(plugin, () -> plugin.getAdminTerritoryGUI().open(player));
-            }
-            case "adm-regions" -> {
-                if (!player.hasPermission("es2uni.admin")) return;
-                player.closeInventory();
-                Bukkit.getScheduler().runTask(plugin, () -> plugin.getAdminRegionGUI().open(player));
-            }
-            case "hot-places" -> {
-                player.closeInventory();
-                Bukkit.getScheduler().runTask(plugin, () -> plugin.getTerritoryListGUI().open(player));
-            }
-            case "my-territory" -> {
-                player.closeInventory();
-                Bukkit.getScheduler().runTask(plugin, () -> plugin.getMyTerritoryGUI().open(player));
-            }
-            case "kit" -> {
-                player.closeInventory();
-                Bukkit.getScheduler().runTask(plugin, () -> plugin.getKitListGUI().open(player));
-            }
-            case "adm-kit" -> {
-                if (!player.hasPermission("es2uni.admin")) return;
-                player.closeInventory();
-                Bukkit.getScheduler().runTask(plugin, () -> plugin.getAdminKitGUI().open(player));
-            }
-            case "music" -> {
-                player.closeInventory();
-                Bukkit.getScheduler().runTask(plugin, () -> plugin.getMusicMenuGUI().open(player));
-            }
-            case "link" -> {
-                player.closeInventory();
-                if (Bukkit.getPluginManager().getPlugin("ESLink") == null
-                        || !Bukkit.getPluginManager().getPlugin("ESLink").isEnabled()) {
-                    player.sendMessage(ColorUtil.colorize("&8[ECOS] &c未安装 ESLink"));
-                    return;
-                }
-                Bukkit.getScheduler().runTask(plugin, () -> player.performCommand("link"));
-            }
-            case "music-listen" -> {
-                if (!plugin.getAllMusicHook().ensureHooked(plugin.getLogger())) {
-                    player.sendMessage(ColorUtil.colorize("&8[ECOS] &cAllMusic 未加载"));
-                    return;
-                }
-                boolean muted = plugin.getAllMusicHook().isMuted(player);
-                plugin.getAllMusicHook().setListening(plugin, player, muted);
-                boolean nowMuted = !muted;
-                player.sendMessage(ColorUtil.colorize(nowMuted
-                        ? "&8[ECOS] &c已关闭听歌（静音）。别人点歌你仍能看到提示，但不会播放。"
-                        : "&8[ECOS] &a已开启听歌。"));
-                Bukkit.getScheduler().runTaskLater(plugin,
-                        () -> plugin.getEcosTerminalGUI().open(player), 3L);
-            }
-        }
+    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = false)
+    public void onCreativeGui(InventoryCreativeEvent event) {
+        if (!(event.getWhoClicked() instanceof Player p)) return;
+        if (EcosHolder.ours(p, event.getView().getTopInventory())) event.setCancelled(true);
     }
 
     private void handleEstateBuildings(InventoryClickEvent event, Player player) {
@@ -2823,18 +2559,12 @@ public class GUIListener implements Listener {
     @EventHandler
     public void onInventoryClose(InventoryCloseEvent event) {
         if (!(event.getPlayer() instanceof Player player)) return;
-        if (confirming.contains(player.getUniqueId())) return;
-
-        if (isEcosMenu(event.getView())) {
-            sweepMenuItems(player);
-            Bukkit.getScheduler().runTask(plugin, () -> sweepMenuItems(player));
-        }
-
-        // Kit 编辑关闭时自动保存物品，避免忘点保存
-        if (plugin.getKitEditGUI().isEditing(player)
-                && event.getView().getTitle().startsWith(KitEditGUI.TITLE_PREFIX)) {
+        String kind = EcosHolder.kindOf(player, event.getInventory());
+        if (plugin.getKitEditGUI().isEditing(player) && "kit-edit".equals(kind)) {
             plugin.getKitEditGUI().captureItems(player, event.getInventory());
         }
+        if (confirming.contains(player.getUniqueId())) return;
+        EcosHolder.forget(player.getUniqueId());
     }
 
     @EventHandler
@@ -2850,6 +2580,7 @@ public class GUIListener implements Listener {
     @EventHandler
     public void onPlayerQuit(org.bukkit.event.player.PlayerQuitEvent event) {
         UUID uuid = event.getPlayer().getUniqueId();
+        EcosHolder.forget(uuid);
         // GUIListener internal state
         awaitingBroadcast.remove(uuid);
         awaitingBcAdd.remove(uuid);
@@ -2911,7 +2642,6 @@ public class GUIListener implements Listener {
         plugin.getActionBarTask().cleanup(uuid);
         plugin.getEcosCommand().cleanupParticles(uuid);
         plugin.getEcosTerminalGUI().cleanup(event.getPlayer());
-        sweepMenuItems(event.getPlayer());
     }
 
     // ── Friend List ───────────────────────────────────────────────────────────
@@ -3004,7 +2734,7 @@ public class GUIListener implements Listener {
             Bukkit.getScheduler().runTask(plugin, () -> {
                 if (msg.equalsIgnoreCase("cancel") || msg.equals("取消")) {
                     plugin.getAnvilInputGUI().cancel(player);
-                    player.sendMessage(ColorUtil.colorize("&8[ECOS] &7已取消输入"));
+                    player.sendMessage(ColorUtil.colorize("&8[ECOS] &7已取消，回到上一页"));
                     return;
                 }
                 plugin.getAnvilInputGUI().updateInput(player, msg);
@@ -3205,9 +2935,13 @@ public class GUIListener implements Listener {
         // Kit 冷却秒数
         if (awaitingKitCd.remove(uuid)) {
             String msg = muteChat(event);
-            if (msg.equalsIgnoreCase("cancel")) {
-                Bukkit.getScheduler().runTask(plugin, () ->
-                        player.sendMessage(ColorUtil.colorize("&8[ECOS] &7已取消")));
+            if (msg.equalsIgnoreCase("cancel") || msg.equals("取消")) {
+                Bukkit.getScheduler().runTask(plugin, () -> {
+                    player.sendMessage(ColorUtil.colorize("&8[ECOS] &7已取消"));
+                    String kitName = plugin.getKitEditGUI().getEditing(player);
+                    if (kitName != null) plugin.getKitEditGUI().open(player, kitName);
+                    else plugin.getAdminKitGUI().open(player);
+                });
                 return;
             }
             Bukkit.getScheduler().runTask(plugin, () -> {

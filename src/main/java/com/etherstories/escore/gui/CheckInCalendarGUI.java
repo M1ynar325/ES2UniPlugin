@@ -40,7 +40,7 @@ public class CheckInCalendarGUI {
 
     public void open(Player player, YearMonth month) {
         months.put(player.getUniqueId(), month);
-        Inventory inv = Bukkit.createInventory(null, 54, TITLE);
+        Inventory inv = EcosHolder.of("checkin", 54, TITLE);
         for (int i = 0; i < 54; i++)
             inv.setItem(i, ECOSTerminalGUI.bg(Material.GRAY_STAINED_GLASS_PANE));
 
@@ -116,7 +116,7 @@ public class CheckInCalendarGUI {
                 List.of(done ? "&7明天再来" : "&a▸ 点击签到领奖")));
         inv.setItem(SLOT_BACK, ECOSTerminalGUI.item(Material.ARROW, "&7返回终端", null));
         inv.setItem(SLOT_CLOSE, ECOSTerminalGUI.item(Material.BARRIER, "&c关闭", null));
-        player.openInventory(inv);
+        EcosHolder.open(player, inv);
     }
 
     public YearMonth getMonth(Player player) {

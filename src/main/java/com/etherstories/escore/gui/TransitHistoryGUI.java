@@ -26,7 +26,7 @@ public class TransitHistoryGUI {
     public TransitHistoryGUI(ES2UniPlugin plugin) { this.plugin = plugin; }
 
     public void open(Player player) {
-        Inventory inv = Bukkit.createInventory(null, 54, TITLE);
+        Inventory inv = EcosHolder.of("transit-history", 54, TITLE);
         for (int i = 0; i < 54; i++)
             inv.setItem(i, ECOSTerminalGUI.bg(Material.GRAY_STAINED_GLASS_PANE));
 
@@ -51,7 +51,7 @@ public class TransitHistoryGUI {
             inv.setItem(22, ECOSTerminalGUI.item(Material.BOOK, "&7暂无记录", List.of("&8刷闸后会出现在这里")));
         }
         inv.setItem(SLOT_BACK, ECOSTerminalGUI.item(Material.ARROW, "&7返回交通处", null));
-        player.openInventory(inv);
+        EcosHolder.open(player, inv);
     }
 
     private static String noteZh(String n) {

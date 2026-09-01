@@ -34,10 +34,16 @@ public class PlayerActionGUI {
     }
 
     public void open(Player viewer, Player target) {
-        openTargets.put(viewer.getUniqueId(), target.getUniqueId());
+        open(viewer, (org.bukkit.OfflinePlayer) target);
+    }
 
-        Inventory inv = Bukkit.createInventory(null, SIZE,
-                ColorUtil.colorize(TITLE + " &7» &f" + target.getName()));
+    public void open(Player viewer, org.bukkit.OfflinePlayer target) {
+        if (target == null) return;
+        openTargets.put(viewer.getUniqueId(), target.getUniqueId());
+        String name = target.getName() != null ? target.getName() : "?";
+
+        Inventory inv = EcosHolder.of("player-action", SIZE,
+                ColorUtil.colorize(TITLE + " &7» &f" + name));
 
         ItemStack bg = ECOSTerminalGUI.bg(BG);
         for (int i = 0; i < SIZE; i++) inv.setItem(i, bg);
@@ -47,11 +53,12 @@ public class PlayerActionGUI {
         SkullMeta sm = (SkullMeta) skull.getItemMeta();
         if (sm != null) {
             sm.setOwningPlayer(target);
-            sm.setDisplayName(ColorUtil.colorize("&f" + target.getName()));
+            sm.setDisplayName(ColorUtil.colorize("&f" + name));
             long total = plugin.getPlaytimeManager().getTotalMillis(target.getUniqueId());
+            Player online = target.getPlayer();
             sm.setLore(List.of(
                     ColorUtil.colorize("&7总在线: &f" + PlaytimeManager.formatMillis(total)),
-                    ColorUtil.colorize("&7延迟: &f" + target.getPing() + "ms")));
+                    ColorUtil.colorize(online != null ? "&7延迟: &f" + online.getPing() + "ms" : "&8离线")));
             skull.setItemMeta(sm);
         }
         inv.setItem(4, skull);
@@ -87,7 +94,7 @@ public class PlayerActionGUI {
         inv.setItem(SLOT_BACK,  ECOSTerminalGUI.item(Material.ARROW,   "&7返回列表", null));
         inv.setItem(SLOT_CLOSE, ECOSTerminalGUI.item(Material.BARRIER, "&7关闭",     null));
 
-        viewer.openInventory(inv);
+        EcosHolder.open(viewer, inv);
     }
 
     public UUID getTarget(Player viewer) {

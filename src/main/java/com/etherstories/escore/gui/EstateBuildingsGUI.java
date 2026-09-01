@@ -44,7 +44,7 @@ public class EstateBuildingsGUI {
     public void open(Player player, BuildingCategory cat) {
         if (cat == null) filter.remove(player.getUniqueId());
         else filter.put(player.getUniqueId(), cat);
-        Inventory inv = Bukkit.createInventory(null, 54, TITLE);
+        Inventory inv = EcosHolder.of("estate", 54, TITLE);
         ItemStack bg = EcosStyle.chrome();
         for (int i = 0; i < 54; i++) inv.setItem(i, bg);
 
@@ -85,7 +85,7 @@ public class EstateBuildingsGUI {
                 List.of("&8①选区棒  ②对角  ③写门牌", "", "&a▸ 打开")));
         inv.setItem(SLOT_BACK, ECOSTerminalGUI.item(Material.ARROW, "&7返回终端", null));
         inv.setItem(SLOT_CLOSE, ECOSTerminalGUI.item(Material.BARRIER, "&c关闭", null));
-        player.openInventory(inv);
+        EcosHolder.open(player, inv);
     }
 
     private ItemStack tab(Material mat, String name, boolean on) {

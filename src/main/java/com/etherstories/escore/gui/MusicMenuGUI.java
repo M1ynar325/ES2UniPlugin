@@ -42,7 +42,7 @@ public class MusicMenuGUI {
 
     public void open(Player player) {
         plugin.getAllMusicHook().ensureHooked(plugin.getLogger());
-        Inventory inv = Bukkit.createInventory(null, 54, TITLE);
+        Inventory inv = EcosHolder.of("music", 54, TITLE);
         ItemStack bg = pane(Material.PURPLE_STAINED_GLASS_PANE);
         for (int i = 0; i < 54; i++) inv.setItem(i, bg);
 
@@ -53,7 +53,7 @@ public class MusicMenuGUI {
                             "&7且客户端已装 AllMusic Client")));
             inv.setItem(SLOT_BACK, item(Material.ARROW, "&7返回终端", List.of()));
             inv.setItem(SLOT_CLOSE, item(Material.BARRIER, "&c关闭", List.of()));
-            player.openInventory(inv);
+            EcosHolder.open(player, inv);
             return;
         }
 
@@ -154,7 +154,7 @@ public class MusicMenuGUI {
 
         inv.setItem(SLOT_BACK, item(Material.ARROW, "&7返回终端", List.of()));
         inv.setItem(SLOT_CLOSE, item(Material.BARRIER, "&c关闭", List.of()));
-        player.openInventory(inv);
+        EcosHolder.open(player, inv);
     }
 
     private static ItemStack pane(Material m) {

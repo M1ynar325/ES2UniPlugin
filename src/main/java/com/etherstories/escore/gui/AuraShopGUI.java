@@ -38,7 +38,7 @@ public class AuraShopGUI {
     public AuraShopGUI(ES2UniPlugin plugin) { this.plugin = plugin; }
 
     public void open(Player player) {
-        Inventory inv = Bukkit.createInventory(null, 54, TITLE);
+        Inventory inv = EcosHolder.of("aura", 54, TITLE);
 
         ItemStack bg = EcosStyle.chrome();
         for (int i = 0; i < 54; i++) inv.setItem(i, bg);
@@ -84,7 +84,7 @@ public class AuraShopGUI {
 
         inv.setItem(SLOT_CLOSE, ECOSTerminalGUI.item(Material.BARRIER, "&c关闭", null));
 
-        player.openInventory(inv);
+        EcosHolder.open(player, inv);
     }
 
     private ItemStack buildAuraItem(AuraType aura, boolean owned, boolean equipped, Player player) {

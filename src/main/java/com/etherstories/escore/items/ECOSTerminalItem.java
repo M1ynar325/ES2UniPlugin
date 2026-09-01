@@ -31,15 +31,30 @@ public class ECOSTerminalItem {
                 ColorUtil.colorize(""),
                 ColorUtil.colorize(EcosStyle.COBALT + "右键接入")
         ));
-        meta.setEnchantmentGlintOverride(false);
-        meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES, ItemFlag.HIDE_ADDITIONAL_TOOLTIP, ItemFlag.HIDE_ENCHANTS);
-        meta.getPersistentDataContainer().set(key, PersistentDataType.BYTE, (byte) 1);
+        try { meta.setEnchantmentGlintOverride(false); } catch (Throwable ignored) {}
+        try {
+            meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES, ItemFlag.HIDE_ADDITIONAL_TOOLTIP, ItemFlag.HIDE_ENCHANTS);
+        } catch (Throwable ignored) {
+            try { meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES, ItemFlag.HIDE_ENCHANTS); } catch (Throwable ignored2) {}
+        }
+        if (key != null) meta.getPersistentDataContainer().set(key, PersistentDataType.BYTE, (byte) 1);
         item.setItemMeta(meta);
         return item;
     }
 
     public static boolean isTerminalItem(ItemStack item) {
         if (item == null || item.getType().isAir() || !item.hasItemMeta()) return false;
-        return item.getItemMeta().getPersistentDataContainer().has(key, PersistentDataType.BYTE);
+        var meta = item.getItemMeta();
+        if (key != null && meta.getPersistentDataContainer().has(key, PersistentDataType.BYTE))
+            return true;
+        String name = org.bukkit.ChatColor.stripColor(meta.getDisplayName());
+        if (name != null && name.contains("ECOS")) return true;
+        var lore = meta.getLore();
+        if (lore == null) return false;
+        for (String line : lore) {
+            String s = org.bukkit.ChatColor.stripColor(line);
+            if (s != null && (s.contains("右键接入") || s.contains("Etharia Central"))) return true;
+        }
+        return false;
     }
 }

@@ -35,7 +35,7 @@ public class PayConfirmGUI {
         pending.put(payer.getUniqueId(), new PendingPay(null, amount, true));
         int n = Math.max(0, Bukkit.getOnlinePlayers().size() - 1);
         String title = ColorUtil.colorize(plugin.getConfigManager().getPayConfirmTitle());
-        Inventory inv = Bukkit.createInventory(null, SIZE, title);
+        Inventory inv = EcosHolder.of("pay-confirm", SIZE, title);
         ItemStack bg = ECOSTerminalGUI.item(BG, " ", null);
         for (int i = 0; i < SIZE; i++) inv.setItem(i, bg);
         double taxEach = plugin.getTaxManager().isPayTaxEnabled()
@@ -52,14 +52,14 @@ public class PayConfirmGUI {
                 List.of("&7给 &f" + n + " &7人各转 &a" + fmt, "", "&a点击确认（不可撤销）")));
         inv.setItem(CANCEL_SLOT, ECOSTerminalGUI.item(Material.RED_WOOL, "&c&l✗ 取消",
                 List.of(ColorUtil.colorize("&7返回终端，不执行转账"))));
-        payer.openInventory(inv);
+        EcosHolder.open(payer, inv);
     }
 
     public void open(Player payer, org.bukkit.OfflinePlayer target, double amount) {
         pending.put(payer.getUniqueId(), new PendingPay(target.getUniqueId(), amount, false));
 
         String title = ColorUtil.colorize(plugin.getConfigManager().getPayConfirmTitle());
-        Inventory inv = Bukkit.createInventory(null, SIZE, title);
+        Inventory inv = EcosHolder.of("pay-confirm", SIZE, title);
 
         ItemStack bg = ECOSTerminalGUI.item(BG, " ", null);
         for (int i = 0; i < SIZE; i++) inv.setItem(i, bg);
@@ -107,7 +107,7 @@ public class PayConfirmGUI {
                 ColorUtil.colorize("&c&l✗ 取消"),
                 List.of(ColorUtil.colorize("&7返回终端，不执行转账"))));
 
-        payer.openInventory(inv);
+        EcosHolder.open(payer, inv);
     }
 
     public void open(Player payer, Player target, double amount) {

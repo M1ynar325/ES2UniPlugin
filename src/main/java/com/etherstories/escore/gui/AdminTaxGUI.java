@@ -35,7 +35,7 @@ public class AdminTaxGUI {
     }
 
     public void open(Player player) {
-        Inventory inv = Bukkit.createInventory(null, 36, TITLE);
+        Inventory inv = EcosHolder.of("admin-tax", 36, TITLE);
         for (int i = 0; i < 36; i++)
             inv.setItem(i, ECOSTerminalGUI.bg(Material.GRAY_STAINED_GLASS_PANE));
 
@@ -118,6 +118,6 @@ public class AdminTaxGUI {
 
         inv.setItem(SLOT_BACK, ECOSTerminalGUI.item(Material.ARROW, "&7返回终端", null));
         inv.setItem(SLOT_CLOSE, ECOSTerminalGUI.item(Material.BARRIER, "&c关闭", null));
-        player.openInventory(inv);
+        EcosHolder.open(player, inv);
     }
 }

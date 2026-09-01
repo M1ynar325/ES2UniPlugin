@@ -59,7 +59,7 @@ public class TransitStationGUI {
             return;
         }
         stationOf.put(player.getUniqueId(), stationId);
-        Inventory inv = Bukkit.createInventory(null, 54, TITLE);
+        Inventory inv = EcosHolder.of("transit-station", 54, TITLE);
         for (int i = 0; i < 54; i++)
             inv.setItem(i, ECOSTerminalGUI.bg(Material.RED_STAINED_GLASS_PANE));
 
@@ -181,7 +181,7 @@ public class TransitStationGUI {
         }
         lineSlots.put(player.getUniqueId(), lids);
         inv.setItem(SLOT_BACK, ECOSTerminalGUI.item(Material.ARROW, "&7返回管理", null));
-        player.openInventory(inv);
+        EcosHolder.open(player, inv);
     }
 
     public String stationOf(Player player) { return stationOf.get(player.getUniqueId()); }

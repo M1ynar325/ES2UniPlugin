@@ -27,7 +27,7 @@ public class EstateToolsGUI {
     }
 
     public void open(Player player) {
-        Inventory inv = Bukkit.createInventory(null, 27, TITLE);
+        Inventory inv = EcosHolder.of("estate-tools", 27, TITLE);
         boolean hasP1 = plugin.getEstateManager().hasPos1(player.getUniqueId());
         var sel = plugin.getEstateManager().selectionOf(player.getUniqueId());
         boolean ready = sel != null && sel.complete();
@@ -60,6 +60,6 @@ public class EstateToolsGUI {
         inv.setItem(SLOT_HELP, ECOSTerminalGUI.item(Material.WRITTEN_BOOK, "&f指南",
                 List.of("&8注册和买卖说明", "", "&f▸ 打开")));
         inv.setItem(SLOT_BACK, ECOSTerminalGUI.item(Material.ARROW, "&7返回房产", null));
-        player.openInventory(inv);
+        EcosHolder.open(player, inv);
     }
 }

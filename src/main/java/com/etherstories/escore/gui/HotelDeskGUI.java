@@ -40,7 +40,7 @@ public class HotelDeskGUI {
         List<HotelManager.Room> rooms = new ArrayList<>(hotel.rooms);
         listed.put(player.getUniqueId(), rooms);
         boolean staff = plugin.getHotelManager().staff(player, hotel);
-        Inventory inv = Bukkit.createInventory(null, 54, TITLE);
+        Inventory inv = EcosHolder.of("hotel-desk", 54, TITLE);
         for (int i = 0; i < Math.min(rooms.size(), 45); i++) {
             HotelManager.Room r = rooms.get(i);
             EstateUnit u = plugin.getHotelManager().unitOf(r);
@@ -95,7 +95,7 @@ public class HotelDeskGUI {
             inv.setItem(SLOT_GUEST_OUT, ECOSTerminalGUI.glint(ECOSTerminalGUI.item(Material.RED_BED, "&c&l退房",
                     List.of(" &f" + (label == null ? "" : label), "", "&c▸ 退掉这间"))));
         }
-        player.openInventory(inv);
+        EcosHolder.open(player, inv);
     }
 
     public HotelManager.Hotel hotelOf(Player p) {

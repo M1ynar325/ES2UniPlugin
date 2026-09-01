@@ -34,7 +34,7 @@ public class EstateRoomsGUI {
 
     public void open(Player player, String buildingName) {
         building.put(player.getUniqueId(), buildingName);
-        Inventory inv = Bukkit.createInventory(null, 54, TITLE_PREFIX + buildingName);
+        Inventory inv = EcosHolder.of("estate-rooms", 54, TITLE_PREFIX + buildingName);
         ItemStack bg = EcosStyle.chrome();
         for (int i = 0; i < 54; i++) inv.setItem(i, bg);
 
@@ -48,7 +48,7 @@ public class EstateRoomsGUI {
         }
         inv.setItem(SLOT_BACK, ECOSTerminalGUI.item(Material.ARROW, "&7返回楼盘", null));
         inv.setItem(SLOT_CLOSE, ECOSTerminalGUI.item(Material.BARRIER, "&c关闭", null));
-        player.openInventory(inv);
+        EcosHolder.open(player, inv);
     }
 
     private ItemStack icon(Player viewer, EstateUnit u) {

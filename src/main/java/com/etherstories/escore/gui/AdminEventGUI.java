@@ -32,7 +32,7 @@ public class AdminEventGUI {
 
     public void open(Player player) {
         String title = ColorUtil.colorize(plugin.getConfigManager().getAdminEventGUITitle());
-        Inventory inv = Bukkit.createInventory(null, SIZE, title);
+        Inventory inv = EcosHolder.of("admin-event", SIZE, title);
 
         List<ServerEvent> list = new ArrayList<>(plugin.getEventManager().getAllEvents());
 
@@ -60,7 +60,7 @@ public class AdminEventGUI {
                     List.of(ColorUtil.colorize("&8点击右下角创建"))));
         }
 
-        player.openInventory(inv);
+        EcosHolder.open(player, inv);
     }
 
     private ItemStack buildEventItem(ServerEvent event) {

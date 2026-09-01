@@ -42,7 +42,7 @@ public class TransitAdminGUI {
     }
 
     public void open(Player player, int page) {
-        Inventory inv = Bukkit.createInventory(null, 54, TITLE);
+        Inventory inv = EcosHolder.of("transit-admin", 54, TITLE);
         for (int i = 0; i < 54; i++)
             inv.setItem(i, ECOSTerminalGUI.bg(Material.RED_STAINED_GLASS_PANE));
 
@@ -116,7 +116,7 @@ public class TransitAdminGUI {
                 "&c行程异常申报" + (pending > 0 ? " &e" + pending : ""),
                 List.of(" &7待审 " + pending, "", "&c▸ 审核")));
         inv.setItem(SLOT_BACK, ECOSTerminalGUI.item(Material.ARROW, "&7返回交通处", null));
-        player.openInventory(inv);
+        EcosHolder.open(player, inv);
     }
 
     public String lineAt(Player player, int slot) {

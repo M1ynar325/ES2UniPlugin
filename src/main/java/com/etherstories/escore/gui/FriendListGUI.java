@@ -50,7 +50,8 @@ public class FriendListGUI {
         UUID uuid = player.getUniqueId();
 
         String titleKey = mode == ViewMode.FRIENDS ? TITLE_FRIENDS : TITLE_REQUESTS;
-        Inventory inv = Bukkit.createInventory(null, SIZE, ColorUtil.colorize(titleKey));
+        Inventory inv = EcosHolder.of(mode == ViewMode.FRIENDS ? "friends" : "friends-req",
+                SIZE, ColorUtil.colorize(titleKey));
 
         ItemStack bg = ECOSTerminalGUI.bg(BG);
         for (int i = 0; i < SIZE; i++) inv.setItem(i, bg);
@@ -139,7 +140,7 @@ public class FriendListGUI {
                     "&7返回好友列表", null));
         }
 
-        player.openInventory(inv);
+        EcosHolder.open(player, inv);
     }
 
     // ── Accessors ─────────────────────────────────────────────────────────────

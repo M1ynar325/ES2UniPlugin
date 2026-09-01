@@ -38,7 +38,7 @@ public class KitEditGUI {
             return;
         }
         editing.put(player.getUniqueId(), def.name);
-        Inventory inv = Bukkit.createInventory(null, 54, TITLE_PREFIX + def.name);
+        Inventory inv = EcosHolder.of("kit-edit", 54, TITLE_PREFIX + def.name);
 
         for (int i = 0; i < Math.min(def.items.size(), 45); i++)
             inv.setItem(i, def.items.get(i).clone());
@@ -47,7 +47,7 @@ public class KitEditGUI {
             inv.setItem(i, pane(Material.GRAY_STAINED_GLASS_PANE));
 
         refreshControls(inv, def);
-        player.openInventory(inv);
+        EcosHolder.open(player, inv);
     }
 
     public boolean isEditing(Player player) {
@@ -105,7 +105,7 @@ public class KitEditGUI {
         plugin.getKitManager().saveKit(def);
     }
 
-    public void toggleMode(Player player, Inventory inv) {
+    public void toggleMode(Player player) {
         String name = editing.get(player.getUniqueId());
         if (name == null) return;
         KitManager.KitDef def = plugin.getKitManager().get(name);
@@ -116,7 +116,29 @@ public class KitEditGUI {
         if (def.claimMode == KitManager.ClaimMode.COOLDOWN && def.cooldownSeconds <= 0)
             def.cooldownSeconds = 3600;
         plugin.getKitManager().saveKit(def);
-        refreshControls(inv, def);
+    }
+
+    public void toggleMode(Player player, Inventory inv) {
+        toggleMode(player);
+        String name = editing.get(player.getUniqueId());
+        KitManager.KitDef def = name == null ? null : plugin.getKitManager().get(name);
+        if (def != null && inv != null) refreshControls(inv, def);
+    }
+
+    public int importFromBackpack(Player player) {
+        String name = editing.get(player.getUniqueId());
+        if (name == null) return -1;
+        KitManager.KitDef def = plugin.getKitManager().get(name);
+        if (def == null) return -1;
+        List<ItemStack> items = new ArrayList<>();
+        for (ItemStack stack : player.getInventory().getStorageContents()) {
+            if (stack == null || stack.getType().isAir()) continue;
+            if (com.etherstories.escore.items.ECOSTerminalItem.isTerminalItem(stack)) continue;
+            items.add(stack.clone());
+        }
+        def.items = items;
+        plugin.getKitManager().saveKit(def);
+        return items.size();
     }
 
     public void importFromInventory(Player player, Inventory inv) {
@@ -125,13 +147,9 @@ public class KitEditGUI {
         KitManager.KitDef def = plugin.getKitManager().get(name);
         if (def == null) return;
 
-        List<ItemStack> items = new ArrayList<>();
-        for (ItemStack stack : player.getInventory().getStorageContents()) {
-            if (stack != null && !stack.getType().isAir())
-                items.add(stack.clone());
-        }
-        def.items = items;
-        plugin.getKitManager().saveKit(def);
+        int n = importFromBackpack(player);
+        if (n < 0) return;
+        List<ItemStack> items = def.items;
 
         for (int i = 0; i < 45; i++) inv.setItem(i, null);
         for (int i = 0; i < Math.min(items.size(), 45); i++)

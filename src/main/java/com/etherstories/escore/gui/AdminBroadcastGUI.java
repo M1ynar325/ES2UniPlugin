@@ -32,7 +32,7 @@ public class AdminBroadcastGUI {
     }
 
     public void open(Player player) {
-        Inventory inv = Bukkit.createInventory(null, 54, TITLE);
+        Inventory inv = EcosHolder.of("admin-bc", 54, TITLE);
         for (int i = 0; i < 54; i++)
             inv.setItem(i, ECOSTerminalGUI.bg(Material.BLACK_STAINED_GLASS_PANE));
 
@@ -64,7 +64,7 @@ public class AdminBroadcastGUI {
                 "&6立即广播一条", List.of("&7点击后聊天输入，立刻全服发送")));
         inv.setItem(SLOT_BACK, ECOSTerminalGUI.item(Material.ARROW, "&7返回终端", null));
         inv.setItem(SLOT_CLOSE, ECOSTerminalGUI.item(Material.BARRIER, "&c关闭", null));
-        player.openInventory(inv);
+        EcosHolder.open(player, inv);
     }
 
     public void saveMessages(List<String> messages) {

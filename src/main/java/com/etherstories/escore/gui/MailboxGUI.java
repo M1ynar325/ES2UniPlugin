@@ -43,7 +43,7 @@ public class MailboxGUI {
         List<MailManager.Mail> mails = new ArrayList<>(mm.getMails(player.getUniqueId()));
         Collections.reverse(mails); // newest first
 
-        Inventory inv = Bukkit.createInventory(null, SIZE, ColorUtil.colorize(TITLE));
+        Inventory inv = EcosHolder.of("mail", SIZE, ColorUtil.colorize(TITLE));
         ItemStack bg = ECOSTerminalGUI.bg(BG);
         for (int i = 0; i < SIZE; i++) inv.setItem(i, bg);
 
@@ -81,7 +81,7 @@ public class MailboxGUI {
         inv.setItem(SLOT_BACK,  ECOSTerminalGUI.item(Material.ARROW, "&7返回终端", null));
         inv.setItem(SLOT_CLOSE, ECOSTerminalGUI.item(Material.BARRIER, "&7关闭", null));
 
-        player.openInventory(inv);
+        EcosHolder.open(player, inv);
     }
 
     /** Open the mail for reading as a book. index = slot (reversed list). */
