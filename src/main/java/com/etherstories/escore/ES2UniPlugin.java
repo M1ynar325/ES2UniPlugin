@@ -400,9 +400,7 @@ public class ES2UniPlugin extends JavaPlugin {
             bindLinkChat();
             webChatBound = true;
         }
-        webSessions = new WebSessions(
-                getConfig().getInt("web.pair-seconds", 120),
-                getConfig().getInt("web.session-days", 7));
+        webSessions = new WebSessions(this);
         ecosWebServer = new EcosWebServer(this, webSessions, chatFeed);
         try {
             ecosWebServer.start();

@@ -2726,26 +2726,27 @@ public class ES2UniCommand implements CommandExecutor, TabCompleter {
             p.sendMessage(ColorUtil.colorize("&8[ECOS] &7网页终端未启动"));
             return;
         }
-        if (args.length >= 2 && args[1].equalsIgnoreCase("revoke")) {
-            plugin.getWebSessions().revoke(p.getUniqueId());
-            p.sendMessage(ColorUtil.colorize("&8[ECOS] &7已断开网页会话"));
-            return;
+        boolean reset = args.length >= 2 && (args[1].equalsIgnoreCase("reset")
+                || args[1].equalsIgnoreCase("revoke") || args[1].equalsIgnoreCase("renew"));
+        String pin = reset ? plugin.getWebSessions().reset(p) : plugin.getWebSessions().reveal(p);
+        if (reset) {
+            p.sendMessage(ColorUtil.colorize("&8[ECOS] &7已为你换好新的令牌，旧的不能再用来接入。"));
         }
-        String code = plugin.getWebSessions().issue(p);
-        String href = webPairUrl(code);
-        p.sendMessage(ColorUtil.colorize("&8[ECOS] &f连接码 &a" + code + " &7两分钟有效"));
+        p.sendMessage(ColorUtil.colorize("&8[ECOS] &fECOS Token &a" + pin));
+        p.sendMessage(ColorUtil.colorize("&8[ECOS] &7请自己留着。各处登录都用这一串，忘记了再输入本指令即可再看。"));
+        String href = webPairUrl(pin);
         if (!href.isBlank()) {
             TextComponent link = new TextComponent(ColorUtil.colorize("&8[ECOS] &a▶ 点此打开网页终端"));
             link.setClickEvent(new ClickEvent(ClickEvent.Action.OPEN_URL, href));
             link.setHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT,
-                    new Text(ColorUtil.colorize("&7" + href + "\n&8点开后自动填码"))));
+                    new Text(ColorUtil.colorize("&7" + href + "\n&8点开后自动填入令牌"))));
             p.spigot().sendMessage(link);
         } else {
             p.sendMessage(ColorUtil.colorize("&8[ECOS] &7网页端口 &f"
                     + plugin.getConfig().getInt("web.port", 8766)
                     + "  &8（管理填 web.public-url 才会出可点链接）"));
         }
-        p.sendMessage(ColorUtil.colorize("&8[ECOS] &7断开: &f/ecos web revoke"));
+        p.sendMessage(ColorUtil.colorize("&8[ECOS] &7重置令牌: &f/ecos web reset"));
     }
 
     private String webPairUrl(String code) {
@@ -2805,7 +2806,7 @@ public class ES2UniCommand implements CommandExecutor, TabCompleter {
                         "gui", "search", "add", "select", "queue", "list", "now", "history",
                         "fav", "favorites", "preset", "presets", "playlist",
                         "vote", "stop", "mute", "join", "cancel", "help"));
-                case "web"                   -> filterPrefix(args[1], List.of("pair", "revoke"));
+                case "web"                   -> filterPrefix(args[1], List.of("reset", "revoke", "renew"));
                 case "online"                -> filterPrefix(args[1], List.of("list", "gui", "help"));
                 case "notice", "notices"     -> filterPrefix(args[1], List.of("list", "gui", "help"));
                 case "leaderboard", "lb", "top" -> filterPrefix(args[1], List.of("list", "gui", "help"));

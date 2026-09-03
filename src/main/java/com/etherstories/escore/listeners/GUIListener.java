@@ -1487,7 +1487,7 @@ public class GUIListener implements Listener {
         if (day > 0) {
             var month = gui.getMonth(player);
             var date = month.atDay(day);
-            if (date.isBefore(java.time.LocalDate.now())
+            if (date.isBefore(plugin.getCheckInManager().today())
                     && !plugin.getCheckInManager().hasCheckedOn(player.getUniqueId(), date)) {
                 String err = plugin.getCheckInManager().makeup(player.getUniqueId(), date);
                 if (err != null) player.sendMessage(ColorUtil.colorize("&8[ECOS] &7" + err));

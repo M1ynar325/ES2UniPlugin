@@ -7,6 +7,7 @@
   var p=localStorage.getItem('ecos-theme')||'auto';
   var night=p==='night'||(p!=='day'&&window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches);
   document.documentElement.dataset.theme=night?'night':'day';
+  if(!localStorage.getItem('ecos-web-token')) document.documentElement.classList.add('at-gate');
 })();
 </script>
 <style>
@@ -40,12 +41,21 @@ body{margin:0;min-height:100%;background:transparent;color:var(--ink);
   font:14px/1.5 var(--sans)}
 body:before{content:"";position:fixed;top:0;left:0;right:0;height:4px;
   background:linear-gradient(90deg,var(--cobalt) 70%,var(--jiqing));z-index:4}
+body:after{content:"";position:fixed;top:0;left:0;width:28%;height:4px;z-index:5;
+  background:var(--jiqing);transform-origin:left center;animation:breathe 4.8s ease-in-out infinite}
+@keyframes breathe{0%,100%{opacity:.45;transform:scaleX(.72)}50%{opacity:1;transform:scaleX(1)}}
 .shell{width:100%;padding:18px clamp(16px, 3vw, 48px) 48px}
 .top{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;
-  padding:10px 0 14px;border-bottom:2px solid var(--cobalt);margin-bottom:16px}
+  padding:10px 0 14px;border-bottom:2px solid var(--cobalt);margin-bottom:22px;position:relative}
+.top:after{content:"";position:absolute;left:0;right:0;bottom:-10px;height:8px;
+  background:repeating-linear-gradient(90deg,var(--cobalt) 0 1px,transparent 1px 24px);
+  opacity:.28;pointer-events:none}
 .brand{display:flex;align-items:center;gap:12px}
 .mark{width:28px;height:28px;background:var(--cobalt);
-  box-shadow:inset var(--lamp) 0 0 0 var(--jiqing), 6px 6px 0 var(--mist)}
+  box-shadow:inset var(--lamp) 0 0 0 var(--jiqing), 6px 6px 0 var(--mist);
+  animation:mark 4.8s ease-in-out infinite}
+@keyframes mark{0%,100%{box-shadow:inset var(--lamp) 0 0 0 var(--jiqing),6px 6px 0 var(--mist)}
+  50%{box-shadow:inset var(--lamp) 0 0 0 var(--jiqing),6px 6px 0 rgba(78,184,190,.22)}}
 .brand b{display:block;font:16px/1.1 var(--mono);letter-spacing:.14em;font-weight:600;color:var(--deep)}
 .brand span,#who{font:10px/1.3 var(--sans);letter-spacing:.04em;color:var(--dim)}
 .clock,#line{font:10px/1.3 var(--mono);letter-spacing:.08em;color:var(--dim)}
@@ -71,20 +81,107 @@ body:before{content:"";position:fixed;top:0;left:0;right:0;height:4px;
 .desk{min-width:0}
 #gate .panel{max-width:440px;padding:22px 22px 20px;
   box-shadow:8px 8px 0 var(--shade);border-left:4px solid var(--cobalt)}
+html.at-gate{background:#080B12}
+html.at-gate[data-theme=day]{background:#E8EAF0}
+html.at-gate .tape,html.at-gate .foot{display:none}
+html.at-gate .top{margin-bottom:0;border-color:transparent}
+html.at-gate .top:after{display:none}
+html.at-gate .shell{padding:0;min-height:100dvh}
+html.at-gate #gate{min-height:100dvh;display:flex;align-items:center;
+  padding:56px clamp(20px,5vw,80px);position:relative;z-index:2}
+html.at-gate #gate .panel{padding:28px 28px 22px;background:color-mix(in srgb,var(--white) 88%,transparent);
+  backdrop-filter:blur(10px);box-shadow:8px 8px 0 rgba(0,0,0,.28)}
+html.at-gate #gate h1{margin:0 0 8px;font:600 32px/1.1 var(--sans)}
+html.at-gate #gate .hero{border:0;padding:0;margin:0 0 18px}
+html.at-gate #gate .pill{display:none}
+.sky{display:none;position:fixed;inset:0;z-index:0;overflow:hidden;pointer-events:none}
+html.at-gate .sky,html.gate-exit .sky,html.desk-enter .sky{display:block}
+html.gate-exit #gate .panel{
+  animation:gateFly .72s cubic-bezier(.42,0,.18,1) forwards;
+  pointer-events:none;will-change:transform,opacity}
+@keyframes gateFly{
+  to{transform:perspective(1100px) translate3d(24vw,-8vh,560px) rotateX(24deg) rotateY(-14deg) scale(.1);
+    opacity:0;filter:blur(3px)}
+}
+html.gate-exit .sky{animation:skyPush .72s cubic-bezier(.4,0,1,1) forwards}
+@keyframes skyPush{to{transform:scale(1.28);filter:blur(8px);opacity:.4}}
+html.gate-exit .floor{animation-duration:.7s}
+html.desk-enter .sky{animation:skyOut .55s ease forwards}
+@keyframes skyOut{to{opacity:0}}
+html.desk-enter .shell{position:relative;z-index:2;
+  animation:deskIn 1.05s cubic-bezier(.16,1,.3,1) both}
+@keyframes deskIn{
+  from{transform:perspective(1400px) translate3d(0,40px,-200px) rotateX(8deg);opacity:0}
+  to{transform:none;opacity:1}
+}
+html.desk-enter .tape{animation:rise .5s .08s ease both}
+html.desk-enter .nav{animation:rise .5s .16s ease both}
+@media (prefers-reduced-motion:reduce){
+  html.gate-exit #gate .panel,html.gate-exit .sky,html.desk-enter .sky,html.desk-enter .shell{animation:none}
+}
+.sky canvas{position:absolute;inset:0;width:100%;height:100%}
+.aurora{position:absolute;inset:-25%;filter:blur(40px);
+  background:
+    radial-gradient(ellipse 42% 36% at 72% 18%, rgba(10,42,140,.7), transparent 58%),
+    radial-gradient(ellipse 38% 44% at 18% 78%, rgba(78,184,190,.28), transparent 52%),
+    radial-gradient(ellipse 28% 22% at 88% 72%, rgba(10,42,140,.35), transparent 50%);
+  animation:aurora 22s ease-in-out infinite alternate}
+html[data-theme=day] .aurora{opacity:.42;filter:blur(48px);
+  background:
+    radial-gradient(ellipse 42% 36% at 72% 18%, rgba(10,42,140,.22), transparent 58%),
+    radial-gradient(ellipse 38% 44% at 18% 78%, rgba(31,122,134,.16), transparent 52%)}
+@keyframes aurora{from{transform:translate3d(-3%,2%,0) scale(1)}to{transform:translate3d(4%,-3%,0) scale(1.12)}}
+.astro{position:absolute;right:-8%;top:6%;width:min(78vmin,720px);height:min(78vmin,720px);
+  opacity:.22;animation:spin 80s linear infinite}
+.astro .r{fill:none;stroke:var(--face);stroke-width:.6}
+.astro .r2{stroke:var(--jiqing);stroke-width:.9;opacity:.7}
+.astro .beam{stroke:var(--jiqing);stroke-width:1.2;transform-origin:400px 400px;animation:beam 12s linear infinite}
+html[data-theme=day] .astro{opacity:.26}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes beam{to{transform:rotate(360deg)}}
+.horizon{position:absolute;left:-15%;right:-15%;bottom:-8%;height:62%;
+  perspective:420px;perspective-origin:50% 0}
+.floor{position:absolute;inset:0;transform:rotateX(64deg);transform-origin:center top;
+  background:
+    repeating-linear-gradient(90deg,transparent 0 55px,rgba(78,184,190,.28) 56px),
+    repeating-linear-gradient(0deg,transparent 0 55px,rgba(180,194,238,.16) 56px);
+  background-size:56px 56px;animation:rush 4.8s linear infinite;opacity:.55;
+  -webkit-mask-image:linear-gradient(to bottom,transparent,#000 12%,#000 62%,transparent);
+  mask-image:linear-gradient(to bottom,transparent,#000 12%,#000 62%,transparent)}
+html[data-theme=day] .floor{
+  background:
+    repeating-linear-gradient(90deg,transparent 0 55px,rgba(10,42,140,.18) 56px),
+    repeating-linear-gradient(0deg,transparent 0 55px,rgba(10,42,140,.1) 56px);
+  background-size:56px 56px}
+@keyframes rush{to{background-position:0 56px}}
+.haze{position:absolute;left:0;right:0;bottom:18%;height:28%;
+  background:linear-gradient(to top,transparent,rgba(78,184,190,.12),transparent);
+  animation:haze 8s ease-in-out infinite}
+@keyframes haze{0%,100%{opacity:.35}50%{opacity:.8}}
+@media (prefers-reduced-motion:reduce){
+  .aurora,.floor,.astro,.astro .beam,.haze,body:after{animation:none}
+}
 #themeBtn{padding:8px 10px;letter-spacing:.08em}
 .nav{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 16px}
 .nav button,.key{appearance:none;border:0;cursor:pointer;border-radius:0;
   padding:10px 14px 10px 16px;background:var(--ice);color:var(--deep);
   font:11px/1 var(--sans);letter-spacing:.04em;
   box-shadow:inset var(--lamp) 0 0 0 var(--gray)}
-.nav button{padding-left:40px;position:relative}
+.nav button{padding-left:40px;position:relative;background:transparent;color:var(--dim);box-shadow:none}
 .nav button:before{content:attr(data-n);position:absolute;left:12px;top:50%;transform:translateY(-50%);
   font:9px/1 var(--mono);letter-spacing:.08em;color:var(--jiqing)}
 .nav button.on,.key.on{background:var(--cobalt);color:var(--on);box-shadow:inset var(--lamp) 0 0 0 var(--jiqing)}
 .nav button.on:before{color:var(--mist)}
-.key:hover,.nav button:hover{box-shadow:inset var(--lamp) 0 0 0 var(--jiqing)}
+.key:hover{box-shadow:inset var(--lamp) 0 0 0 var(--jiqing)}
+.nav button:hover{color:var(--deep);box-shadow:inset var(--lamp) 0 0 0 var(--jiqing)}
 .panel{background:var(--white);border:1px solid var(--gray);padding:18px 18px 16px;
   box-shadow:4px 4px 0 var(--shade-sm)}
+.stat,.panel,.home2 .col,#gate .panel{animation:rise .5s ease both}
+.stats .stat:nth-child(2){animation-delay:.06s}
+.stats .stat:nth-child(3){animation-delay:.12s}
+.stats .stat:nth-child(4){animation-delay:.18s}
+.stats .stat:nth-child(5){animation-delay:.24s}
+@keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 .kv{display:grid;grid-template-columns:88px 1fr;gap:10px 16px;align-items:baseline}
 .kv b{font:10px/1.3 var(--sans);letter-spacing:.04em;color:var(--dim);font-weight:500}
 .kv span{font:15px/1.35 var(--sans);color:var(--face)}
@@ -149,8 +246,9 @@ iframe{width:100%;height:56vh;border:1px solid var(--gray);background:var(--whit
 #ops .stats{grid-template-columns:repeat(auto-fit,minmax(140px,1fr))}
 .stat{background:var(--white);border:1px solid var(--gray);padding:14px 14px 12px;border-left:4px solid var(--cobalt);
   box-shadow:3px 3px 0 var(--shade-sm)}
-.stat b{display:block;font:10px/1.2 var(--sans);color:var(--dim);letter-spacing:.04em}
-.stat em{display:block;margin-top:10px;font:600 22px/1.1 var(--sans);font-style:normal;color:var(--face)}
+.stat b{display:block;font:10px/1.2 var(--mono);color:var(--dim);letter-spacing:.12em}
+.stat em{display:block;margin-top:10px;font:600 22px/1.1 var(--sans);font-style:normal;color:var(--face);
+  font-variant-numeric:tabular-nums}
 .nowbox{margin-bottom:14px;border-left:4px solid var(--jiqing)}
 .nowbox .mute{margin-top:12px}
 .nowbox em{margin-top:6px;font-style:normal;font-size:16px;color:var(--deep)}
@@ -166,7 +264,15 @@ iframe{width:100%;height:56vh;border:1px solid var(--gray);background:var(--whit
 .ly .prev,.ly .next{color:var(--dim);font-size:13px}
 .ly .cur{color:var(--face);font-size:18px;font-weight:500;margin:4px 0}
 .ly .tr{color:var(--dim);font-size:13px}
-.cap{font:10px/1 var(--sans);color:var(--dim);margin:0 0 8px;letter-spacing:.06em;
+.kicker{font:10px/1 var(--mono);letter-spacing:.2em;color:var(--jiqing);margin:0 0 8px}
+.band{margin:0 0 28px}
+.rail{font:10px/1 var(--mono);letter-spacing:.2em;color:var(--jiqing);margin:0 0 12px;
+  display:flex;align-items:center;gap:10px}
+.rail:after{content:"";flex:1;height:1px;background:var(--gray)}
+.stay{margin:0 0 8px;font:600 22px/1.2 var(--sans);color:var(--deep)}
+.home2 .col.lead{border-left:4px solid var(--jiqing)}
+.home2 .col.quiet{box-shadow:none}
+.cap{font:10px/1 var(--mono);color:var(--dim);margin:0 0 8px;letter-spacing:.14em;
   display:flex;align-items:center;gap:8px}
 .cap:before{content:"";width:18px;height:2px;background:var(--cobalt)}
 .go{margin-top:10px}
@@ -226,6 +332,7 @@ main{min-width:0}
   .kv span{font-size:18px}
   .home2{grid-template-columns:minmax(0,1.4fr) minmax(240px,.85fr)}
   .life{grid-template-columns:1fr 1fr}
+  .city.lead{grid-template-columns:minmax(0,1.4fr) minmax(220px,.7fr)}
   .grid.music{grid-template-columns:minmax(0,1.2fr) minmax(260px,.8fr);align-items:start}
   .grid.map{grid-template-columns:minmax(0,1fr) minmax(220px,280px);align-items:stretch}
   .list,.log{max-height:calc(100vh - 240px)}
@@ -240,6 +347,22 @@ main{min-width:0}
 }
 
 </style></head><body>
+<div class=sky id=sky aria-hidden=true>
+  <div class=aurora></div>
+  <canvas id=field></canvas>
+  <svg class=astro viewBox="0 0 800 800">
+    <circle class=r cx="400" cy="400" r="380"/>
+    <circle class=r cx="400" cy="400" r="310"/>
+    <circle class="r r2" cx="400" cy="400" r="240"/>
+    <circle class=r cx="400" cy="400" r="160"/>
+    <circle class=r cx="400" cy="400" r="8"/>
+    <line class=r x1="400" y1="20" x2="400" y2="780"/>
+    <line class=r x1="20" y1="400" x2="780" y2="400"/>
+    <line class=beam x1="400" y1="400" x2="400" y2="28"/>
+  </svg>
+  <div class=horizon><div class=floor></div></div>
+  <div class=haze></div>
+</div>
 <div class=shell>
 <div class=top>
   <div class=brand>
@@ -277,25 +400,28 @@ main{min-width:0}
   <button type=button data-p=chat data-n=03>通讯</button>
   <button type=button data-p=music data-n=04>点歌</button>
   <button type=button data-p=map data-n=05>地图</button>
+  <button type=button data-p=city data-n=06>城市</button>
 </nav>
 <main>
 <section id=gate>
   <div class=panel>
+    <p class=kicker>CHANNEL 00</p>
     <div class=hero>
       <div>
         <h1>接入终端</h1>
-        <p>请在游戏中输入 <code>/ecos web</code>，取得六位连接码。两分钟内有效。</p>
+        <p>请在游戏中输入 <code>/ecos web</code>，查看您的 Token。这一串可以记住，在各处使用。忘记了再输入同一条即可再看；作废请用 <code>/ecos web reset</code>。</p>
       </div>
       <div class=pill>待接入</div>
     </div>
     <form id=pairForm>
-      <input id=code maxlength=6 inputmode=numeric placeholder=000000 autocomplete=one-time-code>
+      <input id=code maxlength=17 inputmode=text placeholder=A1B2C3D4-E5F60789 autocomplete=off spellcheck=false>
       <button class="key on" style="width:100%;margin-top:12px" type=submit>接入</button>
     </form>
   </div>
 </section>
 
 <section id=home class=hidden>
+  <p class=kicker>CHANNEL 01</p>
   <div class=hero>
     <div class=me>
       <div class=stage><canvas id=skin3d width=88 height=118></canvas></div>
@@ -372,16 +498,16 @@ main{min-width:0}
   </div>
 </section>
 <section id=life class=hidden>
+  <p class=kicker>CHANNEL 02</p>
   <div class="grid stats">
     <div class=stat><b>余额</b><em id=lifeBal>--</em></div>
     <div class=stat><b>签到</b><em id=lifeChk>--</em></div>
     <div class=stat><b>补签券</b><em id=lifeMk>0</em></div>
-    <div class=stat><b>住宿</b><em id=lifeStay>--</em></div>
+    <div class="stat hit" data-go=city><b>住宿</b><em id=lifeStay>--</em></div>
   </div>
   <div class=tabs id=lifeTabs>
     <button class="key on" type=button data-tab=day>日常</button>
     <button class=key type=button data-tab=social>社交</button>
-    <button class=key type=button data-tab=city>城市</button>
     <button class=key type=button data-tab=file>档案</button>
     <button class=key type=button data-tab=board>榜</button>
   </div>
@@ -442,56 +568,6 @@ main{min-width:0}
       <div class=list id=eventBox></div>
     </div>
   </div>
-  <div class="grid home2 life pane hidden" id=pane-city>
-    <div class=col>
-      <div class=cap>路线</div>
-      <p class=hint id=rideHint></p>
-      <form id=routeForm class=form>
-        <input id=routeFrom list=stops placeholder="起点站" autocomplete=off>
-        <input id=routeTo list=stops placeholder="终点站" autocomplete=off>
-        <datalist id=stops></datalist>
-        <button class="key on" type=submit>查询票价</button>
-      </form>
-      <p class=tax id=routeOut></p>
-      <div class=cap>乘车记录</div>
-      <div class=list id=rideHist></div>
-    </div>
-    <div class=col>
-      <div class=cap>招工</div>
-      <div class=list id=jobBox></div>
-    </div>
-    <div class=col>
-      <div class=cap>展示</div>
-      <div class=list id=showBox></div>
-    </div>
-    <div class=col>
-      <div class=cap>我的房产</div>
-      <div class=list id=homeBox></div>
-    </div>
-    <div class=col>
-      <div class=cap>挂牌出售</div>
-      <p class=hint>购买需在游戏里确认。网页只看盘。</p>
-      <div class=list id=saleBox></div>
-    </div>
-    <div class=col>
-      <div class=cap>我的领地</div>
-      <div class=list id=landBox></div>
-    </div>
-    <div class=col>
-      <div class=cap>公开领地</div>
-      <div class=list id=pubBox></div>
-    </div>
-    <div class=col>
-      <div class=cap>套件</div>
-      <p class=hint>领取需进入游戏，背包才接得住。</p>
-      <div class=list id=kitBox></div>
-    </div>
-    <div class=col>
-      <div class=cap>技能店</div>
-      <p class=hint>购买会发到背包，请在游戏里完成。</p>
-      <div class=list id=skillBox></div>
-    </div>
-  </div>
   <div class="grid home2 life pane hidden" id=pane-file>
     <div class=col>
       <div class=cap>死亡记录</div>
@@ -530,6 +606,97 @@ main{min-width:0}
     <div class=col>
       <div class=cap>乘车榜</div>
       <div class=list id=rideBox></div>
+    </div>
+  </div>
+</section>
+<section id=city class=hidden>
+  <p class=kicker>CHANNEL 06</p>
+  <div class=hero>
+    <div>
+      <h1>城市</h1>
+      <p>先看住宿与房产，市政次之。购买与领取仍请回到游戏里确认。</p>
+    </div>
+    <div class=pill id=cityPill>未入住</div>
+  </div>
+  <div class=band>
+    <div class=rail>住宿</div>
+    <div class="grid home2 city lead">
+      <div class="col lead">
+        <div class=cap>当前入住</div>
+        <p class=stay id=cityStay>未入住</p>
+        <p class=hint>退房时请先进入游戏，房卡才会收回。</p>
+        <div class=acts>
+          <button class="key on hidden" type=button id=hotelOut>办理退房</button>
+        </div>
+      </div>
+      <div class=col>
+        <div class=cap>路线</div>
+        <p class=hint id=rideHint></p>
+        <form id=routeForm class=form>
+          <input id=routeFrom list=stops placeholder="起点站" autocomplete=off>
+          <input id=routeTo list=stops placeholder="终点站" autocomplete=off>
+          <datalist id=stops></datalist>
+          <button class="key on" type=submit>查询票价</button>
+        </form>
+        <p class=tax id=routeOut></p>
+        <div class=cap>乘车记录</div>
+        <div class=list id=rideHist></div>
+      </div>
+    </div>
+  </div>
+  <div class=band>
+    <div class=rail>房产</div>
+    <div class="grid home2 life">
+      <div class=col>
+        <div class=cap>我的房产</div>
+        <div class=list id=homeBox></div>
+      </div>
+      <div class=col>
+        <div class=cap>挂牌出售</div>
+        <p class=hint>购买需在游戏里确认。网页只看盘。</p>
+        <div class=list id=saleBox></div>
+      </div>
+      <div class=col>
+        <div class=cap>我的领地</div>
+        <div class=list id=landBox></div>
+      </div>
+      <div class=col>
+        <div class=cap>公开领地</div>
+        <div class=list id=pubBox></div>
+      </div>
+    </div>
+  </div>
+  <div class=band>
+    <div class=rail>市政</div>
+    <div class="grid home2 life">
+      <div class=col>
+        <div class=cap>招工</div>
+        <div class=list id=jobBox></div>
+      </div>
+      <div class=col>
+        <div class=cap>回收站</div>
+        <p class=hint id=binHint>取出请回到游戏，背包才接得住。</p>
+        <div class=list id=binBox></div>
+      </div>
+    </div>
+  </div>
+  <div class=band>
+    <div class=rail>馆藏</div>
+    <div class="grid home2 life">
+      <div class="col quiet">
+        <div class=cap>展示</div>
+        <div class=list id=showBox></div>
+      </div>
+      <div class="col quiet">
+        <div class=cap>套件</div>
+        <p class=hint>领取需进入游戏，背包才接得住。</p>
+        <div class=list id=kitBox></div>
+      </div>
+      <div class="col quiet">
+        <div class=cap>技能店</div>
+        <p class=hint>购买会发到背包，请在游戏里完成。</p>
+        <div class=list id=skillBox></div>
+      </div>
     </div>
   </div>
 </section>
@@ -679,8 +846,8 @@ function paintChrome(){
     if(here){here.textContent='尚未接入';here.classList.remove('live')}
   }
 }
-function token(){return sessionStorage.getItem(KEY)||''}
-function setTok(v){if(v)sessionStorage.setItem(KEY,v);else sessionStorage.removeItem(KEY)}
+function token(){return localStorage.getItem(KEY)||''}
+function setTok(v){if(v)localStorage.setItem(KEY,v);else localStorage.removeItem(KEY)}
 function headers(){const h={'Accept':'application/json'};if(token())h.Authorization='Bearer '+token();return h}
 function toast(m){const el=$('#toast');el.textContent=m;el.style.display='block';clearTimeout(el._t);el._t=setTimeout(()=>el.style.display='none',2200)}
 const THEME_KEY='ecos-theme';
@@ -711,21 +878,26 @@ function cycleTheme(){
   toast(next==='auto'?'已跟随系统外观':next==='night'?'已切换为夜航':'已切换为纸面');
 }
 function esc(s){return String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
-const PAGES=['home','life','chat','music','map'];
+const PAGES=['home','life','chat','music','map','city'];
 function show(p){
   page=p;
   PAGES.forEach(id=>$('#'+id).classList.toggle('hidden',id!==p));
   $('#nav').querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.p===p));
-  if(p==='life') pullLife();
+  if(p==='life'||p==='city') pullLife();
 }
-function gated(on){
+let entering=false;
+function applyGated(on){
+  document.documentElement.classList.toggle('at-gate',!on);
   $('#gate').classList.toggle('hidden',on);
   $('#nav').classList.toggle('hidden',!on);
   $('.desk').classList.toggle('live',on);
   $('#bye').classList.toggle('hidden',!on);
   const mebox=$('#mebox');
   if(mebox) mebox.classList.toggle('hidden',!on);
-  if(!on){const m=$('#meMenu');if(m)m.classList.add('hidden')}
+  if(!on){
+    const m=$('#meMenu');if(m)m.classList.add('hidden');
+    const btn=$('#pairForm button');if(btn) btn.disabled=false;
+  }
   if(on) show(page);
   else{
     me='';
@@ -733,6 +905,30 @@ function gated(on){
     PAGES.forEach(id=>$('#'+id).classList.add('hidden'));
   }
   paintChrome();
+}
+function enterDesk(){
+  if(entering) return;
+  entering=true;
+  document.documentElement.classList.add('gate-exit');
+  const go=()=>{
+    document.documentElement.classList.remove('gate-exit');
+    applyGated(true);
+    document.documentElement.classList.add('desk-enter');
+    setTimeout(()=>{
+      document.documentElement.classList.remove('desk-enter');
+      entering=false;
+    },1100);
+  };
+  setTimeout(go,720);
+}
+function gated(on){
+  if(on&&document.documentElement.classList.contains('at-gate')&&!entering
+    &&!(matchMedia('(prefers-reduced-motion: reduce)').matches)){
+    enterDesk();
+    return;
+  }
+  if(entering&&on) return;
+  applyGated(on);
 }
 function setTape(items){
   const list=(items&&items.length)?items:['终端正在等候'];
@@ -1040,7 +1236,7 @@ function pull(){
     gated(true);
     try{paint(d)}catch(e){toast('界面未能刷新')}
     pullLib();
-    if(page==='life') pullLife();
+    if(page==='life'||page==='city') pullLife();
   }).catch(()=>{}).finally(()=>{deskBusy=false});
 }
 let lifeBusy=false;
@@ -1081,9 +1277,21 @@ function paintLife(d){
   $('#lifeBal').textContent=d.balance||'--';
   $('#lifeChk').textContent=d.checked?('已签 · 连签 '+(d.streak||0)+' 日'):'今日尚未签到';
   $('#lifeMk').textContent=d.makeup??0;
-  $('#lifeStay').textContent=d.stay||'未入住';
+  const stay=d.stay||'未入住';
+  $('#lifeStay').textContent=stay;
+  const cs=$('#cityStay');
+  if(cs) cs.textContent=stay;
+  const cp=$('#cityPill');
+  if(cp) cp.textContent=stay;
+  const ho=$('#hotelOut');
+  if(ho) ho.classList.toggle('hidden',!d.stay);
   const ph=$('#playHint');
   if(ph) ph.textContent=(d.played?('累计在线 '+d.played):'')+(d.miles&&d.miles.length?(' · 里程碑 '+d.miles.join(' / ')):'')+(d.recycle?(' · 回收站 '+d.recycle+' 件'):'');
+  const bh=$('#binHint');
+  if(bh) bh.textContent=(d.recycle?('现有 '+d.recycle+' 件。'):'')+'取出请回到游戏，背包才接得住。';
+  const bb=$('#binBox');
+  if(bb) bb.innerHTML=(d.bin&&d.bin.length)?d.bin.map(b=>
+    `<div class=row>${esc(b.name)} ×${b.n}<small>${esc(b.place)} · ${esc(b.exp)}</small></div>`).join(''):emptyRow('回收站是空的');
   const sb=$('#statusBox');
   if(sb&&document.activeElement!==sb) sb.value=d.status||'';
   const share=$('#shareBtn');
@@ -1178,6 +1386,10 @@ function act(body, after){
   fetch('/v1/act',{method:'POST',headers:{...headers(),'Content-Type':'application/json'},body:JSON.stringify(body)})
     .then(r=>r.json()).then(d=>{
       toast(d.ok?(d.msg||'已完成'):(d.error||'没有完成，请稍后再试'));
+      if(body&&body.do==='route'){
+        const out=$('#routeOut');
+        if(out) out.textContent=d.ok?(d.msg||''):(d.error||'');
+      }
       if(d.ok){pull();pullLife();if(after) after()}
     }).catch(()=>toast('没有完成，请稍后再试'));
 }
@@ -1232,13 +1444,20 @@ function pullNow(){
     paintNow(d.now);
   }).catch(()=>{}).finally(()=>{nowBusy=false});
 }
+function pinText(v){
+  const h=(v||'').toUpperCase().replace(/[^0-9A-F]/g,'').slice(0,16);
+  return h.length>8?h.slice(0,8)+'-'+h.slice(8):h;
+}
+$('#code').addEventListener('input',()=>{$('#code').value=pinText($('#code').value)});
 $('#pairForm').onsubmit=e=>{
   e.preventDefault();
+  const btn=e.target.querySelector('button');
+  if(btn) btn.disabled=true;
   fetch('/v1/pair',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code:$('#code').value.trim()})}
   ).then(r=>r.json()).then(d=>{
-    if(!d.ok){toast(d.error||'接入没有完成，请再试一次');return}
+    if(!d.ok){if(btn) btn.disabled=false;toast(d.error||'接入没有完成，请再试一次');return}
     setTok(d.token);pull();
-  }).catch(()=>toast('暂时无法连接，请稍后再试'));
+  }).catch(()=>{if(btn) btn.disabled=false;toast('暂时无法连接，请稍后再试')});
 };
 $('#searchForm').onsubmit=e=>{
   e.preventDefault();
@@ -1406,6 +1625,7 @@ $('#routeForm').onsubmit=e=>{
   if(!name||!text){toast('请写下起点和终点');return}
   act({do:'route',name,text},()=>{});
 };
+$('#hotelOut').onclick=()=>ask('办理退房？房卡会收回。',()=>act({do:'hotel.out'}));
 $('#auraOff').onclick=()=>act({do:'aura.off'});
 $('#auraBright').onclick=()=>act({do:'aura.bright'});
 $('#modalOk').onclick=()=>{
@@ -1432,7 +1652,7 @@ function goPay(name){
   show('life');showLifeTab('day');
   $('#payName').value=name;$('#payAmt').focus();
 }
-$('#life').onclick=e=>{
+function onLifeClick(e){
   const day=e.target.closest('[data-day]');
   if(day&&day.classList.contains('mk')){
     ask('用一张补签券补签 '+day.dataset.day+'？',()=>act({do:'makeup',id:day.dataset.day}));
@@ -1458,10 +1678,12 @@ $('#life').onclick=e=>{
   }
   const pick=e.target.closest('.pick');
   if(pick&&pick.dataset.name) pickName(pick.dataset.name);
-};
+}
+$('#life').onclick=onLifeClick;
+$('#city').onclick=onLifeClick;
 document.addEventListener('click',e=>{
   if(!e.target.closest('#mebox')){const m=$('#meMenu');if(m)m.classList.add('hidden')}
-  if(e.target.closest('#life')||e.target.closest('#card')||e.target.closest('#modal')||e.target.closest('#mebox')) return;
+  if(e.target.closest('#life')||e.target.closest('#city')||e.target.closest('#card')||e.target.closest('#modal')||e.target.closest('#mebox')) return;
   const pick=e.target.closest('.pick');
   if(pick&&pick.dataset.name) pickName(pick.dataset.name);
 });
@@ -1475,13 +1697,86 @@ paintHits({});
 paintLib({});
 (function(){
   const q=new URLSearchParams(location.search).get('code')||'';
-  const digits=q.replace(/\D/g,'').slice(0,6);
-  if(digits){
-    $('#code').value=digits;
-    if(digits.length===6 && !token()) $('#pairForm').requestSubmit();
+  const pin=pinText(q);
+  if(pin){
+    $('#code').value=pin;
+    if(pin.replace(/-/g,'').length===16 && !token()) $('#pairForm').requestSubmit();
   }
 })();
-pull();setInterval(pull,4000);setInterval(pullNow,1000);setInterval(()=>{if(page==='life')pullLife()},8000);
+(function field(){
+  const c=$('#field');
+  if(!c||matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const x=c.getContext('2d');
+  const VX=[-1,1,1,-1,-1,1,1,-1],VY=[-1,-1,1,1,-1,-1,1,1],VZ=[-1,-1,-1,-1,1,1,1,1];
+  const ED=[[0,1],[1,2],[2,3],[3,0],[4,5],[5,6],[6,7],[7,4],[0,4],[1,5],[2,6],[3,7]];
+  const N=20, SPEED=3.7, FAR=18;
+  let w,h,dpr,cubes,last=0;
+  function spawn(baseZ){
+    const sgn=()=>Math.random()<.5?-1:1;
+    return{
+      x:Math.random()*8-4,y:Math.random()*8-4,z:baseZ+Math.random()*6,
+      sz:.5+Math.random()*2,rx:Math.random()*6.28,ry:Math.random()*6.28,
+      vrx:(.25+Math.random()*1.4)*sgn(),vry:(.25+Math.random()*1.4)*sgn()
+    };
+  }
+  function resize(){
+    dpr=Math.min(devicePixelRatio||1,2);
+    w=innerWidth;h=innerHeight;
+    c.width=w*dpr;c.height=h*dpr;
+    cubes=Array.from({length:N},(_,i)=>spawn(1.5+i*(FAR/N)));
+  }
+  function cube(cx,cy,rx,ry,scale,color,lw){
+    const px=new Array(8),py=new Array(8);
+    const cr=Math.cos(rx),sr=Math.sin(rx),cyy=Math.cos(ry),sy=Math.sin(ry);
+    for(let i=0;i<8;i++){
+      let X=VX[i],Y=VY[i],Z=VZ[i];
+      let tx=X*cyy+Z*sy;Z=-X*sy+Z*cyy;X=tx;
+      let ty=Y*cr-Z*sr;Z=Y*sr+Z*cr;Y=ty;
+      const s=scale*3.5/(3.5+Z);
+      px[i]=cx+X*s;py[i]=cy+Y*s;
+    }
+    x.strokeStyle=color;x.lineWidth=lw;x.beginPath();
+    for(const[a,b] of ED){x.moveTo(px[a],py[a]);x.lineTo(px[b],py[b])}
+    x.stroke();
+  }
+  function tint(z,night){
+    if(night){
+      if(z>10) return ['rgba(144,152,164,.28)',1];
+      if(z>6) return ['rgba(144,152,164,.5)',1.1];
+      if(z>3) return ['rgba(180,194,238,.72)',1.4];
+      return ['#4EB8BE',1.8];
+    }
+    if(z>10) return ['rgba(10,42,140,.18)',1];
+    if(z>6) return ['rgba(10,42,140,.32)',1.1];
+    if(z>3) return ['rgba(10,42,140,.5)',1.4];
+    return ['#1F7A86',1.8];
+  }
+  function draw(t){
+    if(!document.documentElement.classList.contains('at-gate')){
+      last=0;requestAnimationFrame(draw);return;
+    }
+    const dt=last?Math.min(.05,(t-last)/1000):.016;
+    last=t;
+    x.setTransform(dpr,0,0,dpr,0,0);
+    x.clearRect(0,0,w,h);
+    const night=document.documentElement.dataset.theme!=='day';
+    const fov=Math.min(w,h)*.48, scale=Math.min(w,h)*.12, maxs=Math.min(w,h)*.46;
+    const cx=w*.58, cy=h*.42;
+    cubes.sort((a,b)=>b.z-a.z);
+    for(const s of cubes){
+      const boost=document.documentElement.classList.contains('gate-exit')?2.6:1;
+      s.z-=SPEED*dt*boost;s.rx+=s.vrx*dt;s.ry+=s.vry*dt;
+      if(s.z<.4) Object.assign(s,spawn(FAR));
+      const inv=1/s.z, sc=s.sz*scale*inv;
+      if(sc<2||sc>maxs) continue;
+      const [col,lw]=tint(s.z,night);
+      cube(cx+s.x*fov*inv,cy+s.y*fov*inv,s.rx,s.ry,sc,col,lw);
+    }
+    requestAnimationFrame(draw);
+  }
+  resize();addEventListener('resize',resize);requestAnimationFrame(draw);
+})();
+pull();setInterval(pull,4000);setInterval(pullNow,1000);setInterval(()=>{if(page==='life'||page==='city')pullLife()},8000);
 </script>
 <script src="https://cdn.jsdelivr.net/npm/skinview3d@3.3.0/bundles/skinview3d.bundle.js" onload="if(token())pull()"></script>
 </body></html>

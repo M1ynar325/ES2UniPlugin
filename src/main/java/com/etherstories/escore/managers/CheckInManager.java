@@ -10,6 +10,8 @@ import java.io.File;
 import java.io.IOException;
 import java.time.LocalDate;
 import java.time.YearMonth;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 
@@ -17,6 +19,13 @@ public class CheckInManager {
 
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd");
     private static final int HISTORY_KEEP_DAYS = 120;
+    /** 签到日界：东八区每天 04:00 换日。 */
+    public static final ZoneId ZONE = ZoneId.of("Asia/Shanghai");
+
+    /** 当前签到日（4:00 之前仍算昨天）。 */
+    public static LocalDate today() {
+        return ZonedDateTime.now(ZONE).minusHours(4).toLocalDate();
+    }
 
     private final ES2UniPlugin         plugin;
     private final File                 dataFile;
@@ -33,10 +42,10 @@ public class CheckInManager {
 
     /** Returns true if check-in was successful; false if already checked in today. */
     public boolean checkIn(UUID uuid) {
-        String today = LocalDate.now().format(DATE_FMT);
+        String today = today().format(DATE_FMT);
         if (today.equals(lastCheckIn.get(uuid))) return false;
 
-        String yesterday = LocalDate.now().minusDays(1).format(DATE_FMT);
+        String yesterday = today().minusDays(1).format(DATE_FMT);
         if (yesterday.equals(lastCheckIn.get(uuid))) {
             streaks.merge(uuid, 1, Integer::sum);
         } else {
@@ -87,7 +96,7 @@ public class CheckInManager {
     }
 
     public boolean hasCheckedInToday(UUID uuid) {
-        return LocalDate.now().format(DATE_FMT).equals(lastCheckIn.get(uuid));
+        return today().format(DATE_FMT).equals(lastCheckIn.get(uuid));
     }
 
     public int getStreak(UUID uuid) {
@@ -116,7 +125,7 @@ public class CheckInManager {
      */
     public String makeup(UUID uuid, LocalDate date) {
         if (date == null) return "日期无效";
-        LocalDate today = LocalDate.now();
+        LocalDate today = today();
         if (!date.isBefore(today)) return "只能补签过去的日期";
         if (date.isBefore(today.minusDays(60))) return "只能补签近 60 天内";
         if (hasCheckedOn(uuid, date)) return "该日已签到";
@@ -154,7 +163,7 @@ public class CheckInManager {
     private void pruneHistory(UUID uuid) {
         Set<String> set = history.get(uuid);
         if (set == null) return;
-        LocalDate cutoff = LocalDate.now().minusDays(HISTORY_KEEP_DAYS);
+        LocalDate cutoff = today().minusDays(HISTORY_KEEP_DAYS);
         set.removeIf(s -> {
             try {
                 return LocalDate.parse(s, DATE_FMT).isBefore(cutoff);

@@ -1,85 +1,175 @@
 package com.etherstories.escore.web;
 
+import org.bukkit.configuration.ConfigurationSection;
+import org.bukkit.configuration.file.FileConfiguration;
+import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
+import org.bukkit.plugin.Plugin;
 
+import java.io.File;
+import java.io.IOException;
 import java.security.SecureRandom;
-import java.util.Iterator;
+import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
+/** 每位玩家一枚长期 ECOS Token（XXXXXXXX-XXXXXXXX），游戏里可反复查看、随时重置。 */
 public class WebSessions {
 
     public record Session(String token, UUID uuid, String name, long created, boolean admin) {}
 
-    private final Map<String, Pair> pairs = new ConcurrentHashMap<>();
-    private final Map<String, Session> byToken = new ConcurrentHashMap<>();
+    private final Plugin plugin;
+    private final File dataFile;
+    private final Map<String, Cred> byPin = new ConcurrentHashMap<>();
+    private final Map<UUID, String> byUuid = new ConcurrentHashMap<>();
     private final SecureRandom rng = new SecureRandom();
-    private final int pairMs;
-    private final long sessionMs;
 
-    public WebSessions(int pairSeconds, int sessionDays) {
-        this.pairMs = Math.max(30, pairSeconds) * 1000;
-        this.sessionMs = Math.max(1, sessionDays) * 86400_000L;
+    public WebSessions(Plugin plugin) {
+        this.plugin = plugin;
+        this.dataFile = new File(plugin.getDataFolder(), "web-sessions.yml");
+        load();
     }
 
-    public synchronized String issue(Player player) {
-        sweep();
-        String code;
-        do {
-            code = String.format("%06d", rng.nextInt(1_000_000));
-        } while (pairs.containsKey(code));
-        boolean admin = player.isOp() || player.hasPermission("es2uni.admin");
-        pairs.put(code, new Pair(player.getUniqueId(), player.getName(),
-                System.currentTimeMillis() + pairMs, admin));
-        return code;
+    public String reveal(Player player) {
+        UUID uuid = player.getUniqueId();
+        boolean admin = isAdmin(player);
+        String name = player.getName();
+        synchronized (this) {
+            String pin = byUuid.get(uuid);
+            if (pin == null) {
+                pin = newPin();
+                put(pin, new Cred(uuid, name, admin));
+                save();
+                return pin;
+            }
+            Cred cur = byPin.get(norm(pin));
+            if (cur == null || !cur.name.equals(name) || cur.admin != admin) {
+                put(pin, new Cred(uuid, name, admin));
+                save();
+            }
+            return pin;
+        }
+    }
+
+    public String reset(Player player) {
+        UUID uuid = player.getUniqueId();
+        synchronized (this) {
+            String old = byUuid.remove(uuid);
+            if (old != null) byPin.remove(norm(old));
+            String pin = newPin();
+            put(pin, new Cred(uuid, player.getName(), isAdmin(player)));
+            save();
+            return pin;
+        }
     }
 
     public Session consume(String code) {
-        sweep();
-        String digits = code == null ? "" : code.replaceAll("\\D", "");
-        Pair p = pairs.remove(digits);
-        if (p == null || p.until < System.currentTimeMillis()) return null;
-        String token = newToken();
-        Session s = new Session(token, p.uuid, p.name, System.currentTimeMillis(), p.admin);
-        byToken.put(token, s);
-        return s;
+        Cred c = lookup(code);
+        if (c == null) return null;
+        String pin = byUuid.get(c.uuid);
+        if (pin == null) return null;
+        return new Session(pin, c.uuid, c.name, 0L, c.admin);
     }
 
     public Session get(String token) {
-        if (token == null || token.isBlank()) return null;
-        sweep();
-        Session s = byToken.get(token);
-        if (s == null) return null;
-        if (System.currentTimeMillis() - s.created > sessionMs) {
-            byToken.remove(token);
-            return null;
-        }
-        return s;
+        Cred c = lookup(token);
+        if (c == null) return null;
+        String pin = byUuid.get(c.uuid);
+        if (pin == null) return null;
+        return new Session(pin, c.uuid, c.name, 0L, c.admin);
     }
 
     public void revoke(UUID uuid) {
-        byToken.entrySet().removeIf(e -> e.getValue().uuid.equals(uuid));
-        pairs.entrySet().removeIf(e -> e.getValue().uuid.equals(uuid));
-    }
-
-    private void sweep() {
-        long now = System.currentTimeMillis();
-        pairs.entrySet().removeIf(e -> e.getValue().until < now);
-        Iterator<Map.Entry<String, Session>> it = byToken.entrySet().iterator();
-        while (it.hasNext()) {
-            Session s = it.next().getValue();
-            if (now - s.created > sessionMs) it.remove();
+        if (uuid == null) return;
+        synchronized (this) {
+            String old = byUuid.remove(uuid);
+            if (old != null) byPin.remove(norm(old));
+            save();
         }
     }
 
-    private String newToken() {
-        byte[] b = new byte[24];
-        rng.nextBytes(b);
-        StringBuilder sb = new StringBuilder(b.length * 2);
-        for (byte v : b) sb.append(String.format("%02x", v));
-        return sb.toString();
+    public void revoke(String token) {
+        /* 网页断开只清本机，不改令牌 */
     }
 
-    private record Pair(UUID uuid, String name, long until, boolean admin) {}
+    private Cred lookup(String raw) {
+        String n = norm(raw);
+        if (n.length() != 16) return null;
+        return byPin.get(n);
+    }
+
+    private void put(String pin, Cred c) {
+        byPin.put(norm(pin), c);
+        byUuid.put(c.uuid, pin);
+    }
+
+    private void load() {
+        if (!dataFile.exists()) return;
+        FileConfiguration cfg = YamlConfiguration.loadConfiguration(dataFile);
+        ConfigurationSection root = cfg.getConfigurationSection("tokens");
+        if (root == null) return;
+        for (String key : root.getKeys(false)) {
+            try {
+                UUID uuid = UUID.fromString(key);
+                String pin = format(cfg.getString("tokens." + key + ".pin", ""));
+                if (pin == null) continue;
+                String name = cfg.getString("tokens." + key + ".name", "");
+                boolean admin = cfg.getBoolean("tokens." + key + ".admin", false);
+                put(pin, new Cred(uuid, name, admin));
+            } catch (IllegalArgumentException ignored) {}
+        }
+    }
+
+    private void save() {
+        FileConfiguration cfg = new YamlConfiguration();
+        for (Map.Entry<UUID, String> e : byUuid.entrySet()) {
+            String path = "tokens." + e.getKey();
+            Cred c = byPin.get(norm(e.getValue()));
+            cfg.set(path + ".pin", e.getValue());
+            cfg.set(path + ".name", c == null ? "" : c.name);
+            cfg.set(path + ".admin", c != null && c.admin);
+        }
+        try {
+            cfg.save(dataFile);
+        } catch (IOException ex) {
+            plugin.getLogger().warning("web-sessions.yml 保存失败: " + ex.getMessage());
+        }
+    }
+
+    private String newPin() {
+        String pin;
+        do {
+            byte[] b = new byte[8];
+            rng.nextBytes(b);
+            StringBuilder hex = new StringBuilder(16);
+            for (byte v : b) hex.append(String.format("%02X", v));
+            pin = hex.substring(0, 8) + "-" + hex.substring(8);
+        } while (byPin.containsKey(norm(pin)));
+        return pin;
+    }
+
+    static String norm(String raw) {
+        if (raw == null) return "";
+        StringBuilder d = new StringBuilder(16);
+        for (int i = 0; i < raw.length(); i++) {
+            char c = raw.charAt(i);
+            if (c >= '0' && c <= '9') d.append(c);
+            else if (c >= 'a' && c <= 'f') d.append(c);
+            else if (c >= 'A' && c <= 'F') d.append((char) (c + 32));
+        }
+        return d.toString();
+    }
+
+    static String format(String raw) {
+        String n = norm(raw);
+        if (n.length() != 16) return null;
+        return n.substring(0, 8).toUpperCase(Locale.ROOT) + "-" + n.substring(8).toUpperCase(Locale.ROOT);
+    }
+
+    private static boolean isAdmin(Player player) {
+        return player.isOp() || player.hasPermission("es2uni.admin");
+    }
+
+    private record Cred(UUID uuid, String name, boolean admin) {}
 }

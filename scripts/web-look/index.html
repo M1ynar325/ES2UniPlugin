@@ -1,0 +1,345 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#12151C">
+<title>ECOS · 样稿</title>
+<script>
+(function(){
+  var p=localStorage.getItem('ecos-theme')||'auto';
+  var night=p==='night'||(p!=='day'&&window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches);
+  document.documentElement.dataset.theme=night?'night':'day';
+})();
+</script>
+<style>
+:root{
+  --cobalt:#0A2A8C;--deep:#D2D8E8;--jiqing:#4EB8BE;--ice:#222836;
+  --paper:#12151C;--white:#1B202C;--gray:#3D4452;--ink:#E4E6EC;--dim:#9098A4;
+  --face:#B4C2EE;--on:#F3F5F8;--mist:#C5CEE4;--tape:#0A1020;
+  --grid-y:rgba(110,150,220,.055);--grid-x:rgba(78,184,190,.035);
+  --shade:rgba(0,0,0,.38);--shade-sm:rgba(0,0,0,.28);
+  --list:rgba(12,15,22,.72);--lamp:3px;
+  --sans:"PingFang SC","Hiragino Sans GB","Microsoft YaHei UI","Noto Sans SC",system-ui,sans-serif;
+  --mono:ui-monospace,"Cascadia Mono","Segoe UI Mono",Menlo,Consolas,monospace;
+}
+html[data-theme=day]{
+  --cobalt:#0A2A8C;--deep:#071C5C;--jiqing:#1F7A86;--ice:#D8E1F7;
+  --paper:#EDEEF2;--white:#F8F8FA;--gray:#B8BCC4;--ink:#161A20;--dim:#5A6068;
+  --face:#0A2A8C;--on:#FFFFFF;--mist:#D8E1F7;--tape:#071C5C;
+  --grid-y:rgba(10,42,140,.04);--grid-x:rgba(10,42,140,.028);
+  --shade:rgba(10,42,140,.08);--shade-sm:rgba(10,42,140,.06);
+  --list:rgba(243,245,247,.7);
+}
+*{box-sizing:border-box}
+html{min-height:100%;background:
+  repeating-linear-gradient(0deg,transparent 0 23px,var(--grid-y) 24px),
+  repeating-linear-gradient(90deg,transparent 0 23px,var(--grid-x) 24px),
+  var(--paper)}
+body{margin:0;min-height:100%;color:var(--ink);font:14px/1.5 var(--sans)}
+body:before{content:"";position:fixed;inset:0 0 auto;height:4px;z-index:5;
+  background:linear-gradient(90deg,var(--cobalt) 70%,var(--jiqing))}
+.lamp{position:fixed;top:0;left:0;width:28%;height:4px;z-index:6;
+  background:var(--jiqing);transform-origin:left center;animation:breathe 4.8s ease-in-out infinite}
+@keyframes breathe{0%,100%{opacity:.45;transform:scaleX(.72)}50%{opacity:1;transform:scaleX(1)}}
+.shell{width:100%;padding:28px clamp(16px,3vw,48px) 64px}
+.top{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;
+  padding:8px 0 14px;border-bottom:2px solid var(--cobalt);margin-bottom:22px;position:relative}
+.top:after{content:"";position:absolute;left:0;right:0;bottom:-10px;height:8px;
+  background:repeating-linear-gradient(90deg,var(--cobalt) 0 1px,transparent 1px 24px);
+  opacity:.28;pointer-events:none}
+.brand{display:flex;align-items:center;gap:12px}
+.mark{width:28px;height:28px;background:var(--cobalt);
+  box-shadow:inset 3px 0 0 0 var(--jiqing),6px 6px 0 var(--mist);animation:mark 4.8s ease-in-out infinite}
+@keyframes mark{0%,100%{box-shadow:inset 3px 0 0 0 var(--jiqing),6px 6px 0 var(--mist)}
+  50%{box-shadow:inset 3px 0 0 0 var(--jiqing),6px 6px 0 rgba(78,184,190,.22)}}
+.brand b{display:block;font:16px/1.1 var(--mono);letter-spacing:.18em;font-weight:600;color:var(--deep)}
+.brand span{font:10px/1.3 var(--sans);letter-spacing:.06em;color:var(--dim)}
+.meta{font:10px/1.4 var(--mono);letter-spacing:.12em;color:var(--dim);text-align:right}
+.jump{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 28px}
+.jump a{color:var(--dim);text-decoration:none;font:10px/1 var(--mono);letter-spacing:.14em;
+  padding:8px 10px;border:1px solid transparent}
+.jump a:hover{color:var(--deep);box-shadow:inset 3px 0 0 0 var(--jiqing)}
+.jump a.on{color:var(--on);background:var(--cobalt);border-color:var(--cobalt);
+  box-shadow:inset 3px 0 0 0 var(--jiqing)}
+.screen{margin:0 0 72px;scroll-margin-top:28px}
+.kicker{font:10px/1 var(--mono);letter-spacing:.2em;color:var(--jiqing);margin:0 0 8px}
+.hero{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;
+  margin-bottom:18px;padding-bottom:14px;border-bottom:1px solid var(--gray)}
+.hero h1{margin:0;font:600 28px/1.1 var(--sans);color:var(--deep);letter-spacing:.03em}
+.hero p{margin:8px 0 0;color:var(--dim);max-width:36em}
+.hero code{font:12px var(--mono);color:var(--face)}
+.pill{flex:none;padding:8px 12px;background:var(--ice);color:var(--deep);
+  font:11px var(--sans);letter-spacing:.06em;border-left:3px solid var(--jiqing)}
+.panel{background:var(--white);border:1px solid var(--gray);padding:20px 20px 18px;
+  box-shadow:4px 4px 0 var(--shade-sm);max-width:440px}
+.panel.wide{max-width:none}
+.rise{opacity:0;transform:translateY(10px);animation:rise .55s ease forwards}
+.rise:nth-child(2){animation-delay:.08s}
+.rise:nth-child(3){animation-delay:.16s}
+.rise:nth-child(4){animation-delay:.24s}
+.rise:nth-child(5){animation-delay:.32s}
+@keyframes rise{to{opacity:1;transform:none}}
+input{width:100%;padding:12px 14px;background:var(--white);border:1px solid var(--gray);
+  color:var(--ink);font:15px var(--mono);letter-spacing:.18em;border-radius:0}
+input:focus{outline:2px solid var(--cobalt);border-color:var(--cobalt)}
+.key{appearance:none;border:0;cursor:pointer;border-radius:0;padding:10px 14px;
+  background:var(--ice);color:var(--deep);font:11px/1 var(--sans);letter-spacing:.06em;
+  box-shadow:inset 3px 0 0 0 var(--gray)}
+.key.on{background:var(--cobalt);color:var(--on);box-shadow:inset 3px 0 0 0 var(--jiqing)}
+.key:hover{box-shadow:inset 3px 0 0 0 var(--jiqing)}
+.full{width:100%;margin-top:12px}
+.tape{display:flex;align-items:stretch;margin:0 0 18px;min-height:34px;background:var(--tape);color:var(--mist);
+  box-shadow:inset 3px 0 0 0 var(--jiqing),4px 4px 0 var(--shade)}
+.tape-tag{flex:none;background:var(--jiqing);color:var(--on);font:10px/1 var(--sans);
+  letter-spacing:.1em;font-weight:700;padding:0 14px;display:flex;align-items:center}
+.tape-view{flex:1;overflow:hidden}
+.tape-track{display:flex;width:max-content;font:12px/34px var(--sans);animation:tape 42s linear infinite}
+.tape-track span{white-space:nowrap;padding:0 22px}
+.tape-track span:before{content:"// ";color:var(--jiqing)}
+@keyframes tape{to{transform:translateX(-50%)}}
+.grid{display:grid;gap:12px}
+.stats{grid-template-columns:repeat(auto-fit,minmax(140px,1fr));margin-bottom:14px}
+.stat{background:var(--white);border:1px solid var(--gray);padding:14px;border-left:4px solid var(--cobalt);
+  box-shadow:3px 3px 0 var(--shade-sm)}
+.stat b{display:block;font:10px/1.2 var(--mono);color:var(--dim);letter-spacing:.12em}
+.stat em{display:block;margin-top:10px;font:600 22px/1.1 var(--sans);font-style:normal;color:var(--face);
+  font-variant-numeric:tabular-nums}
+.stat.soft{border-left-color:var(--gray);box-shadow:none}
+.now{border-left:4px solid var(--jiqing);margin-bottom:14px}
+.now b{display:block;font:600 18px/1.25 var(--sans);color:var(--deep)}
+.now small{display:block;margin-top:4px;color:var(--dim)}
+.ly{margin-top:12px;padding-top:12px;border-top:1px solid var(--gray);color:var(--dim)}
+.ly .cur{color:var(--face);font-size:18px;font-weight:500;margin:4px 0}
+.band{margin:0 0 28px}
+.rail{font:10px/1 var(--mono);letter-spacing:.2em;color:var(--jiqing);margin:0 0 12px;
+  display:flex;align-items:center;gap:10px}
+.rail:after{content:"";flex:1;height:1px;background:var(--gray)}
+.city{grid-template-columns:1fr;align-items:start}
+@media (min-width:860px){
+  .city{grid-template-columns:1fr 1fr}
+  .city.lead{grid-template-columns:minmax(0,1.4fr) minmax(220px,.7fr)}
+}
+@media (min-width:1200px){.city.trio{grid-template-columns:1fr 1fr 1fr}}
+.col{background:var(--white);border:1px solid var(--gray);padding:14px;box-shadow:4px 4px 0 var(--shade-sm)}
+.col.lead{border-left:4px solid var(--jiqing);padding:18px 18px 16px}
+.col.quiet{box-shadow:none}
+.stay{margin:0 0 8px;font:600 22px/1.2 var(--sans);color:var(--deep)}
+.cap{font:10px/1 var(--mono);color:var(--dim);margin:0 0 10px;letter-spacing:.14em;
+  display:flex;align-items:center;gap:8px}
+.cap:before{content:"";width:18px;height:2px;background:var(--cobalt)}
+.list{border:1px solid var(--gray);background:var(--list)}
+.row{padding:10px 12px;border-bottom:1px solid var(--gray)}
+.row:last-child{border:0}
+.row small{display:block;margin-top:3px;color:var(--dim);font:12px/1.4 var(--sans)}
+.hint{color:var(--dim);font-size:13px;margin:0 0 12px}
+.foot{margin-top:12px;padding-top:16px;border-top:2px solid var(--cobalt);
+  display:flex;justify-content:space-between;gap:16px;align-items:center}
+.foot b{font:11px/1.2 var(--mono);letter-spacing:.16em;color:var(--deep)}
+.foot span{display:block;margin-top:6px;font:10px/1 var(--mono);letter-spacing:.1em;color:var(--dim)}
+.note{max-width:52em;color:var(--dim);font:13px/1.6 var(--sans)}
+</style>
+</head>
+<body>
+<div class=lamp></div>
+<div class=shell>
+  <header class="top rise">
+    <div class=brand>
+      <i class=mark></i>
+      <div><b>// ECOS</b><span>Etharia Central Operating System · 样稿</span></div>
+    </div>
+    <div class=meta>
+      <div id=clock></div>
+      <div>N 39.90 · E 116.40 · SAMPLE</div>
+    </div>
+  </header>
+  <nav class="jump rise">
+    <a href="gate.html">00 接入</a>
+    <a href="#home">01 概览</a>
+    <a href="#city">06 城市</a>
+  </nav>
+
+  <section class=screen id=gate>
+    <p class="kicker rise">CHANNEL 00</p>
+    <div class="hero rise">
+      <div>
+        <h1>接入终端</h1>
+        <p>请在游戏中输入 <code>/ecos web</code>，查看您的 ECOS Token。这一串可以记住，在各处使用。</p>
+      </div>
+      <div class=pill>待接入</div>
+    </div>
+    <div class="panel rise">
+      <input value="A1B2C3D4-E5F60789" readonly>
+      <button class="key on full" type=button>接入</button>
+    </div>
+  </section>
+
+  <section class=screen id=home>
+    <p class="kicker rise">CHANNEL 01</p>
+    <div class="hero rise">
+      <div>
+        <h1>node0</h1>
+        <p>在画外壳图纸</p>
+      </div>
+      <div class="pill">尚未进入游戏</div>
+    </div>
+    <div class="tape rise">
+      <div class=tape-tag>播报</div>
+      <div class=tape-view><div class=tape-track id=tapeTrack></div></div>
+    </div>
+    <div class="grid stats">
+      <div class="stat rise"><b>余额</b><em>12,480 ES</em></div>
+      <div class="stat rise"><b>未读来信</b><em>1</em></div>
+      <div class="stat rise"><b>签到</b><em>未签 · 12 日</em></div>
+      <div class="stat soft rise"><b>在线人数</b><em>3</em></div>
+    </div>
+    <div class="panel wide now rise">
+      <b>Midnight City</b>
+      <small>M83 · 由 node0 点播 · 4:03</small>
+      <div class=ly>
+        <div>Waiting in a car</div>
+        <div class=cur>The city is my church</div>
+        <div>这座城市是我的教堂</div>
+      </div>
+    </div>
+  </section>
+
+  <section class=screen id=city>
+    <p class="kicker rise">CHANNEL 06</p>
+    <div class="hero rise">
+      <div>
+        <h1>城市</h1>
+        <p>先看住宿与房产，市政次之。购买与领取仍请回到游戏里确认。</p>
+      </div>
+      <div class=pill>星港酒店 · 7-1203</div>
+    </div>
+
+    <div class="band rise">
+      <div class=rail>住宿</div>
+      <div class="grid city lead">
+        <div class="col lead">
+          <div class=cap>当前入住</div>
+          <p class=stay>星港酒店 · 7-1203</p>
+          <p class=hint>已入住 2 晚。退房时请先进入游戏，房卡才会收回。</p>
+          <button class="key on" type=button>办理退房</button>
+        </div>
+        <div class=col>
+          <div class=cap>路线</div>
+          <p class=hint>星港站 → 市政厅 · 单程 24 ES</p>
+          <div class=list>
+            <div class=row>星港 → 市政厅<small>24 ES</small></div>
+            <div class=row>北坞 → 星港<small>18 ES</small></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="band rise">
+      <div class=rail>房产</div>
+      <div class="grid city">
+        <div class=col>
+          <div class=cap>我的房产</div>
+          <div class=list>
+            <div class=row>星港 7-1203<small>未挂牌</small></div>
+            <div class=row>北坞 2-04<small>挂牌 6,400 ES</small></div>
+          </div>
+        </div>
+        <div class=col>
+          <div class=cap>挂牌出售</div>
+          <p class=hint>网页只看盘。</p>
+          <div class=list>
+            <div class=row>运河 1-08<small>Iris · 9,600 ES</small></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="band rise">
+      <div class=rail>市政</div>
+      <div class="grid city trio">
+        <div class=col>
+          <div class=cap>招工</div>
+          <div class=list>
+            <div class=row>车站顶棚补漆<small>Lumen · 2/4 · 800 ES</small></div>
+            <div class=row>运河清淤<small>Hub · 1/3 · 1,200 ES</small></div>
+          </div>
+        </div>
+        <div class=col>
+          <div class=cap>回收站</div>
+          <p class=hint>2 件。取出请回到游戏。</p>
+          <div class=list>
+            <div class=row>铁锭 ×32<small>世界 12 64 -8 · 11 小时后清理</small></div>
+            <div class=row>安山合金 ×16<small>世界 14 64 -8 · 6 小时后清理</small></div>
+          </div>
+        </div>
+        <div class="col quiet">
+          <div class=cap>展示</div>
+          <div class=list>
+            <div class=row>运河夜景<small>Iris · 14 票</small></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer class=foot>
+    <div>
+      <b>ASTROLAB / ECOS</b>
+      <span>科研终端样稿 · 假数据</span>
+    </div>
+    <button class=key type=button id=theme>随系统</button>
+  </footer>
+  <p class=note>层次：顶栏机匣 → 频道 → 读数 → 分组带。浮动坐标已收回顶栏。若这版可以，再对真站细调。</p>
+</div>
+<script>
+const $=s=>document.querySelector(s);
+function tick(){
+  const d=new Date();
+  const p=n=>String(n).padStart(2,'0');
+  $('#clock').textContent=d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+'  '+p(d.getHours())+':'+p(d.getMinutes())+':'+p(d.getSeconds());
+}
+tick();setInterval(tick,1000);
+document.querySelectorAll('.jump a').forEach(a=>{
+  a.onclick=()=>document.querySelectorAll('.jump a').forEach(x=>x.classList.toggle('on',x===a));
+});
+const THEME_KEY='ecos-theme';
+function themePref(){return localStorage.getItem(THEME_KEY)||'auto'}
+function themeNow(){
+  const p=themePref();
+  if(p==='night'||p==='day') return p;
+  return matchMedia('(prefers-color-scheme: dark)').matches?'night':'day';
+}
+function applyTheme(){
+  const t=themeNow(),p=themePref();
+  document.documentElement.dataset.theme=t;
+  const meta=$('meta[name=theme-color]');
+  if(meta) meta.content=t==='night'?'#12151C':'#EDEEF2';
+  const b=$('#theme');
+  if(b) b.textContent=p==='auto'?'随系统':t==='night'?'夜航':'纸面';
+}
+function cycleTheme(){
+  const order=['auto','day','night'];
+  const next=order[(Math.max(0,order.indexOf(themePref()))+1)%3];
+  localStorage.setItem(THEME_KEY,next);
+  applyTheme();
+}
+applyTheme();
+if(window.matchMedia) matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>{if(themePref()==='auto') applyTheme()});
+$('#theme').onclick=cycleTheme;
+function greet(){
+  const h=parseInt(new Date().toLocaleString('en-GB',{timeZone:'Asia/Shanghai',hour:'2-digit',hour12:false}),10);
+  if(h>=4&&h<11) return '早上好';
+  if(h<13) return '中午好';
+  if(h<18) return '下午好';
+  if(h<22) return '晚上好';
+  return '夜深了';
+}
+(function(){
+  const el=$('#tapeTrack');
+  if(!el) return;
+  const items=[greet()+'，欢迎回来，node0','欢迎接入终端','未读来信 1 · 今日尚未签到 · 连签 12 日','星港酒店 · 7-1203'];
+  el.innerHTML=items.concat(items).map(s=>`<span>${s}</span>`).join('');
+})();
+</script>
+</body>
+</html>

@@ -21,7 +21,7 @@ import java.util.Set;
 public class ConfigManager {
 
     /** 与 config.yml 中 config-version 保持一致，每次新增配置项时 +1 */
-    private static final int CURRENT_VERSION = 39;
+    private static final int CURRENT_VERSION = 40;
 
     private final ES2UniPlugin plugin;
     private YamlConfiguration jarDefaults;
@@ -153,6 +153,14 @@ public class ConfigManager {
                 needSave = true;
             }
             plugin.getLogger().info("配置迁移 v35: 静幕时停 30 秒");
+        }
+
+        if (fileVersion < 40) {
+            if (cfg.getInt("web.session-days", 7) == 7) {
+                cfg.set("web.session-days", 30);
+                needSave = true;
+                plugin.getLogger().info("配置迁移 v40: web.session-days 7 → 30");
+            }
         }
 
         boolean autoFill = cfg.getBoolean("config.auto-fill-missing", true);

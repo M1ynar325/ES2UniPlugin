@@ -172,7 +172,7 @@ public class EcosWebServer {
         String code = extract(body, "code");
         WebSessions.Session s = sessions.consume(code);
         if (s == null) {
-            send(ex, 401, "application/json", "{\"ok\":false,\"error\":\"连接码无效或已过期\"}");
+            send(ex, 401, "application/json", "{\"ok\":false,\"error\":\"令牌不正确，请再核对一次\"}");
             return;
         }
         if (plugin.getLoginLogManager() != null) {
@@ -184,7 +184,7 @@ public class EcosWebServer {
 
     private void logout(HttpExchange ex) throws IOException {
         WebSessions.Session s = sessionOf(ex);
-        if (s != null) sessions.revoke(s.uuid());
+        if (s != null) sessions.revoke(s.token());
         send(ex, 200, "application/json", "{\"ok\":true}");
     }
 
@@ -640,8 +640,20 @@ public class EcosWebServer {
                         .append("\",\"price\":\"").append(esc(money(l.price()))).append("\"}");
             }
         }
-        YearMonth ym = YearMonth.now();
-        LocalDate today = LocalDate.now();
+        sb.append("],\"bin\":[");
+        if (plugin.getRecycleBinManager() != null) {
+            int bi = 0;
+            for (var e : plugin.getRecycleBinManager().listFor(u)) {
+                if (bi++ >= 40) break;
+                if (bi > 1) sb.append(',');
+                sb.append("{\"name\":\"").append(esc(itemLabel(e.stack)))
+                        .append("\",\"n\":").append(e.stack.getAmount())
+                        .append(",\"place\":\"").append(esc(e.world + " " + e.x + " " + e.y + " " + e.z))
+                        .append("\",\"exp\":\"").append(esc(e.expireLabel())).append("\"}");
+            }
+        }
+        LocalDate today = com.etherstories.escore.managers.CheckInManager.today();
+        YearMonth ym = YearMonth.from(today);
         sb.append("],\"cal\":{\"y\":").append(ym.getYear())
                 .append(",\"m\":").append(ym.getMonthValue())
                 .append(",\"today\":").append(today.getDayOfMonth())
@@ -655,6 +667,13 @@ public class EcosWebServer {
         }
         sb.append("]}}");
         return sb.toString();
+    }
+
+    private static String itemLabel(org.bukkit.inventory.ItemStack stack) {
+        if (stack == null) return "";
+        if (stack.hasItemMeta() && stack.getItemMeta() != null && stack.getItemMeta().hasDisplayName())
+            return stack.getItemMeta().getDisplayName();
+        return stack.getType().name().toLowerCase(java.util.Locale.ROOT).replace('_', ' ');
     }
 
     private String money(double n) {
@@ -841,6 +860,15 @@ public class EcosWebServer {
                         : path.hops().stream().map(plugin.getTransitManager()::stationName)
                         .reduce((a, b) -> a + " → " + b).orElse("");
                 yield "{\"ok\":true,\"msg\":\"" + esc(money(path.fare()) + " · " + hops) + "\"}";
+            }
+            case "hotel.out" -> {
+                if (plugin.getHotelManager() == null) yield "{\"ok\":false,\"error\":\"酒店不可用\"}";
+                Player p = Bukkit.getPlayer(u);
+                if (p == null || !p.isOnline()) yield "{\"ok\":false,\"error\":\"请先进入游戏再办理退房\"}";
+                var stay = plugin.getHotelManager().stayOf(u);
+                if (stay == null) yield "{\"ok\":false,\"error\":\"当前没有入住\"}";
+                String err = plugin.getHotelManager().checkout(p, stay);
+                yield err == null ? ok(true, "已退房") : "{\"ok\":false,\"error\":\"" + esc(err) + "\"}";
             }
             case "ev.toggle" -> {
                 if (plugin.getEventManager() == null) yield "{\"ok\":false,\"error\":\"活动不可用\"}";
@@ -1434,11 +1462,21 @@ public class EcosWebServer {
         return sb.toString();
     }
 
+    private static String greetCst() {
+        int h = java.time.ZonedDateTime.now(com.etherstories.escore.managers.CheckInManager.ZONE).getHour();
+        if (h >= 4 && h < 11) return "早上好";
+        if (h < 13) return "中午好";
+        if (h < 18) return "下午好";
+        if (h < 22) return "晚上好";
+        return "夜深了";
+    }
+
     private List<String> tapeLines(String name, boolean online, int mail, boolean checked,
                                   int streak, String status, String bal, AllMusicHook.NowPlaying now) {
         List<String> t = new ArrayList<>();
-        t.add("Etharia Central OS · " + (name.isBlank() ? "ECOS" : name) + " · "
-                + (online ? "您正在游戏中" : "您尚未进入游戏"));
+        String who = name.isBlank() ? "朋友" : name;
+        t.add(greetCst() + "，" + (online ? "欢迎回来，" : "欢迎接入，") + who);
+        t.add(online ? "您正在游戏中" : "您尚未进入游戏");
         t.add("此刻在线 " + Bukkit.getOnlinePlayers().size() + " 人");
         if (!bal.isBlank()) t.add("余额 " + bal);
         t.add("未读来信 " + mail + " · 签到" + (checked ? "今日已签" : "今日尚未签到") + " · 连签 " + streak + " 日");

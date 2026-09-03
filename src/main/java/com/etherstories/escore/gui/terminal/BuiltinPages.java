@@ -103,7 +103,7 @@ final class BuiltinPages {
         } else {
             out.add(TerminalButton.of("balance", EcosStyle.BOOK_MUTED + "无经济", "需要 Vault"));
         }
-        out.add(TerminalButton.of("web-pair", EcosStyle.BOOK_JIQING + "网页", "连接码两分钟"));
+        out.add(TerminalButton.of("web-pair", EcosStyle.BOOK_JIQING + "网页", "查看 ECOS Token"));
         if (stay != null) {
             out.add(TerminalButton.of("hotel-checkout", EcosStyle.BOOK_ORANGE + "退房", stay));
             out.add(TerminalButton.of("hotel", EcosStyle.BOOK_COBALT + "酒店", "打开列表"));

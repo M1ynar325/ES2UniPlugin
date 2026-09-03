@@ -8,9 +8,9 @@
 # ============================================================
 
 # 配置文件版本，请勿修改此项（插件会自动迁移；不会覆盖你改过的数值）
-config-version: 39
+config-version: 40
 
-# ── ECOS 网页终端（验证码配对；离线可看公屏/点歌）──────────────
+# ── ECOS 网页终端（长期 Token；离线可看公屏/点歌）──────────────
 web:
   enabled: true
   bind: 0.0.0.0
@@ -19,8 +19,10 @@ web:
   public-url: ""
   # BlueMap 网页；空则用访问主机:8100
   map-url: ""
+  # 每位玩家一枚 XXXXXXXX-XXXXXXXX，游戏里 /ecos web 可再看，/ecos web reset 更换
   pair-seconds: 120
-  session-days: 7
+  session-days: 30
+  max-sessions: 8
 
 # ── 配置自维护（升级时自动补键 / 同步说明文档）────────────────
 config:
@@ -162,6 +164,7 @@ music:
         - "139774"
 
 # ── 每日签到 ──────────────────────────────────────────────────
+# 日界：东八区每天 04:00 换日（4 点前仍算昨天）
 # 奖励 = base-reward + min((连续天数-1) × streak-bonus, max-extra)
 # 例默认：第1天 500，第2天 550，第3天 600 … 额外最多 +1000（即最高 1500）
 checkin:
@@ -264,6 +267,7 @@ commands:
      &7/ecos showcase / lucky          &f— 机器展示 / 幸运方块
      &7/ecos tps                       &f— 服务器性能
      &7/ecos version                   &f— 插件版本
+     &7/ecos web [reset]               &f— 查看 / 重置网页 ECOS Token
      &8&l── 管理员 ──
      &7/ecos pve                       &f— 刷怪棒 / 精英棒
      &7/ecos reload                    &f— 重载配置（补全新键+同步 CONFIG.md）

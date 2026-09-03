@@ -135,12 +135,23 @@ public class RecycleBinManager {
 
     public List<Entry> listFor(Player player) {
         purgeExpired();
+        if (player != null && player.hasPermission("es2uni.admin")) {
+            List<Entry> out = new ArrayList<>();
+            for (Entry e : entries.values()) {
+                if (!e.expired()) out.add(e);
+            }
+            return out;
+        }
+        return listFor(player == null ? null : player.getUniqueId());
+    }
+
+    public List<Entry> listFor(UUID uuid) {
+        purgeExpired();
         List<Entry> out = new ArrayList<>();
-        boolean admin = player.hasPermission("es2uni.admin");
+        if (uuid == null) return out;
         for (Entry e : entries.values()) {
             if (e.expired()) continue;
-            if (admin || (e.owner != null && e.owner.equals(player.getUniqueId())))
-                out.add(e);
+            if (e.owner != null && e.owner.equals(uuid)) out.add(e);
         }
         return out;
     }

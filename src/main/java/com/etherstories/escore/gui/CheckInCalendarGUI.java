@@ -35,7 +35,8 @@ public class CheckInCalendarGUI {
     }
 
     public void open(Player player) {
-        open(player, months.getOrDefault(player.getUniqueId(), YearMonth.now()));
+        open(player, months.getOrDefault(player.getUniqueId(),
+                YearMonth.from(plugin.getCheckInManager().today())));
     }
 
     public void open(Player player, YearMonth month) {
@@ -55,7 +56,7 @@ public class CheckInCalendarGUI {
         }
 
         Set<Integer> checked = plugin.getCheckInManager().getCheckedDaysInMonth(player.getUniqueId(), month);
-        LocalDate today = LocalDate.now();
+        LocalDate today = plugin.getCheckInManager().today();
         LocalDate first = month.atDay(1);
         int offset = first.getDayOfWeek().getValue() - 1; // Mon=0
         int daysInMonth = month.lengthOfMonth();

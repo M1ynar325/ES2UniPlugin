@@ -333,7 +333,7 @@ final class ChestlessPages {
             hub.refresh(p);
         });
         hub.registerAction("ck.makeup", (p, s, raw) -> {
-            java.time.LocalDate day = java.time.LocalDate.now().minusDays(1);
+            java.time.LocalDate day = com.etherstories.escore.managers.CheckInManager.today().minusDays(1);
             if (raw != null && !raw.isBlank()) {
                 try { day = java.time.LocalDate.parse(raw); } catch (Exception ignored) {}
             }
@@ -1389,7 +1389,7 @@ final class ChestlessPages {
         if (raw != null) {
             try { return java.time.YearMonth.parse(raw); } catch (Exception ignored) {}
         }
-        return java.time.YearMonth.now();
+        return java.time.YearMonth.from(com.etherstories.escore.managers.CheckInManager.today());
     }
 
     private static HotelManager.Room hotelRoom(ES2UniPlugin plugin, Player p, String unitId) {
@@ -1661,7 +1661,7 @@ final class ChestlessPages {
         int streak = plugin.getCheckInManager().getStreak(p.getUniqueId());
         int mk = plugin.getCheckInManager().getMakeupTickets(p.getUniqueId());
         var ym = checkinMonth(s);
-        var today = java.time.LocalDate.now();
+        var today = com.etherstories.escore.managers.CheckInManager.today();
         var checked = plugin.getCheckInManager().getCheckedDaysInMonth(p.getUniqueId(), ym);
         out.add(TerminalButton.of("ck.do",
                 done ? EcosStyle.BOOK_JIQING + "今日已签 · 连" + streak
