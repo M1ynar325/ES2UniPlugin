@@ -25,7 +25,6 @@ import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.inventory.InventoryCreativeEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
-import org.bukkit.event.inventory.InventoryOpenEvent;
 import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.player.PlayerEditBookEvent;
@@ -2567,14 +2566,6 @@ public class GUIListener implements Listener {
         EcosHolder.forget(player.getUniqueId());
     }
 
-    @EventHandler
-    public void onInventoryOpen(InventoryOpenEvent event) {
-        if (!(event.getPlayer() instanceof Player player)) return;
-        if (!plugin.getAnvilInputGUI().isInInput(player)) return;
-        plugin.getAnvilInputGUI().cancel(player);
-        player.sendMessage(ColorUtil.colorize("&8[ECOS] &7已取消输入"));
-    }
-
     // ── Player quit: clean all GUI caches to prevent memory leaks ─────────────
 
     @EventHandler
@@ -2719,6 +2710,9 @@ public class GUIListener implements Listener {
             event.setCancelled(true);
             event.viewers().clear();
         }
+        if (plugin.getAnvilInputGUI().isInInput(player) && !isReplay(player.getUniqueId(), plain)) {
+            takeAnvilLine(player, plain);
+        }
     }
 
     @EventHandler(priority = org.bukkit.event.EventPriority.LOWEST)
@@ -2730,16 +2724,7 @@ public class GUIListener implements Listener {
 
         // 通用文本输入（原铁砧）：聊天确认
         if (plugin.getAnvilInputGUI().isInInput(player)) {
-            String msg = muteChat(event);
-            Bukkit.getScheduler().runTask(plugin, () -> {
-                if (msg.equalsIgnoreCase("cancel") || msg.equals("取消")) {
-                    plugin.getAnvilInputGUI().cancel(player);
-                    player.sendMessage(ColorUtil.colorize("&8[ECOS] &7已取消，回到上一页"));
-                    return;
-                }
-                plugin.getAnvilInputGUI().updateInput(player, msg);
-                plugin.getAnvilInputGUI().confirm(player);
-            });
+            takeAnvilLine(player, muteChat(event));
             return;
         }
 
@@ -3031,6 +3016,21 @@ public class GUIListener implements Listener {
         event.getRecipients().clear();
         chatSwallow.remove(uuid);
         return true;
+    }
+
+    private void takeAnvilLine(Player player, String msg) {
+        if (player == null || msg == null) return;
+        chatSwallow.put(player.getUniqueId(), new Swallow(msg, System.currentTimeMillis() + 2500));
+        Bukkit.getScheduler().runTask(plugin, () -> {
+            if (!plugin.getAnvilInputGUI().isInInput(player)) return;
+            if (msg.equalsIgnoreCase("cancel") || msg.equals("取消")) {
+                plugin.getAnvilInputGUI().cancel(player);
+                player.sendMessage(ColorUtil.colorize("&8[ECOS] &7已取消，回到上一页"));
+                return;
+            }
+            plugin.getAnvilInputGUI().updateInput(player, msg);
+            plugin.getAnvilInputGUI().confirm(player);
+        });
     }
 
     private String muteChat(AsyncPlayerChatEvent event) {

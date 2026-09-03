@@ -1143,10 +1143,6 @@ public class AnvilInputGUI {
         pending.put(player.getUniqueId(), new InputState(ctx, "", meta, placeholder));
 
         player.sendMessage(ColorUtil.colorize("&8[ECOS] &f" + title + " &8· &7" + loreHint));
-        boolean sample = placeholder != null && !placeholder.isEmpty() && !placeholder.contains("输入");
-        if (sample)
-            player.sendMessage(ColorUtil.colorize("&8聊天输入金额/名称，示例 &f" + placeholder + "  &8·  &fcancel &8取消并回到上一页"));
-        else
-            player.sendMessage(ColorUtil.colorize("&8合上书，在聊天输入。&fcancel &8取消并回到上一页"));
+        player.sendMessage(ColorUtil.colorize("&8下一句聊天只会交给终端，不会发到公屏。&fcancel &8取消"));
     }
 }

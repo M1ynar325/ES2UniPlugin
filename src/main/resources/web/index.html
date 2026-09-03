@@ -374,17 +374,7 @@ main{min-width:0}
     <span class=folio id=ver>v—</span>
     <button class=key type=button id=themeBtn>随系统</button>
     <div class="mebox hidden" id=mebox>
-      <button class=key type=button id=meBtn>我</button>
-      <div id=meMenu class="panel drop hidden">
-        <div class=cap>改签名</div>
-        <form id=statusForm class=form>
-          <input id=statusBox maxlength=40 placeholder="写下想让别人看见的一句话" autocomplete=off>
-          <div class=acts>
-            <button class="key on" type=submit>保存</button>
-            <button class=key type=button id=statusClr>清除</button>
-          </div>
-        </form>
-      </div>
+      <button class=key type=button id=meBtn>签名</button>
     </div>
     <div class=clock id=clock></div>
   </div>
@@ -428,6 +418,13 @@ main{min-width:0}
       <div>
         <h1 id=nm>--</h1>
         <p id=st>还没有写下签名</p>
+        <form id=statusForm class=form>
+          <input id=statusBox maxlength=40 placeholder="写下签名，别人在终端里能看见" autocomplete=off>
+          <div class=acts>
+            <button class="key on" type=submit>保存签名</button>
+            <button class=key type=button id=statusClr>清除</button>
+          </div>
+        </form>
         <p id=stay class=hidden></p>
         <p id=reqHint class="hint hidden" data-go=life data-tab=social></p>
       </div>
@@ -895,7 +892,6 @@ function applyGated(on){
   const mebox=$('#mebox');
   if(mebox) mebox.classList.toggle('hidden',!on);
   if(!on){
-    const m=$('#meMenu');if(m)m.classList.add('hidden');
     const btn=$('#pairForm button');if(btn) btn.disabled=false;
   }
   if(on) show(page);
@@ -1417,8 +1413,7 @@ function ask(text, fn, detail, okLabel){
   modal._fn=fn;
 }
 function openMe(){
-  const m=$('#meMenu');
-  if(m) m.classList.toggle('hidden');
+  focusStatus();
 }
 function paintTax(){
   const el=$('#payTax');
@@ -1580,13 +1575,18 @@ function doCheckin(){act({do:'checkin'})}
 $('#chkBtn').onclick=doCheckin;
 $('#chkBtn2').onclick=doCheckin;
 $('#shareBtn').onclick=()=>act({do:'friend.share'});
+function focusStatus(){
+  show('home');
+  const box=$('#statusBox');
+  if(box){box.focus();box.select()}
+}
 $('#statusForm').onsubmit=e=>{
   e.preventDefault();
-  act({do:'status',text:$('#statusBox').value},()=>{$('#meMenu').classList.add('hidden')});
+  act({do:'status',text:$('#statusBox').value});
 };
-$('#statusClr').onclick=()=>ask('清除签名？',()=>act({do:'status',text:''},()=>{$('#statusBox').value='';$('#meMenu').classList.add('hidden')}));
-$('#meBtn').onclick=e=>{e.stopPropagation();openMe()};
-$('#st').onclick=()=>{const m=$('#meMenu');if(m)m.classList.remove('hidden')};
+$('#statusClr').onclick=()=>ask('清除签名？',()=>act({do:'status',text:''},()=>{$('#statusBox').value=''}));
+$('#meBtn').onclick=e=>{e.stopPropagation();focusStatus()};
+$('#st').onclick=focusStatus;
 $('#payAmt').addEventListener('input',paintTax);
 $('#payForm').onsubmit=e=>{
   e.preventDefault();
@@ -1682,7 +1682,6 @@ function onLifeClick(e){
 $('#life').onclick=onLifeClick;
 $('#city').onclick=onLifeClick;
 document.addEventListener('click',e=>{
-  if(!e.target.closest('#mebox')){const m=$('#meMenu');if(m)m.classList.add('hidden')}
   if(e.target.closest('#life')||e.target.closest('#city')||e.target.closest('#card')||e.target.closest('#modal')||e.target.closest('#mebox')) return;
   const pick=e.target.closest('.pick');
   if(pick&&pick.dataset.name) pickName(pick.dataset.name);
