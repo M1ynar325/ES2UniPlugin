@@ -11,6 +11,7 @@ import org.bukkit.entity.Player;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class AnvilInputGUI {
 
@@ -39,7 +40,8 @@ public class AnvilInputGUI {
     }
 
     private final ES2UniPlugin plugin;
-    private final Map<UUID, InputState> pending = new HashMap<>();
+    // 输入态会被异步聊天线程读取（AsyncChatEvent / AsyncPlayerChatEvent），必须是并发容器
+    private final Map<UUID, InputState> pending = new ConcurrentHashMap<>();
     private final Map<UUID, JobDraft> jobDrafts = new HashMap<>();
     private final Map<UUID, String> estatePriceUnit = new HashMap<>();
     private final Map<UUID, String> hotelPriceUnit = new HashMap<>();
