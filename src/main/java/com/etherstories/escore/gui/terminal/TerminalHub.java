@@ -117,6 +117,11 @@ public final class TerminalHub {
             String id = actionId.substring(4).toLowerCase();
             TerminalPage page = pages.get(id);
             if (page == null || !page.visible(player)) return;
+            if (id.equals(session.pageId())) {
+                // 点的是当前这一页：内容一个字都不会变，refresh 只会白重开一次书。
+                playClick(player);
+                return;
+            }
             session.setPageId(id);
             playClick(player);
             view.refresh(player, session);

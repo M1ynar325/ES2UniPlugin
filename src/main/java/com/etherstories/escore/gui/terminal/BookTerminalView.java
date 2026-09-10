@@ -14,12 +14,20 @@ import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.BookMeta;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.List;
 
 /** 书本。Bungee 写页。按钮多时自动分页，避免一页写爆。 */
 public final class BookTerminalView implements TerminalView {
     private static final int BUTTONS_PER_PAGE = 12;
+    /**
+     * session.extra 里的键：该玩家上一次真正展示出来的渲染指纹。
+     * 跟着 TerminalSession 走，关终端 / 退服即随会话一起丢弃，不会只增不减。
+     */
+    private static final String FINGERPRINT_KEY = "book.fp";
     private final ES2UniPlugin plugin;
 
     public BookTerminalView(ES2UniPlugin plugin) {
@@ -29,20 +37,29 @@ public final class BookTerminalView implements TerminalView {
     @Override
     public void open(Player player, TerminalSession session) {
         try {
-            ItemStack book = build(player, session);
-            Bukkit.getScheduler().runTask(plugin, () -> {
-                if (!player.isOnline()) return;
-                try {
-                    player.openBook(book);
-                } catch (Throwable t) {
-                    plugin.getLogger().warning("openBook 失败，改聊天: " + t);
-                    new ChatTerminalView(plugin).open(player, session);
-                }
-            });
+            show(player, session, build(player, session));
         } catch (Throwable t) {
             plugin.getLogger().warning("写书失败，改聊天: " + t);
             new ChatTerminalView(plugin).open(player, session);
         }
+    }
+
+    /**
+     * 刷新。先照常构建新书，再和玩家上一次真正看到的渲染指纹比：
+     * 完全一致就直接不 openBook —— 重开也只会把页码打回第 1 页，纯属白折腾。
+     */
+    @Override
+    public void refresh(Player player, TerminalSession session) {
+        Rendered rendered;
+        try {
+            rendered = build(player, session);
+        } catch (Throwable t) {
+            plugin.getLogger().warning("写书失败，改聊天: " + t);
+            new ChatTerminalView(plugin).open(player, session);
+            return;
+        }
+        if (rendered.fingerprint().equals(session.get(FINGERPRINT_KEY))) return;
+        show(player, session, rendered);
     }
 
     @Override
@@ -52,7 +69,23 @@ public final class BookTerminalView implements TerminalView {
         }
     }
 
-    private ItemStack build(Player player, TerminalSession session) {
+    private void show(Player player, TerminalSession session, Rendered rendered) {
+        // 先把指纹记下：同一 tick 内重复 refresh 不必再 openBook 一次。
+        session.put(FINGERPRINT_KEY, rendered.fingerprint());
+        Bukkit.getScheduler().runTask(plugin, () -> {
+            if (!player.isOnline()) return;
+            try {
+                player.openBook(rendered.book());
+            } catch (Throwable t) {
+                // 没真正展示成功，清掉指纹，别让下一次刷新误判成"已展示过"。
+                session.put(FINGERPRINT_KEY, null);
+                plugin.getLogger().warning("openBook 失败，改聊天: " + t);
+                new ChatTerminalView(plugin).open(player, session);
+            }
+        });
+    }
+
+    private Rendered build(Player player, TerminalSession session) {
         TerminalHub hub = plugin.getTerminalHub();
         TerminalPage page = hub.page(session.pageId());
         String label = page == null ? "?" : page.label();
@@ -122,7 +155,43 @@ public final class BookTerminalView implements TerminalView {
         for (List<BaseComponent> bits : pages)
             meta.spigot().addPage(bits.toArray(BaseComponent[]::new));
         book.setItemMeta(meta);
-        return book;
+        return new Rendered(book, fingerprint(pages));
+    }
+
+    /** 书 + 它的渲染指纹，一次构建出来，免得刷新时重复写书。 */
+    private record Rendered(ItemStack book, String fingerprint) {}
+
+    /**
+     * 渲染指纹：逐页逐段的文本（含颜色格式）+ 点击目标 + 页边界。
+     * 只要玩家能看见或能点到的东西有一处不同，指纹就一定不同。
+     */
+    private static String fingerprint(List<List<BaseComponent>> pages) {
+        StringBuilder sb = new StringBuilder();
+        for (List<BaseComponent> bits : pages) {
+            for (BaseComponent bit : bits) {
+                sb.append(bit.toLegacyText());
+                ClickEvent click = bit.getClickEvent();
+                if (click != null) {
+                    sb.append('\u0001').append(click.getAction()).append('\u0002').append(click.getValue());
+                }
+                sb.append('\u0003');
+            }
+            sb.append('\u0004');
+        }
+        return sha256(sb.toString());
+    }
+
+    private static String sha256(String text) {
+        try {
+            byte[] hash = MessageDigest.getInstance("SHA-256").digest(text.getBytes(StandardCharsets.UTF_8));
+            StringBuilder hex = new StringBuilder(hash.length * 2);
+            for (byte b : hash) {
+                hex.append(Character.forDigit((b >> 4) & 0xF, 16)).append(Character.forDigit(b & 0xF, 16));
+            }
+            return hex.toString();
+        } catch (NoSuchAlgorithmException e) {
+            return Integer.toHexString(text.hashCode());
+        }
     }
 
     private static void addPlain(List<BaseComponent> bits, String colored) {
